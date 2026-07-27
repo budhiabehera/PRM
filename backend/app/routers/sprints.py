@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..deps import require_roles
 from ..utils.calculations import net_capacity
 
 router = APIRouter(prefix="/api/sprints", tags=["Sprints"])
@@ -54,7 +55,8 @@ def get_sprint(sprint_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=schemas.Sprint, status_code=201)
-def create_sprint(payload: schemas.SprintCreate, db: Session = Depends(get_db)):
+def create_sprint(payload: schemas.SprintCreate, db: Session = Depends(get_db),
+                   _user=Depends(require_roles("Admin", "Manager"))):
     if db.query(models.Sprint).filter(models.Sprint.name == payload.name).first():
         raise HTTPException(400, "Sprint already exists")
     sprint = models.Sprint(**payload.model_dump())
@@ -65,7 +67,8 @@ def create_sprint(payload: schemas.SprintCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{sprint_id}", response_model=schemas.Sprint)
-def update_sprint(sprint_id: int, payload: schemas.SprintUpdate, db: Session = Depends(get_db)):
+def update_sprint(sprint_id: int, payload: schemas.SprintUpdate, db: Session = Depends(get_db),
+                   _user=Depends(require_roles("Admin", "Manager"))):
     sprint = db.query(models.Sprint).get(sprint_id)
     if not sprint:
         raise HTTPException(404, "Sprint not found")
@@ -77,7 +80,8 @@ def update_sprint(sprint_id: int, payload: schemas.SprintUpdate, db: Session = D
 
 
 @router.delete("/{sprint_id}", status_code=204)
-def delete_sprint(sprint_id: int, db: Session = Depends(get_db)):
+def delete_sprint(sprint_id: int, db: Session = Depends(get_db),
+                   _user=Depends(require_roles("Admin", "Manager"))):
     sprint = db.query(models.Sprint).get(sprint_id)
     if not sprint:
         raise HTTPException(404, "Sprint not found")

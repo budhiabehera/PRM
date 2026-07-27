@@ -1,13 +1,20 @@
-"""Seeds the database with sample data mirroring the FX Resource & Sprint Dashboard
-prototype (projects, modules, resources, work types, sprints, tasks). Runs once —
-if projects already exist, seeding is skipped.
+"""Seeds the database with sample data mirroring the PRM (Project & Resource
+Management) prototype (projects, modules, resources, work types, sprints, tasks). Runs once —
+if projects already exist, that part of seeding is skipped. Default login users are
+seeded independently so upgrading an existing database still gets accounts created.
 """
 from datetime import date
 from sqlalchemy.orm import Session
 from . import models
+from .auth import hash_password
 
 
 def run_seed(db: Session):
+    _seed_core_data(db)
+    _seed_default_users(db)
+
+
+def _seed_core_data(db: Session):
     if db.query(models.Project).count() > 0:
         return  # already seeded
 
@@ -240,4 +247,31 @@ def run_seed(db: Session):
                              sprint_id=sprint_by_name["Aug-2026"].id, leave_days=3, notes="Vacation"),
     ])
 
+    db.commit()
+
+
+def _seed_default_users(db: Session):
+    if db.query(models.User).count() > 0:
+        return  # already seeded
+
+    def dev_id(name: str):
+        dev = db.query(models.Developer).filter(models.Developer.name == name).first()
+        return dev.id if dev else None
+
+    accounts = [
+        # username, password, full_name, role, linked developer (None for pure Admin)
+        ("admin", "Admin@123", "System Administrator", "Admin", None),
+        ("elango.manager", "Manager@123", "Elango Muthu Kumar", "Manager", dev_id("Elango Muthu Kumar")),
+        ("ramesh.lead", "Lead@123", "Ramesh Meda", "Lead", dev_id("Ramesh Meda")),
+        ("srishti.dev", "Dev@123", "Srishti Rawat", "Developer", dev_id("Srishti Rawat")),
+    ]
+    for username, password, full_name, role, linked_dev_id in accounts:
+        db.add(models.User(
+            username=username,
+            full_name=full_name,
+            role=role,
+            developer_id=linked_dev_id,
+            password_hash=hash_password(password),
+            active=True,
+        ))
     db.commit()

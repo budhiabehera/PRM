@@ -1,8 +1,8 @@
-# FX Resource & Sprint Dashboard
+# PRM — Project & Resource Management
 
 A full-stack resource, sprint, and task-tracking dashboard for a multi-project
 development team — built from the "Admin Panel" and "FX Resource & Sprint
-Dashboard" prototypes.
+Dashboard" prototypes, now branded as **PRM (Project & Resource Management)**.
 
 **Stack**
 - **Frontend:** React 18 + Vite + TailwindCSS
@@ -25,9 +25,24 @@ npm run dev
 ```
 
 Open `http://localhost:5173`. The database is created and seeded with sample
-data automatically on first backend startup.
+data automatically on first backend startup, including 4 demo login accounts
+(see below). See `docs/DEPLOYMENT.md` for Docker Compose instructions and
+production notes.
 
-See `docs/DEPLOYMENT.md` for Docker Compose instructions and production notes.
+## Login & roles
+
+The app requires login. Four demo accounts are seeded automatically:
+
+| Username | Password | Role |
+|---|---|---|
+| `admin` | `Admin@123` | Admin — full access |
+| `elango.manager` | `Manager@123` | Manager — full access except user management |
+| `ramesh.lead` | `Lead@123` | Lead — can create/edit/delete any task, no project/resource config |
+| `srishti.dev` | `Dev@123` | Developer — can only update status/hours on their own assigned tasks |
+
+The login page has one-click buttons to fill in each demo account. Full
+permission matrix and how to wire up real domain/SSO login: see
+`docs/AUTH_AND_ROLES.md`.
 
 ## What's included
 
@@ -47,8 +62,17 @@ See `docs/DEPLOYMENT.md` for Docker Compose instructions and production notes.
 - **Work Types** — category + customer-commitment flag management
 - **Sprints** — monthly sprint configuration with live capacity/utilization stats
 - **Assignments** — full task-creation form (project → module → sub-module → developer → work type → sprint) with recent-assignments list
+- **Salesforce Tasks** — daily log of every task created in PRM, filterable by date, customer, product, developer, work type, status, priority, and Salesforce sync state; sync any unsynced task to Salesforce directly from the list
 - **Availability** — same leave management as the Overview page
-- **Settings** — app info and capacity assumptions
+- **Users** — Admin-only login account management
+- **Settings** — app info, capacity assumptions, and Microsoft Teams / Salesforce integration configuration
+
+## Integrations
+
+PRM can post task notifications to a **Microsoft Teams** channel and sync
+tasks to **Salesforce** as Cases. Both are optional, off by default, and
+configured entirely from Admin → Settings (Admin role only) — no code changes
+needed. See `docs/INTEGRATIONS.md` for the exact setup steps for each.
 
 ## Project structure
 

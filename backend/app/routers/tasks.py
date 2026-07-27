@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..deps import get_current_user, can_edit_task, can_delete_task, restrict_fields_for_developer
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 
@@ -34,6 +35,8 @@ def _to_detail(t: models.Task) -> dict:
         "sprint_name": t.sprint.name if t.sprint else None,
         "percent_complete": t.percent_complete,
         "is_cross_month": t.is_cross_month,
+        "created_at": t.created_at,
+        "salesforce_case_id": t.salesforce_case_id,
     }
 
 
@@ -89,7 +92,13 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=schemas.TaskDetail, status_code=201)
-def create_task(payload: schemas.TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    payload: schemas.TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.role not in ("Admin", "Manager", "Lead"):
+        raise HTTPException(403, "Developers cannot create or assign new tasks.")
     data = payload.model_dump()
     task_code = data.pop("task_code", None)
     sprint = db.query(models.Sprint).get(data["sprint_id"]) if data.get("sprint_id") else None
@@ -103,11 +112,20 @@ def create_task(payload: schemas.TaskCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{task_id}", response_model=schemas.TaskDetail)
-def update_task(task_id: int, payload: schemas.TaskUpdate, db: Session = Depends(get_db)):
+def update_task(
+    task_id: int,
+    payload: schemas.TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     task = db.query(models.Task).get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    if not can_edit_task(current_user, task):
+        raise HTTPException(403, "You don't have permission to edit this task.")
+    update_data = payload.model_dump(exclude_unset=True)
+    update_data = restrict_fields_for_developer(current_user, update_data)
+    for key, value in update_data.items():
         setattr(task, key, value)
     db.commit()
     db.refresh(task)
@@ -115,9 +133,15 @@ def update_task(task_id: int, payload: schemas.TaskUpdate, db: Session = Depends
 
 
 @router.delete("/{task_id}", status_code=204)
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     task = db.query(models.Task).get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
+    if not can_delete_task(current_user):
+        raise HTTPException(403, "You don't have permission to delete tasks.")
     db.delete(task)
     db.commit()

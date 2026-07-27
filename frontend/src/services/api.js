@@ -1,9 +1,36 @@
 import axios from 'axios'
+import useAuthStore from '../store/useAuthStore'
 
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
 })
+
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      useAuthStore.getState().logout()
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+// ---------- Auth ----------
+export const login = (username, password) => api.post('/auth/login', { username, password }).then(r => r.data)
+export const getMe = () => api.get('/auth/me').then(r => r.data)
+export const getUsers = () => api.get('/auth/users').then(r => r.data)
+export const createUser = (data) => api.post('/auth/users', data).then(r => r.data)
+export const deleteUser = (id) => api.delete(`/auth/users/${id}`)
 
 // ---------- Projects ----------
 export const getProjects = () => api.get('/projects').then(r => r.data)
@@ -70,5 +97,18 @@ export const getUtilizationGrid = () => api.get('/utilization/grid').then(r => r
 // ---------- Timeline ----------
 export const getGanttData = (params) => api.get('/timeline/gantt', { params }).then(r => r.data)
 export const getMonthlyAllocation = () => api.get('/timeline/monthly-allocation').then(r => r.data)
+
+// ---------- Integrations (MS Teams / Salesforce) ----------
+export const getIntegrationSettings = () => api.get('/integrations/settings').then(r => r.data)
+export const updateIntegrationSettings = (data) => api.put('/integrations/settings', data).then(r => r.data)
+export const testTeamsIntegration = () => api.post('/integrations/teams/test').then(r => r.data)
+export const testSalesforceIntegration = () => api.post('/integrations/salesforce/test').then(r => r.data)
+export const notifyTeamsForTask = (taskId) => api.post(`/integrations/tasks/${taskId}/notify-teams`).then(r => r.data)
+export const syncTaskToSalesforce = (taskId) => api.post(`/integrations/tasks/${taskId}/sync-salesforce`).then(r => r.data)
+
+// ---------- Reports (Salesforce Tasks) ----------
+export const getSalesforceTasksReport = (params) => api.get('/reports/salesforce-tasks', { params }).then(r => r.data)
+export const getReportCustomers = () => api.get('/reports/customers').then(r => r.data)
+export const getDailyCreatedCounts = (days = 14) => api.get('/reports/daily-created-counts', { params: { days } }).then(r => r.data)
 
 export default api

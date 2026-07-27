@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 
@@ -182,6 +182,58 @@ class TaskDetail(Task):
     sprint_name: Optional[str] = None
     percent_complete: int = 0
     is_cross_month: bool = False
+    created_at: Optional[datetime] = None
+    salesforce_case_id: Optional[str] = None
+
+
+# ---------- Auth / Users ----------
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    full_name: str
+    email: Optional[str] = None
+    role: str = "Developer"  # Admin, Manager, Lead, Developer
+    developer_id: Optional[int] = None
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    username: str
+    full_name: str
+    email: Optional[str] = None
+    role: str
+    developer_id: Optional[int] = None
+    active: bool
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+
+# ---------- Integrations ----------
+class IntegrationSettingsIn(BaseModel):
+    teams_enabled: bool = False
+    teams_webhook_url: Optional[str] = None
+    salesforce_enabled: bool = False
+    salesforce_login_url: str = "https://login.salesforce.com"
+    salesforce_client_id: Optional[str] = None
+    salesforce_client_secret: Optional[str] = None
+    salesforce_username: Optional[str] = None
+    salesforce_password: Optional[str] = None
+    salesforce_security_token: Optional[str] = None
+
+
+class IntegrationSettingsOut(IntegrationSettingsIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
 
 
 # ---------- Dashboard aggregates ----------

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..deps import require_roles
 
 router = APIRouter(prefix="/api/modules", tags=["Modules"])
 
@@ -40,7 +41,8 @@ def module_tree(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=schemas.MainModule, status_code=201)
-def create_main_module(payload: schemas.MainModuleCreate, db: Session = Depends(get_db)):
+def create_main_module(payload: schemas.MainModuleCreate, db: Session = Depends(get_db),
+                        _user=Depends(require_roles("Admin", "Manager"))):
     if db.query(models.MainModule).filter(models.MainModule.name == payload.name).first():
         raise HTTPException(400, "Main module already exists")
     module = models.MainModule(**payload.model_dump())
@@ -51,7 +53,8 @@ def create_main_module(payload: schemas.MainModuleCreate, db: Session = Depends(
 
 
 @router.put("/{module_id}", response_model=schemas.MainModule)
-def update_main_module(module_id: int, payload: schemas.MainModuleCreate, db: Session = Depends(get_db)):
+def update_main_module(module_id: int, payload: schemas.MainModuleCreate, db: Session = Depends(get_db),
+                        _user=Depends(require_roles("Admin", "Manager"))):
     module = db.query(models.MainModule).get(module_id)
     if not module:
         raise HTTPException(404, "Main module not found")
@@ -63,7 +66,8 @@ def update_main_module(module_id: int, payload: schemas.MainModuleCreate, db: Se
 
 
 @router.delete("/{module_id}", status_code=204)
-def delete_main_module(module_id: int, db: Session = Depends(get_db)):
+def delete_main_module(module_id: int, db: Session = Depends(get_db),
+                        _user=Depends(require_roles("Admin", "Manager"))):
     module = db.query(models.MainModule).get(module_id)
     if not module:
         raise HTTPException(404, "Main module not found")
@@ -84,7 +88,8 @@ def list_sub_modules(main_module_id: int | None = None, db: Session = Depends(ge
 
 
 @sub_router.post("", response_model=schemas.SubModule, status_code=201)
-def create_sub_module(payload: schemas.SubModuleCreate, db: Session = Depends(get_db)):
+def create_sub_module(payload: schemas.SubModuleCreate, db: Session = Depends(get_db),
+                       _user=Depends(require_roles("Admin", "Manager"))):
     sub = models.SubModule(**payload.model_dump())
     db.add(sub)
     db.commit()
@@ -93,7 +98,8 @@ def create_sub_module(payload: schemas.SubModuleCreate, db: Session = Depends(ge
 
 
 @sub_router.put("/{sub_id}", response_model=schemas.SubModule)
-def update_sub_module(sub_id: int, payload: schemas.SubModuleCreate, db: Session = Depends(get_db)):
+def update_sub_module(sub_id: int, payload: schemas.SubModuleCreate, db: Session = Depends(get_db),
+                       _user=Depends(require_roles("Admin", "Manager"))):
     sub = db.query(models.SubModule).get(sub_id)
     if not sub:
         raise HTTPException(404, "Sub module not found")
@@ -105,7 +111,8 @@ def update_sub_module(sub_id: int, payload: schemas.SubModuleCreate, db: Session
 
 
 @sub_router.delete("/{sub_id}", status_code=204)
-def delete_sub_module(sub_id: int, db: Session = Depends(get_db)):
+def delete_sub_module(sub_id: int, db: Session = Depends(get_db),
+                       _user=Depends(require_roles("Admin", "Manager"))):
     sub = db.query(models.SubModule).get(sub_id)
     if not sub:
         raise HTTPException(404, "Sub module not found")

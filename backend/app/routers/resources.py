@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..deps import require_roles
 from ..utils.calculations import utilization_status
 
 router = APIRouter(prefix="/api/resources", tags=["Resources"])
@@ -69,7 +70,8 @@ def get_resource(dev_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=schemas.Developer, status_code=201)
-def create_resource(payload: schemas.DeveloperCreate, db: Session = Depends(get_db)):
+def create_resource(payload: schemas.DeveloperCreate, db: Session = Depends(get_db),
+                     _user=Depends(require_roles("Admin", "Manager"))):
     if db.query(models.Developer).filter(models.Developer.dev_code == payload.dev_code).first():
         raise HTTPException(400, "Developer code already exists")
     dev = models.Developer(**payload.model_dump())
@@ -80,7 +82,8 @@ def create_resource(payload: schemas.DeveloperCreate, db: Session = Depends(get_
 
 
 @router.put("/{dev_id}", response_model=schemas.Developer)
-def update_resource(dev_id: int, payload: schemas.DeveloperUpdate, db: Session = Depends(get_db)):
+def update_resource(dev_id: int, payload: schemas.DeveloperUpdate, db: Session = Depends(get_db),
+                     _user=Depends(require_roles("Admin", "Manager"))):
     dev = db.query(models.Developer).get(dev_id)
     if not dev:
         raise HTTPException(404, "Developer not found")
@@ -92,7 +95,8 @@ def update_resource(dev_id: int, payload: schemas.DeveloperUpdate, db: Session =
 
 
 @router.delete("/{dev_id}", status_code=204)
-def delete_resource(dev_id: int, db: Session = Depends(get_db)):
+def delete_resource(dev_id: int, db: Session = Depends(get_db),
+                     _user=Depends(require_roles("Admin", "Manager"))):
     dev = db.query(models.Developer).get(dev_id)
     if not dev:
         raise HTTPException(404, "Developer not found")

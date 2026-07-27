@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..deps import require_roles
 
 router = APIRouter(prefix="/api/work-types", tags=["Work Types"])
 
@@ -28,7 +29,8 @@ def list_work_types(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=schemas.WorkType, status_code=201)
-def create_work_type(payload: schemas.WorkTypeCreate, db: Session = Depends(get_db)):
+def create_work_type(payload: schemas.WorkTypeCreate, db: Session = Depends(get_db),
+                      _user=Depends(require_roles("Admin", "Manager"))):
     if db.query(models.WorkType).filter(models.WorkType.name == payload.name).first():
         raise HTTPException(400, "Work type already exists")
     wt = models.WorkType(**payload.model_dump())
@@ -39,7 +41,8 @@ def create_work_type(payload: schemas.WorkTypeCreate, db: Session = Depends(get_
 
 
 @router.put("/{wt_id}", response_model=schemas.WorkType)
-def update_work_type(wt_id: int, payload: schemas.WorkTypeCreate, db: Session = Depends(get_db)):
+def update_work_type(wt_id: int, payload: schemas.WorkTypeCreate, db: Session = Depends(get_db),
+                      _user=Depends(require_roles("Admin", "Manager"))):
     wt = db.query(models.WorkType).get(wt_id)
     if not wt:
         raise HTTPException(404, "Work type not found")
@@ -51,7 +54,8 @@ def update_work_type(wt_id: int, payload: schemas.WorkTypeCreate, db: Session = 
 
 
 @router.delete("/{wt_id}", status_code=204)
-def delete_work_type(wt_id: int, db: Session = Depends(get_db)):
+def delete_work_type(wt_id: int, db: Session = Depends(get_db),
+                      _user=Depends(require_roles("Admin", "Manager"))):
     wt = db.query(models.WorkType).get(wt_id)
     if not wt:
         raise HTTPException(404, "Work type not found")

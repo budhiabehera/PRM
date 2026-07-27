@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..deps import require_roles
 
 router = APIRouter(prefix="/api/availability", tags=["Availability"])
 
@@ -33,7 +34,8 @@ def list_availability(
 
 
 @router.post("", response_model=schemas.Availability, status_code=201)
-def upsert_availability(payload: schemas.AvailabilityCreate, db: Session = Depends(get_db)):
+def upsert_availability(payload: schemas.AvailabilityCreate, db: Session = Depends(get_db),
+                         _user=Depends(require_roles("Admin", "Manager", "Lead"))):
     existing = (
         db.query(models.Availability)
         .filter(
@@ -56,7 +58,8 @@ def upsert_availability(payload: schemas.AvailabilityCreate, db: Session = Depen
 
 
 @router.delete("/{availability_id}", status_code=204)
-def delete_availability(availability_id: int, db: Session = Depends(get_db)):
+def delete_availability(availability_id: int, db: Session = Depends(get_db),
+                         _user=Depends(require_roles("Admin", "Manager", "Lead"))):
     record = db.query(models.Availability).get(availability_id)
     if not record:
         raise HTTPException(404, "Availability record not found")

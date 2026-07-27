@@ -30,8 +30,23 @@ Task (tasks)
  │   project_id (FK), main_module_id (FK), sub_module_id (FK),
  │   developer_id (FK), work_type_id (FK), sprint_id (FK),
  │   priority, status, customer_committed,
- │   start_date, end_date, estimated_hours, actual_hours
+ │   start_date, end_date, estimated_hours, actual_hours,
+ │   created_at, salesforce_case_id
 ```
+
+`created_at` is set automatically when a task is created (used by the Admin >
+Salesforce Tasks daily report — distinct from `start_date`, which is the
+planned work date and can be in the past or future). `salesforce_case_id` is
+populated once a task has been pushed to Salesforce (see
+`docs/INTEGRATIONS.md`) and is kept separate from `case_ref`, which may hold
+an unrelated internal case number.
+
+### Upgrading an existing database
+
+`app/database.py` runs a small startup migration (`run_lightweight_migrations`)
+that adds any newly-introduced columns to an existing SQLite database without
+touching your data — so pulling a newer version of PRM and restarting the
+backend is enough; you don't need to delete `resource_tracker.db`.
 
 ## Entity relationship summary
 

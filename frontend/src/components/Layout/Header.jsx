@@ -1,14 +1,36 @@
+import { useNavigate } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
+import useAuthStore from '../../store/useAuthStore'
+
 export default function Header() {
+  const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <header className="fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between px-8 z-50">
       <h1 className="text-[17px] font-semibold flex items-center gap-2.5">
-        FX Resource & Sprint Dashboard
+        <img src="/logo.png" alt="PRM" className="w-8 h-8 rounded-md object-cover" />
+        PRM <span className="font-normal text-slate-300">— Project & Resource Management</span>
         <span className="text-[10px] bg-indigo-600 px-2.5 py-0.5 rounded-full font-normal">
           50-dev team · Jul–Dec 2026
         </span>
       </h1>
-      <div className="flex items-center gap-4 text-xs">
-        <div className="bg-white/10 px-3.5 py-1.5 rounded-full">👤 Admin — Budhia Behra</div>
+      <div className="flex items-center gap-3 text-xs">
+        <div className="bg-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
+          👤 {user?.full_name || 'User'}
+          <span className="text-[10px] bg-white/15 px-2 py-0.5 rounded-full">{user?.role}</span>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full transition-colors"
+        >
+          <LogOut size={13} /> Logout
+        </button>
       </div>
     </header>
   )

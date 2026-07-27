@@ -1,66 +1,74 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
-  GanttChartSquare, FolderKanban, Boxes, UserCog, Tag, Settings, ClipboardList,
+  GanttChartSquare, FolderKanban, Boxes, UserCog, Tag, Settings, ClipboardList, ShieldCheck, Cloud,
 } from 'lucide-react'
+import useAuthStore from '../../store/useAuthStore'
 
-const navSections = [
-  {
-    title: 'Overview',
-    items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/sprint', label: 'Sprint View', icon: CalendarRange },
-      { to: '/tasks', label: 'Tasks', icon: ListChecks },
-      { to: '/team', label: 'Team', icon: Users },
-      { to: '/utilization', label: 'Utilization', icon: Gauge },
-      { to: '/availability', label: 'Availability', icon: CalendarClock },
-      { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
-    ],
-  },
-  {
-    title: 'Admin — Configuration',
-    items: [
-      { to: '/admin/projects', label: 'Projects', icon: FolderKanban },
-      { to: '/admin/modules', label: 'Modules', icon: Boxes },
-      { to: '/admin/resources', label: 'Resources', icon: UserCog },
-      { to: '/admin/work-types', label: 'Work Types', icon: Tag },
-      { to: '/admin/sprints', label: 'Sprints', icon: CalendarRange },
-      { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList },
-    ],
-  },
-  {
-    title: 'System',
-    items: [
-      { to: '/admin/settings', label: 'Settings', icon: Settings },
-    ],
-  },
+const OVERVIEW_ITEMS = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/sprint', label: 'Sprint View', icon: CalendarRange },
+  { to: '/tasks', label: 'Tasks', icon: ListChecks },
+  { to: '/team', label: 'Team', icon: Users },
+  { to: '/utilization', label: 'Utilization', icon: Gauge },
+  { to: '/availability', label: 'Availability', icon: CalendarClock },
+  { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
+]
+
+// Each admin item declares which roles may see it.
+const ADMIN_ITEMS = [
+  { to: '/admin/projects', label: 'Projects', icon: FolderKanban, roles: ['Admin', 'Manager'] },
+  { to: '/admin/modules', label: 'Modules', icon: Boxes, roles: ['Admin', 'Manager'] },
+  { to: '/admin/resources', label: 'Resources', icon: UserCog, roles: ['Admin', 'Manager'] },
+  { to: '/admin/work-types', label: 'Work Types', icon: Tag, roles: ['Admin', 'Manager'] },
+  { to: '/admin/sprints', label: 'Sprints', icon: CalendarRange, roles: ['Admin', 'Manager'] },
+  { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/admin/salesforce-tasks', label: 'Salesforce Tasks', icon: Cloud, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/admin/users', label: 'Users', icon: ShieldCheck, roles: ['Admin'] },
 ]
 
 export default function Sidebar() {
+  const role = useAuthStore((s) => s.user?.role)
+  const visibleAdminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(role))
+
+  const linkClass = ({ isActive }) =>
+    `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
+      isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+    }`
+
   return (
     <aside className="fixed left-0 top-14 bottom-0 w-56 bg-white border-r border-slate-200 overflow-y-auto py-5 z-40">
-      {navSections.map((section) => (
-        <div key={section.title} className="px-4 mb-5">
+      <div className="px-4 mb-5">
+        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">Overview</div>
+        {OVERVIEW_ITEMS.map(({ to, label, icon: Icon }) => (
+          <NavLink key={to} to={to} end={to === '/'} className={linkClass}>
+            <Icon size={15} />
+            {label}
+          </NavLink>
+        ))}
+      </div>
+
+      {visibleAdminItems.length > 0 && (
+        <div className="px-4 mb-5">
           <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">
-            {section.title}
+            Admin — Configuration
           </div>
-          {section.items.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
-                  isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`
-              }
-            >
+          {visibleAdminItems.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className={linkClass}>
               <Icon size={15} />
               {label}
             </NavLink>
           ))}
         </div>
-      ))}
+      )}
+
+      <div className="px-4 mb-5">
+        <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">System</div>
+        <NavLink to="/admin/settings" className={linkClass}>
+          <Settings size={15} />
+          Settings
+        </NavLink>
+      </div>
     </aside>
   )
 }

@@ -1,8 +1,47 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text
+    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from .database import Base
+
+
+class IntegrationSettings(Base):
+    """Singleton row (id=1) holding external integration configuration.
+    Editable only by Admins via Admin > Settings."""
+    __tablename__ = "integration_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    teams_enabled = Column(Boolean, default=False)
+    teams_webhook_url = Column(String(500), nullable=True)
+
+    salesforce_enabled = Column(Boolean, default=False)
+    salesforce_login_url = Column(String(255), default="https://login.salesforce.com")
+    salesforce_client_id = Column(String(255), nullable=True)
+    salesforce_client_secret = Column(String(255), nullable=True)
+    salesforce_username = Column(String(255), nullable=True)
+    salesforce_password = Column(String(255), nullable=True)
+    salesforce_security_token = Column(String(255), nullable=True)
+
+
+class User(Base):
+    """Login account. Roles: Admin, Manager, Lead, Developer.
+    Optionally linked to a Developer record (so a Lead/Developer's task
+    permissions can be scoped to "their own" tasks/module)."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(150), unique=True, nullable=True)
+    full_name = Column(String(150), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="Developer")  # Admin, Manager, Lead, Developer
+    developer_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    developer = relationship("Developer", back_populates="user_account")
 
 
 class MainModule(Base):
@@ -60,6 +99,7 @@ class Developer(Base):
     home_module = relationship("MainModule", back_populates="developers")
     tasks = relationship("Task", back_populates="developer")
     availabilities = relationship("Availability", back_populates="developer", cascade="all, delete-orphan")
+    user_account = relationship("User", back_populates="developer", uselist=False)
 
 
 class WorkType(Base):
@@ -109,6 +149,15 @@ class Task(Base):
     end_date = Column(Date, nullable=True)
     estimated_hours = Column(Float, default=0)
     actual_hours = Column(Float, default=0)
+
+    # When this task record was actually created in PRM (distinct from start_date,
+    # which is the planned work date and can be set in the future/past). Powers
+    # the "tasks created every day" Salesforce Tasks report.
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Set once a task has been pushed to Salesforce as a Case (see
+    # app/integrations/salesforce.py). Kept separate from `case_ref` so an
+    # internal case number a user typed in isn't overwritten by the sync.
+    salesforce_case_id = Column(String(30), nullable=True)
 
     project = relationship("Project", back_populates="tasks")
     main_module = relationship("MainModule", back_populates="tasks")

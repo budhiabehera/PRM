@@ -1,7 +1,15 @@
 import { useState } from 'react'
 
-export default function AvailabilityForm({ resources = [], sprints = [], onSubmit, onCancel }) {
-  const [form, setForm] = useState({ developer_id: '', sprint_id: '', leave_days: 0, notes: '' })
+export default function AvailabilityForm({
+  resources = [], sprints = [], onSubmit, onCancel,
+  lockDeveloper = false, defaultDeveloperId,
+}) {
+  const [form, setForm] = useState({
+    developer_id: defaultDeveloperId ? String(defaultDeveloperId) : '',
+    sprint_id: '',
+    leave_days: 0,
+    notes: '',
+  })
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }))
 
   const handleSubmit = () => {
@@ -19,10 +27,16 @@ export default function AvailabilityForm({ resources = [], sprints = [], onSubmi
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <label className="form-label">Developer *</label>
-          <select className="form-select" value={form.developer_id} onChange={(e) => update('developer_id', e.target.value)}>
+          <select
+            className="form-select"
+            value={form.developer_id}
+            onChange={(e) => update('developer_id', e.target.value)}
+            disabled={lockDeveloper}
+          >
             <option value="">Select Developer...</option>
             {resources.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
+          {lockDeveloper && <span className="text-[10px] text-slate-400">Your own leave</span>}
         </div>
         <div className="flex flex-col gap-1">
           <label className="form-label">Sprint / Month *</label>
@@ -43,7 +57,7 @@ export default function AvailabilityForm({ resources = [], sprints = [], onSubmi
         </div>
       </div>
       <div className="flex gap-2 mt-5">
-        <button className="btn btn-primary" onClick={handleSubmit}>Save Availability</button>
+        <button className="btn btn-primary" onClick={handleSubmit}>Save Leave</button>
         <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
       </div>
     </div>

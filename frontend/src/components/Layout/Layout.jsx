@@ -10,7 +10,7 @@ export default function Layout() {
     <div>
       <Header />
       <Sidebar />
-      <main className={`pt-14 min-h-screen transition-all duration-200 ${sidebarCollapsed ? 'ml-16' : 'ml-56'}`}>
+      <main className={`pt-14 min-h-screen transition-all duration-200 ${sidebarCollapsed ? 'ml-[72px]' : 'ml-56'}`}>
         <div className="p-7">
           <Outlet />
         </div>

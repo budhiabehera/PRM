@@ -40,7 +40,8 @@ export const canEditTask = (user, task) => {
   return user.role === 'Developer' && user.developer_id != null && task.developer_id === user.developer_id
 }
 export const canDeleteTask = (user) => isLeadOrAbove(user)
-export const canCreateTask = (user) => isLeadOrAbove(user)
+// Developers can create tasks (backend will force self-assignment)
+export const canCreateTask = (user) => !!user && (isLeadOrAbove(user) || (user.role === 'Developer' && user.developer_id != null))
 export const canManageAdminConfig = (user) => isManagerOrAbove(user)
 
 export default useAuthStore

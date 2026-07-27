@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import useApi from '../../hooks/useApi'
 import useAppStore from '../../store/useAppStore'
+import useDropdowns from '../../hooks/useDropdowns'
 import {
   getModuleTree, getMainModules, createMainModule, createSubModule, deleteSubModule,
 } from '../../services/api'
@@ -10,6 +11,7 @@ import ModuleForm from '../../components/forms/ModuleForm'
 
 export default function AdminModulesPage() {
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
+  const { projects } = useDropdowns()
   const { data: tree, loading: l1, reload: reloadTree } = useApi(getModuleTree, [])
   const { data: mainModules, loading: l2, reload: reloadModules } = useApi(getMainModules, [])
   const [showForm, setShowForm] = useState(false)
@@ -58,6 +60,7 @@ export default function AdminModulesPage() {
           <div className="text-[15px] font-semibold mb-4">➕ Add New Module / Sub-Module</div>
           <ModuleForm
             mainModules={mainModules}
+            projects={projects}
             onSubmitMainModule={handleSubmitMain}
             onSubmitSubModule={handleSubmitSub}
             onCancel={() => setShowForm(false)}

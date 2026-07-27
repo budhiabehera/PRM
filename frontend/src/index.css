@@ -39,3 +39,19 @@ table.data-table td {
   @apply py-3 px-3 text-slate-800 border-b border-slate-100 align-middle;
 }
 table.data-table tr:hover td { @apply bg-slate-50; }
+
+/* Thin scrollbar for sidebar — almost invisible when collapsed */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}

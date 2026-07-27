@@ -29,6 +29,7 @@ import TimeVariancePage from './pages/reports/TimeVariancePage'
 
 const ADMIN_MANAGER = ['Admin', 'Manager']
 const ADMIN_MANAGER_LEAD = ['Admin', 'Manager', 'Lead']
+const NON_DEVELOPER = ['Admin', 'Manager', 'Lead']
 
 export default function App() {
   return (
@@ -37,13 +38,18 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
+          {/* Available to all roles (Developer sees own data only) */}
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/sprint" element={<SprintPage />} />
           <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/team" element={<TeamPage />} />
           <Route path="/utilization" element={<UtilizationPage />} />
           <Route path="/availability" element={<AvailabilityPage />} />
-          <Route path="/timeline" element={<TimelinePage />} />
+
+          {/* Not available to Developer role */}
+          <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>
+            <Route path="/sprint" element={<SprintPage />} />
+            <Route path="/team" element={<TeamPage />} />
+            <Route path="/timeline" element={<TimelinePage />} />
+          </Route>
 
           <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER} />}>
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
@@ -65,7 +71,9 @@ export default function App() {
           </Route>
 
           <Route path="/admin/availability" element={<AdminAvailabilityPage />} />
-          <Route path="/admin/settings" element={<AdminSettingsPage />} />
+          <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>
+            <Route path="/admin/settings" element={<AdminSettingsPage />} />
+          </Route>
         </Route>
       </Route>
     </Routes>

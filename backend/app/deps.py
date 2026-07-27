@@ -52,7 +52,11 @@ def can_delete_task(user: models.User) -> bool:
     return user.role in ("Admin", "Manager", "Lead")
 
 
-DEVELOPER_EDITABLE_FIELDS = {"status", "actual_hours"}
+DEVELOPER_EDITABLE_FIELDS = {
+    "status", "actual_hours", "description", "estimated_hours",
+    "start_date", "end_date", "case_ref", "property_client",
+    "project_id", "main_module_id", "sub_module_id", "work_type_id", "sprint_id", "priority",
+}
 
 
 def restrict_fields_for_developer(user: models.User, update_data: dict) -> dict:

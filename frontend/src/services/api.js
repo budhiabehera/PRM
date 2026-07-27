@@ -84,16 +84,16 @@ export const upsertAvailability = (data) => api.post('/availability', data).then
 export const deleteAvailability = (id) => api.delete(`/availability/${id}`)
 
 // ---------- Dashboard ----------
-export const getKpis = () => api.get('/dashboard/kpis').then(r => r.data)
-export const getStatusBreakdown = () => api.get('/dashboard/status-breakdown').then(r => r.data)
-export const getProjectBreakdown = () => api.get('/dashboard/project-breakdown').then(r => r.data)
-export const getWorkTypeBreakdown = () => api.get('/dashboard/work-type-breakdown').then(r => r.data)
-export const getModuleBreakdown = () => api.get('/dashboard/module-breakdown').then(r => r.data)
-export const getSubModuleBreakdown = () => api.get('/dashboard/sub-module-breakdown').then(r => r.data)
-export const getMonthlyUtilization = () => api.get('/dashboard/monthly-utilization').then(r => r.data)
+export const getKpis = (params) => api.get('/dashboard/kpis', { params }).then(r => r.data)
+export const getStatusBreakdown = (params) => api.get('/dashboard/status-breakdown', { params }).then(r => r.data)
+export const getProjectBreakdown = (params) => api.get('/dashboard/project-breakdown', { params }).then(r => r.data)
+export const getWorkTypeBreakdown = (params) => api.get('/dashboard/work-type-breakdown', { params }).then(r => r.data)
+export const getModuleBreakdown = (params) => api.get('/dashboard/module-breakdown', { params }).then(r => r.data)
+export const getSubModuleBreakdown = (params) => api.get('/dashboard/sub-module-breakdown', { params }).then(r => r.data)
+export const getMonthlyUtilization = (params) => api.get('/dashboard/monthly-utilization', { params }).then(r => r.data)
 
 // ---------- Utilization ----------
-export const getUtilizationGrid = () => api.get('/utilization/grid').then(r => r.data)
+export const getUtilizationGrid = (params) => api.get('/utilization/grid', { params }).then(r => r.data)
 
 // ---------- Timeline ----------
 export const getGanttData = (params) => api.get('/timeline/gantt', { params }).then(r => r.data)

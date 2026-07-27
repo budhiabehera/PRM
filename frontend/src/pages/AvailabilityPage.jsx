@@ -11,7 +11,10 @@ export default function AvailabilityPage() {
   const { resources, sprints } = useDropdowns()
   const user = useAuthStore((s) => s.user)
   const canManage = isLeadOrAbove(user)
-  const { data: records, loading, reload } = useApi(getAvailability, [])
+  const isDeveloper = user?.role === 'Developer'
+  const devParams = isDeveloper && user?.developer_id ? { developer_id: user.developer_id } : undefined
+
+  const { data: records, loading, reload } = useApi(() => getAvailability(devParams), [user?.developer_id])
   const [modalOpen, setModalOpen] = useState(false)
 
   const handleSubmit = async (form) => {
@@ -25,28 +28,43 @@ export default function AvailabilityPage() {
     reload()
   }
 
+  // Developers can add their own leave; Leads+ can add for anyone
+  const canAddLeave = canManage || (isDeveloper && user?.developer_id)
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Availability</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Leave days that reduce a developer's net capacity for a sprint</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isDeveloper ? 'Your leave days that reduce your net capacity' : 'Leave days that reduce a developer\'s net capacity for a sprint'}
+          </p>
         </div>
-        {canManage && <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Set Leave</button>}
+        {canAddLeave && <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Add Leave</button>}
       </div>
 
       <div className="card">
         {loading ? <LoadingSpinner /> : (
           <table className="data-table">
-            <thead><tr><th>Developer</th><th>Sprint</th><th>Leave Days</th><th>Notes</th>{canManage && <th>Actions</th>}</tr></thead>
+            <thead>
+              <tr>
+                {!isDeveloper && <th>Developer</th>}
+                <th>Sprint</th>
+                <th>Leave Days</th>
+                <th>Notes</th>
+                {canAddLeave && <th>Actions</th>}
+              </tr>
+            </thead>
             <tbody>
-              {records.map((r) => (
+              {records.length === 0 ? (
+                <tr><td colSpan={isDeveloper ? 4 : 5} className="text-center text-slate-400 py-8">No leave records yet</td></tr>
+              ) : records.map((r) => (
                 <tr key={r.id}>
-                  <td className="font-medium">{r.developer_name}</td>
+                  {!isDeveloper && <td className="font-medium">{r.developer_name}</td>}
                   <td>{r.sprint_name}</td>
                   <td>{r.leave_days}</td>
                   <td className="text-slate-500">{r.notes || '—'}</td>
-                  {canManage && (
+                  {canAddLeave && (
                     <td>
                       <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>Remove</button>
                     </td>
@@ -58,9 +76,16 @@ export default function AvailabilityPage() {
         )}
       </div>
 
-      {canManage && (
-        <Modal open={modalOpen} title="Set Developer Leave" onClose={() => setModalOpen(false)}>
-          <AvailabilityForm resources={resources} sprints={sprints} onSubmit={handleSubmit} onCancel={() => setModalOpen(false)} />
+      {canAddLeave && (
+        <Modal open={modalOpen} title={isDeveloper ? 'Add My Leave' : 'Set Developer Leave'} onClose={() => setModalOpen(false)}>
+          <AvailabilityForm
+            resources={resources}
+            sprints={sprints}
+            onSubmit={handleSubmit}
+            onCancel={() => setModalOpen(false)}
+            lockDeveloper={isDeveloper}
+            defaultDeveloperId={isDeveloper ? user.developer_id : undefined}
+          />
         </Modal>
       )}
     </div>

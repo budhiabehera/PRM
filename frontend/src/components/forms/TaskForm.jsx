@@ -5,7 +5,7 @@ import { validateTaskForm } from '../../utils/validators'
 
 export default function TaskForm({
   initial, projects = [], mainModules = [], subModules = [], resources = [], workTypes = [], sprints = [],
-  onSubmit, onCancel,
+  onSubmit, onCancel, lockDeveloper = false,
 }) {
   const [form, setForm] = useState({
     case_ref: initial?.case_ref || '',
@@ -96,10 +96,11 @@ export default function TaskForm({
         </div>
         <div className="flex flex-col gap-1">
           <label className="form-label">Assign Developer *</label>
-          <select className="form-select" value={form.developer_id} onChange={(e) => update('developer_id', e.target.value)}>
+          <select className="form-select" value={form.developer_id} onChange={(e) => update('developer_id', e.target.value)} disabled={lockDeveloper}>
             <option value="">Select Developer...</option>
             {resources.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.role}, {d.skill})</option>)}
           </select>
+          {lockDeveloper && <span className="text-[10px] text-slate-400">Auto-assigned to you</span>}
           {errors.developer_id && <span className="text-[11px] text-red-500">{errors.developer_id}</span>}
         </div>
         <div className="flex flex-col gap-1">

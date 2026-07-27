@@ -7,7 +7,8 @@ import {
 import useAuthStore from '../../store/useAuthStore'
 import useUIStore from '../../store/useUIStore'
 
-const OVERVIEW_ITEMS = [
+// Full overview items — visible to Admin, Manager, Lead
+const ALL_OVERVIEW_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/sprint', label: 'Sprint View', icon: CalendarRange },
   { to: '/tasks', label: 'Tasks', icon: ListChecks },
@@ -15,6 +16,14 @@ const OVERVIEW_ITEMS = [
   { to: '/utilization', label: 'Utilization', icon: Gauge },
   { to: '/availability', label: 'Availability', icon: CalendarClock },
   { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
+]
+
+// Developer-only items — limited view
+const DEVELOPER_ITEMS = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/tasks', label: 'My Tasks', icon: ListChecks },
+  { to: '/utilization', label: 'Utilization', icon: Gauge },
+  { to: '/availability', label: 'Availability', icon: CalendarClock },
 ]
 
 // Each admin item declares which roles may see it.
@@ -40,20 +49,23 @@ const REPORT_ITEMS = [
 export default function Sidebar() {
   const role = useAuthStore((s) => s.user?.role)
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
+
+  const isDeveloper = role === 'Developer'
+  const overviewItems = isDeveloper ? DEVELOPER_ITEMS : ALL_OVERVIEW_ITEMS
   const visibleAdminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(role))
   const visibleReportItems = REPORT_ITEMS.filter((item) => item.roles.includes(role))
 
   const collapsed = sidebarCollapsed
 
   const linkClass = ({ isActive }) =>
-    `flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'} px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
+    `flex items-center ${collapsed ? 'justify-center min-w-0' : 'gap-2.5'} px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
       isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`
 
   return (
     <aside
-      className={`fixed left-0 top-14 bottom-0 bg-white border-r border-slate-200 overflow-y-auto py-5 z-40 transition-all duration-200 ${
-        collapsed ? 'w-16' : 'w-56'
+      className={`fixed left-0 top-14 bottom-0 bg-white border-r border-slate-200 overflow-y-auto overflow-x-hidden py-5 z-40 transition-all duration-200 sidebar-scroll ${
+        collapsed ? 'w-[72px]' : 'w-56'
       }`}
     >
       {/* Collapse/Expand Toggle */}
@@ -67,20 +79,22 @@ export default function Sidebar() {
         </button>
       </div>
 
-      <div className="px-3 mb-5">
+      <div className={`${collapsed ? 'px-2' : 'px-3'} mb-5`}>
         {!collapsed && (
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">Overview</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">
+            {isDeveloper ? 'My Work' : 'Overview'}
+          </div>
         )}
-        {OVERVIEW_ITEMS.map(({ to, label, icon: Icon }) => (
+        {overviewItems.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} end={to === '/'} className={linkClass} title={collapsed ? label : undefined}>
-            <Icon size={15} />
+            <Icon size={collapsed ? 18 : 15} className="flex-shrink-0" />
             {!collapsed && label}
           </NavLink>
         ))}
       </div>
 
       {visibleAdminItems.length > 0 && (
-        <div className="px-3 mb-5">
+        <div className={`${collapsed ? 'px-2' : 'px-3'} mb-5`}>
           {!collapsed && (
             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">
               Admin — Configuration
@@ -89,7 +103,7 @@ export default function Sidebar() {
           {collapsed && <div className="border-t border-slate-200 mb-2" />}
           {visibleAdminItems.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={linkClass} title={collapsed ? label : undefined}>
-              <Icon size={15} />
+              <Icon size={collapsed ? 18 : 15} className="flex-shrink-0" />
               {!collapsed && label}
             </NavLink>
           ))}
@@ -97,7 +111,7 @@ export default function Sidebar() {
       )}
 
       {visibleReportItems.length > 0 && (
-        <div className="px-3 mb-5">
+        <div className={`${collapsed ? 'px-2' : 'px-3'} mb-5`}>
           {!collapsed && (
             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">
               Reports
@@ -106,23 +120,25 @@ export default function Sidebar() {
           {collapsed && <div className="border-t border-slate-200 mb-2" />}
           {visibleReportItems.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={linkClass} title={collapsed ? label : undefined}>
-              <Icon size={15} />
+              <Icon size={collapsed ? 18 : 15} className="flex-shrink-0" />
               {!collapsed && label}
             </NavLink>
           ))}
         </div>
       )}
 
-      <div className="px-3 mb-5">
-        {!collapsed && (
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">System</div>
-        )}
-        {collapsed && <div className="border-t border-slate-200 mb-2" />}
-        <NavLink to="/admin/settings" className={linkClass} title={collapsed ? 'Settings' : undefined}>
-          <Settings size={15} />
-          {!collapsed && 'Settings'}
-        </NavLink>
-      </div>
+      {!isDeveloper && (
+        <div className={`${collapsed ? 'px-2' : 'px-3'} mb-5`}>
+          {!collapsed && (
+            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">System</div>
+          )}
+          {collapsed && <div className="border-t border-slate-200 mb-2" />}
+          <NavLink to="/admin/settings" className={linkClass} title={collapsed ? 'Settings' : undefined}>
+            <Settings size={collapsed ? 18 : 15} className="flex-shrink-0" />
+            {!collapsed && 'Settings'}
+          </NavLink>
+        </div>
+      )}
     </aside>
   )
 }

@@ -1,11 +1,16 @@
 import useApi from '../hooks/useApi'
+import useAuthStore from '../store/useAuthStore'
 import { getUtilizationGrid } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import { UTIL_STATUS_COLORS } from '../utils/constants'
 import { formatPercent } from '../utils/formatters'
 
 export default function UtilizationPage() {
-  const { data, loading } = useApi(getUtilizationGrid, [])
+  const user = useAuthStore((s) => s.user)
+  const isDeveloper = user?.role === 'Developer'
+  const devParams = isDeveloper && user?.developer_id ? { developer_id: user.developer_id } : undefined
+
+  const { data, loading } = useApi(() => getUtilizationGrid(devParams), [user?.developer_id])
   if (loading) return <LoadingSpinner label="Loading utilization grid..." />
 
   const { sprints, rows } = data
@@ -14,7 +19,9 @@ export default function UtilizationPage() {
     <div>
       <div className="mb-6">
         <h2 className="text-xl font-bold text-slate-900">Utilization</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Developer × Month utilization grid (leave-adjusted net capacity)</p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          {isDeveloper ? 'Your monthly utilization (leave-adjusted)' : 'Developer × Month utilization grid (leave-adjusted net capacity)'}
+        </p>
       </div>
 
       <div className="card overflow-x-auto">

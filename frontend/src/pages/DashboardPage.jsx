@@ -1,4 +1,7 @@
+import { useState, useMemo } from 'react'
 import useApi from '../hooks/useApi'
+import useAuthStore from '../store/useAuthStore'
+import useDropdowns from '../hooks/useDropdowns'
 import {
   getKpis, getStatusBreakdown, getProjectBreakdown, getWorkTypeBreakdown,
   getModuleBreakdown, getSubModuleBreakdown, getMonthlyUtilization,
@@ -11,22 +14,62 @@ import StatusBadge from '../components/common/StatusBadge'
 import { formatNumber, formatPercent } from '../utils/formatters'
 
 export default function DashboardPage() {
-  const { data: kpis, loading: l1 } = useApi(getKpis, [])
-  const { data: statusData, loading: l2 } = useApi(getStatusBreakdown, [])
-  const { data: projectData, loading: l3 } = useApi(getProjectBreakdown, [])
-  const { data: workTypeData, loading: l4 } = useApi(getWorkTypeBreakdown, [])
-  const { data: moduleData, loading: l5 } = useApi(getModuleBreakdown, [])
-  const { data: subModuleData, loading: l6 } = useApi(getSubModuleBreakdown, [])
-  const { data: monthlyData, loading: l7 } = useApi(getMonthlyUtilization, [])
+  const user = useAuthStore((s) => s.user)
+  const { sprints } = useDropdowns()
+  const isDeveloper = user?.role === 'Developer'
+  const [selectedSprint, setSelectedSprint] = useState('')
+
+  // Build params: developer_id for Developer role + sprint_id if selected
+  const params = useMemo(() => {
+    const p = {}
+    if (isDeveloper && user?.developer_id) p.developer_id = user.developer_id
+    if (selectedSprint) p.sprint_id = selectedSprint
+    return Object.keys(p).length > 0 ? p : undefined
+  }, [isDeveloper, user?.developer_id, selectedSprint])
+
+  const depsKey = `${user?.developer_id || ''}-${selectedSprint}`
+
+  const { data: kpis, loading: l1 } = useApi(() => getKpis(params), [depsKey])
+  const { data: statusData, loading: l2 } = useApi(() => getStatusBreakdown(params), [depsKey])
+  const { data: projectData, loading: l3 } = useApi(() => getProjectBreakdown(params), [depsKey])
+  const { data: workTypeData, loading: l4 } = useApi(() => getWorkTypeBreakdown(params), [depsKey])
+  const { data: moduleData, loading: l5 } = useApi(() => getModuleBreakdown(params), [depsKey])
+  const { data: subModuleData, loading: l6 } = useApi(() => getSubModuleBreakdown(params), [depsKey])
+  const { data: monthlyData, loading: l7 } = useApi(() => getMonthlyUtilization(params), [depsKey])
 
   const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7
-  if (loading) return <LoadingSpinner label="Loading dashboard..." />
+  if (loading || !kpis) return <LoadingSpinner label="Loading dashboard..." />
+
+  // Ensure arrays have fallback
+  const safeStatus = statusData || []
+  const safeProject = projectData || []
+  const safeWorkType = workTypeData || []
+  const safeModule = moduleData || []
+  const safeSubModule = subModuleData || []
+  const safeMonthly = monthlyData || []
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-slate-900">Dashboard</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Program-wide KPIs across projects, modules, and sprints</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Dashboard</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isDeveloper ? 'Your personal task summary and utilization' : 'Program-wide KPIs across projects, modules, and sprints'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Sprint</span>
+          <select
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white min-w-[150px] focus:outline-none focus:border-indigo-500"
+            value={selectedSprint}
+            onChange={(e) => setSelectedSprint(e.target.value)}
+          >
+            <option value="">All Sprints</option>
+            {sprints.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-5 gap-3.5 mb-6">
@@ -43,7 +86,7 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Status</th><th>Count</th><th>Est Hrs</th></tr></thead>
             <tbody>
-              {statusData.map((row) => (
+              {safeStatus.map((row) => (
                 <tr key={row.status}>
                   <td><StatusBadge status={row.status} /></td>
                   <td>{row.count}</td>
@@ -55,7 +98,7 @@ export default function DashboardPage() {
         </div>
         <div className="card">
           <div className="text-[15px] font-semibold mb-3.5">Status Distribution</div>
-          <StatusDonut data={statusData} />
+          <StatusDonut data={safeStatus} />
         </div>
       </div>
 
@@ -65,7 +108,7 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Project</th><th>Tasks</th><th>Est Hrs</th><th>Remaining</th></tr></thead>
             <tbody>
-              {projectData.map((row) => (
+              {safeProject.map((row) => (
                 <tr key={row.project}>
                   <td className="font-medium">{row.project}</td>
                   <td>{row.tasks}</td>
@@ -81,7 +124,7 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Work Type</th><th>Committed?</th><th>Tasks</th><th>Est</th><th>Actual</th></tr></thead>
             <tbody>
-              {workTypeData.map((row) => (
+              {safeWorkType.map((row) => (
                 <tr key={row.work_type}>
                   <td className="font-medium">{row.work_type}</td>
                   <td>{row.customer_committed ? <span className="badge bg-green-100 text-green-700">Yes</span> : <span className="badge bg-slate-100 text-slate-500">No</span>}</td>
@@ -101,7 +144,7 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Module</th><th>Devs</th><th>Tasks</th><th>Est Hrs</th></tr></thead>
             <tbody>
-              {moduleData.map((row) => (
+              {safeModule.map((row) => (
                 <tr key={row.module}>
                   <td className="font-medium">{row.module}</td>
                   <td>{row.developers}</td>
@@ -117,7 +160,7 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Sub Module</th><th>Main Module</th><th>Tasks</th><th>Est Hrs</th></tr></thead>
             <tbody>
-              {subModuleData.map((row) => (
+              {safeSubModule.map((row) => (
                 <tr key={row.sub_module}>
                   <td className="font-medium">{row.sub_module}</td>
                   <td>{row.main_module}</td>
@@ -132,11 +175,11 @@ export default function DashboardPage() {
 
       <div className="card">
         <div className="text-[15px] font-semibold mb-3.5">Monthly Utilization Summary</div>
-        <MonthlyTrend data={monthlyData} />
+        <MonthlyTrend data={safeMonthly} />
         <table className="data-table mt-4">
           <thead><tr><th>Month</th><th>Alloc Hrs</th><th>Net Cap</th><th>Util %</th><th>Over</th><th>Healthy</th><th>Idle</th></tr></thead>
           <tbody>
-            {monthlyData.map((row) => (
+            {safeMonthly.map((row) => (
               <tr key={row.month}>
                 <td className="font-medium">{row.month}</td>
                 <td>{formatNumber(row.allocated_hours)}</td>

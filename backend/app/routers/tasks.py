@@ -97,8 +97,12 @@ def create_task(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if current_user.role not in ("Admin", "Manager", "Lead"):
-        raise HTTPException(403, "Developers cannot create or assign new tasks.")
+    # Developers can create tasks only assigned to themselves
+    if current_user.role == "Developer":
+        if not current_user.developer_id:
+            raise HTTPException(403, "Your account is not linked to a developer record. Contact your Admin.")
+        # Force the task to be assigned to themselves
+        payload.developer_id = current_user.developer_id
     data = payload.model_dump()
     task_code = data.pop("task_code", None)
     sprint = db.query(models.Sprint).get(data["sprint_id"]) if data.get("sprint_id") else None

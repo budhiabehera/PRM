@@ -13,6 +13,13 @@ user_projects = Table(
     Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
 )
 
+# Many-to-many: Developers <-> Projects
+developer_projects = Table(
+    "developer_projects", Base.metadata,
+    Column("developer_id", Integer, ForeignKey("developers.id", ondelete="CASCADE"), primary_key=True),
+    Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+)
+
 
 class IntegrationSettings(Base):
     """Singleton row (id=1) holding external integration configuration.
@@ -106,6 +113,7 @@ class Developer(Base):
     active = Column(Boolean, default=True)
 
     home_module = relationship("MainModule", back_populates="developers")
+    projects = relationship("Project", secondary=developer_projects, backref="assigned_developers")
     tasks = relationship("Task", back_populates="developer")
     availabilities = relationship("Availability", back_populates="developer", cascade="all, delete-orphan")
     user_account = relationship("User", back_populates="developer", uselist=False)
@@ -200,3 +208,20 @@ class Availability(Base):
 
     developer = relationship("Developer", back_populates="availabilities")
     sprint = relationship("Sprint")
+
+
+class TaskActivity(Base):
+    """Daily activity log entries for a task — captures what was done each day."""
+    __tablename__ = "task_activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    developer_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
+    activity_date = Column(Date, nullable=False)
+    description = Column(Text, nullable=False)
+    hours_spent = Column(Float, default=0)
+    percentage = Column(Float, default=0)  # task % completion at this point
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    task = relationship("Task", backref="activities")
+    developer = relationship("Developer")

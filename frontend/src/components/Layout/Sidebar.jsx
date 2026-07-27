@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
-  GanttChartSquare, FolderKanban, Boxes, UserCog, Tag, Settings, ClipboardList, ShieldCheck,
+  GanttChartSquare, FolderKanban, Boxes, UserCog, UserPlus, Tag, Settings, ClipboardList, ShieldCheck,
   Cloud, TrendingUp, AlertTriangle, Building2, Clock, ChevronsLeft, ChevronsRight,
 } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
@@ -31,6 +31,7 @@ const ADMIN_ITEMS = [
   { to: '/admin/projects', label: 'Projects', icon: FolderKanban, roles: ['Admin', 'Manager'] },
   { to: '/admin/modules', label: 'Modules', icon: Boxes, roles: ['Admin', 'Manager'] },
   { to: '/admin/resources', label: 'Resources', icon: UserCog, roles: ['Admin', 'Manager'] },
+  { to: '/admin/developer-setup', label: 'Developer Setup', icon: UserPlus, roles: ['Admin', 'Manager'] },
   { to: '/admin/work-types', label: 'Work Types', icon: Tag, roles: ['Admin', 'Manager'] },
   { to: '/admin/sprints', label: 'Sprints', icon: CalendarRange, roles: ['Admin', 'Manager'] },
   { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, roles: ['Admin', 'Manager', 'Lead'] },

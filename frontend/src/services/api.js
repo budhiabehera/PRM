@@ -32,6 +32,7 @@ export const getUsers = () => api.get('/auth/users').then(r => r.data)
 export const createUser = (data) => api.post('/auth/users', data).then(r => r.data)
 export const deleteUser = (id) => api.delete(`/auth/users/${id}`)
 export const updateUser = (id, data) => api.put(`/auth/users/${id}`, data).then(r => r.data)
+export const changePassword = (data) => api.post('/auth/change-password', data).then(r => r.data)
 
 // ---------- Projects ----------
 export const getProjects = () => api.get('/projects').then(r => r.data)
@@ -43,7 +44,7 @@ export const deleteProject = (id) => api.delete(`/projects/${id}`)
 // ---------- Modules ----------
 export const getMainModules = () => api.get('/modules').then(r => r.data)
 export const getModuleTree = () => api.get('/modules/tree').then(r => r.data)
-export const createMainModule = (data) => api.post('/modules', data).then(r => r.data)
+export const createMainModule = (data, projectId) => api.post('/modules', data, { params: projectId ? { project_id: projectId } : undefined }).then(r => r.data)
 export const updateMainModule = (id, data) => api.put(`/modules/${id}`, data).then(r => r.data)
 export const deleteMainModule = (id) => api.delete(`/modules/${id}`)
 
@@ -82,6 +83,11 @@ export const deleteTask = (id) => api.delete(`/tasks/${id}`)
 export const getAvailability = (params) => api.get('/availability', { params }).then(r => r.data)
 export const upsertAvailability = (data) => api.post('/availability', data).then(r => r.data)
 export const deleteAvailability = (id) => api.delete(`/availability/${id}`)
+
+// ---------- Task Activities ----------
+export const getTaskActivities = (taskId) => api.get(`/task-activities/${taskId}`).then(r => r.data)
+export const createTaskActivity = (data) => api.post('/task-activities', data).then(r => r.data)
+export const deleteTaskActivity = (id) => api.delete(`/task-activities/${id}`)
 
 // ---------- Dashboard ----------
 export const getKpis = (params) => api.get('/dashboard/kpis', { params }).then(r => r.data)

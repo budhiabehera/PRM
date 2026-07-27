@@ -28,6 +28,7 @@ def get_db():
 _NEW_COLUMNS = [
     ("tasks", "created_at", "DATETIME"),
     ("tasks", "salesforce_case_id", "VARCHAR(30)"),
+    ("developers", "project_id", "INTEGER"),
 ]
 
 
@@ -44,6 +45,14 @@ def run_lightweight_migrations():
                 "  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
                 "  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
                 "  PRIMARY KEY (user_id, project_id)"
+                ")"
+            ))
+        if "developer_projects" not in existing_tables:
+            conn.execute(text(
+                "CREATE TABLE developer_projects ("
+                "  developer_id INTEGER NOT NULL REFERENCES developers(id) ON DELETE CASCADE,"
+                "  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
+                "  PRIMARY KEY (developer_id, project_id)"
                 ")"
             ))
         for table, column, col_type in _NEW_COLUMNS:

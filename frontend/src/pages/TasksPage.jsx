@@ -3,7 +3,7 @@ import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
-import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, syncTaskToSalesforce } from '../services/api'
+import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import StatusBadge from '../components/common/StatusBadge'
 import PriorityBadge from '../components/common/PriorityBadge'
@@ -13,6 +13,8 @@ import ConfirmDialog from '../components/common/ConfirmDialog'
 import TaskForm from '../components/forms/TaskForm'
 import { formatShortDate } from '../utils/formatters'
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from '../utils/constants'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import TaskActivityPanel from '../components/TaskActivityPanel'
 
 const KANBAN_COLUMNS = ['Not Started', 'In Progress', 'On Hold', 'Completed']
 
@@ -26,7 +28,8 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState(null)
   const [creatingTask, setCreatingTask] = useState(false)
   const [toDelete, setToDelete] = useState(null)
-  const [toast, setToast] = useState(null) // { type, text }
+  const [toast, setToast] = useState(null)
+  const [expandedRow, setExpandedRow] = useState(null)
 
   const showToast = (type, text) => {
     setToast({ type, text })
@@ -36,7 +39,6 @@ export default function TasksPage() {
   const params = useMemo(() => {
     const p = {}
     Object.entries(filters).forEach(([k, v]) => { if (v) p[k] = v })
-    // Developer role: always scope to own tasks
     if (user?.role === 'Developer' && user?.developer_id) {
       p.developer_id = user.developer_id
     }
@@ -77,14 +79,8 @@ export default function TasksPage() {
     }
   }
 
-  const handleSyncSalesforce = async (task) => {
-    try {
-      const res = await syncTaskToSalesforce(task.id)
-      showToast('success', `Salesforce Case created: ${res.salesforce_case_id}`)
-      refreshAll()
-    } catch (err) {
-      showToast('error', err.response?.data?.detail || 'Could not sync to Salesforce.')
-    }
+  const toggleRow = (taskId) => {
+    setExpandedRow((prev) => prev === taskId ? null : taskId)
   }
 
   return (
@@ -124,7 +120,14 @@ export default function TasksPage() {
           options={subModules.map((s) => ({ value: s.id, label: s.name }))} />
         {!isDeveloper && (
           <FilterSelect label="Developer" value={filters.developer_id} onChange={setFilter('developer_id')}
-            options={resources.map((d) => ({ value: d.id, label: d.name }))} />
+            options={
+              filters.project_id
+                ? resources
+                    .filter((d) => (d.project_ids || []).includes(Number(filters.project_id)))
+                    .map((d) => ({ value: d.id, label: d.name }))
+                : resources.map((d) => ({ value: d.id, label: d.name }))
+            }
+          />
         )}
         <FilterSelect label="Status" value={filters.status} onChange={setFilter('status')} options={STATUS_OPTIONS} />
         <FilterSelect label="Priority" value={filters.priority} onChange={setFilter('priority')} options={PRIORITY_OPTIONS} />
@@ -139,54 +142,108 @@ export default function TasksPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th><th>Case#</th><th>Property</th><th>Task</th><th>Module</th><th>Sub Module</th>
-                {!isDeveloper && <th>Developer</th>}<th>Work Type</th><th>Priority</th><th>Status</th><th>Start</th><th>End</th>
-                <th>Est</th><th>Actual</th><th>%</th><th>Cross-Mo</th><th>Committed</th><th>Actions</th>
+                <th></th>
+                <th>ID</th>
+                <th>Case#</th>
+                <th>Property</th>
+                <th>Task</th>
+                {!isDeveloper && <th>Developer</th>}
+                <th>Work Type</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {tasks.map((t) => {
                 const editable = canEditTask(user, t)
                 const deletable = canDeleteTask(user)
+                const isExpanded = expandedRow === t.id
                 return (
-                  <tr key={t.id}>
-                    <td className="font-medium">{t.task_code}</td>
-                    <td>{t.case_ref || '—'}</td>
-                    <td>{t.property_client || '—'}</td>
-                    <td className="max-w-[220px] truncate">{t.description}</td>
-                    <td>{t.main_module_name || '—'}</td>
-                    <td>{t.sub_module_name || '—'}</td>
-                    {!isDeveloper && <td>{t.developer_name || '—'}</td>}
-                    <td>{t.work_type_name || '—'}</td>
-                    <td><PriorityBadge priority={t.priority} /></td>
-                    <td><StatusBadge status={t.status} /></td>
-                    <td>{formatShortDate(t.start_date)}</td>
-                    <td>{formatShortDate(t.end_date)}</td>
-                    <td>{t.estimated_hours}</td>
-                    <td>{t.actual_hours}</td>
-                    <td>{t.percent_complete}%</td>
-                    <td>{t.is_cross_month ? 'Yes' : 'No'}</td>
-                    <td>{t.customer_committed ? 'Yes' : 'No'}</td>
-                    <td>
-                      <div className="flex gap-1.5 flex-wrap">
-                        {editable && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => setEditingTask(t)}>
-                            Edit
-                          </button>
-                        )}
-                        {deletable && (
-                          <button className="btn btn-danger btn-sm" onClick={() => setToDelete(t)}>Delete</button>
-                        )}
-                        {isLeadOrAbove(user) && (
-                          <>
-                            <button className="btn btn-secondary btn-sm" title="Notify Microsoft Teams" onClick={() => handleNotifyTeams(t)}>🟦 Teams</button>
-                            <button className="btn btn-secondary btn-sm" title="Sync to Salesforce" onClick={() => handleSyncSalesforce(t)}>☁️ SFDC</button>
-                          </>
-                        )}
-                        {!editable && !deletable && !isLeadOrAbove(user) && <span className="text-slate-300 text-[11px]">—</span>}
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    <tr key={t.id}>
+                      <td className="w-8 text-center">
+                        <button onClick={() => toggleRow(t.id)} className="text-slate-400 hover:text-slate-600">
+                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </button>
+                      </td>
+                      <td className="font-medium">{t.task_code}</td>
+                      <td>{t.case_ref || '—'}</td>
+                      <td>{t.property_client || '—'}</td>
+                      <td className="max-w-[220px] truncate">{t.description}</td>
+                      {!isDeveloper && <td>{t.developer_name || '—'}</td>}
+                      <td>{t.work_type_name || '—'}</td>
+                      <td><PriorityBadge priority={t.priority} /></td>
+                      <td><StatusBadge status={t.status} /></td>
+                      <td>
+                        <div className="flex gap-1.5">
+                          {editable && (
+                            <button className="btn btn-secondary btn-sm" onClick={() => setEditingTask(t)}>Edit</button>
+                          )}
+                          {deletable && (
+                            <button className="btn btn-danger btn-sm" onClick={() => setToDelete(t)}>Delete</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {/* Expanded "More" row */}
+                    {isExpanded && (
+                      <tr key={`${t.id}-more`} className="bg-slate-50/70">
+                        <td colSpan={isDeveloper ? 10 : 11} className="px-6 py-3">
+                          <div className="grid grid-cols-4 gap-4 text-xs">
+                            <div>
+                              <span className="text-slate-400 font-medium">Module</span>
+                              <div className="text-slate-700 mt-0.5">{t.main_module_name || '—'}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Sub Module</span>
+                              <div className="text-slate-700 mt-0.5">{t.sub_module_name || '—'}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Start Date</span>
+                              <div className="text-slate-700 mt-0.5">{formatShortDate(t.start_date) || '—'}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">End Date</span>
+                              <div className="text-slate-700 mt-0.5">{formatShortDate(t.end_date) || '—'}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Est. Hours</span>
+                              <div className="text-slate-700 mt-0.5">{t.estimated_hours}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Actual Hours</span>
+                              <div className="text-slate-700 mt-0.5">{t.actual_hours}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">% Complete</span>
+                              <div className="text-slate-700 mt-0.5">{t.percent_complete}%</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Cross-Month</span>
+                              <div className="text-slate-700 mt-0.5">{t.is_cross_month ? 'Yes' : 'No'}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Customer Committed</span>
+                              <div className="text-slate-700 mt-0.5">{t.customer_committed ? 'Yes' : 'No'}</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Sprint</span>
+                              <div className="text-slate-700 mt-0.5">{t.sprint_name || '—'}</div>
+                            </div>
+                          </div>
+                          {isLeadOrAbove(user) && (
+                            <div className="flex gap-2 mt-3 pt-3 border-t border-slate-200">
+                              <button className="btn btn-secondary btn-sm" title="Notify Microsoft Teams" onClick={() => handleNotifyTeams(t)}>🟦 Notify Teams</button>
+                            </div>
+                          )}
+
+                          {/* Task Activity Log */}
+                          <TaskActivityPanel task={t} user={user} />
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 )
               })}
             </tbody>

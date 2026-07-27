@@ -64,6 +64,7 @@ class DeveloperBase(BaseModel):
     name: str
     role: str = "Developer"
     home_module_id: Optional[int] = None
+    project_ids: List[int] = []
     skill: str = "Backend"
     base_capacity: float = 192
     active: bool = True
@@ -192,6 +193,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -230,6 +236,28 @@ class Token(BaseModel):
 
 
 # ---------- Integrations ----------
+# ---------- Task Activity ----------
+class TaskActivityCreate(BaseModel):
+    task_id: int
+    developer_id: Optional[int] = None
+    activity_date: date
+    description: str
+    hours_spent: float = 0
+    percentage: float = 0
+
+
+class TaskActivityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    task_id: int
+    developer_id: Optional[int] = None
+    activity_date: date
+    description: str
+    hours_spent: float
+    percentage: float
+    created_at: Optional[datetime] = None
+
+
 class IntegrationSettingsIn(BaseModel):
     teams_enabled: bool = False
     teams_webhook_url: Optional[str] = None

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useApi from '../../hooks/useApi'
-import useDropdowns from '../../hooks/useDropdowns'
 import useAppStore from '../../store/useAppStore'
+import useAuthStore from '../../store/useAuthStore'
 import { getProjects, getProjectStats, createProject, updateProject, deleteProject } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import KPICard from '../../components/common/KPICard'
@@ -12,8 +12,8 @@ import ConfirmDialog from '../../components/common/ConfirmDialog'
 import { formatNumber } from '../../utils/formatters'
 
 export default function AdminProjectsPage() {
-  const { mainModules } = useDropdowns()
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
+  const user = useAuthStore((s) => s.user)
   const { data: stats, loading: l1, reload: reloadStats } = useApi(getProjectStats, [])
   const { data: projects, loading: l2, reload: reloadProjects } = useApi(getProjects, [])
   const [editing, setEditing] = useState(null)
@@ -35,6 +35,14 @@ export default function AdminProjectsPage() {
     setToDelete(null)
     refreshAll()
   }
+
+  // Filter projects by user access (Admin sees all)
+  const filteredProjects = useMemo(() => {
+    if (!user || user.role === 'Admin') return projects || []
+    const userProjectIds = user.project_ids || []
+    if (userProjectIds.length === 0) return projects || []
+    return (projects || []).filter((p) => userProjectIds.includes(p.id))
+  }, [projects, user])
 
   if (l1 || l2) return <LoadingSpinner label="Loading projects..." />
 
@@ -60,7 +68,6 @@ export default function AdminProjectsPage() {
           <div className="text-[15px] font-semibold mb-4">➕ {editing ? 'Edit Project' : 'Add New Project'}</div>
           <ProjectForm
             initial={editing}
-            mainModules={mainModules}
             onSubmit={handleSubmit}
             onCancel={() => { setShowForm(false); setEditing(null) }}
           />
@@ -71,17 +78,12 @@ export default function AdminProjectsPage() {
         <div className="text-[15px] font-semibold mb-3.5">All Projects</div>
         <table className="data-table">
           <thead>
-            <tr><th>Project</th><th>Main Module</th><th>Tasks</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Project Name</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            {projects.map((p) => (
+            {filteredProjects.map((p) => (
               <tr key={p.id}>
-                <td>
-                  <div className="font-semibold">{p.name}</div>
-                  <div className="text-[10px] text-slate-400">{p.code}</div>
-                </td>
-                <td>{mainModules.find((m) => m.id === p.main_module_id)?.name || '—'}</td>
-                <td>{p.tasks?.length ?? '—'}</td>
+                <td className="font-medium">{p.name}</td>
                 <td><StatusBadge status={p.status} /></td>
                 <td>
                   <div className="flex gap-1.5">

@@ -18,6 +18,7 @@ def _dev_with_stats(dev: models.Developer, db: Session):
         "name": dev.name,
         "role": dev.role,
         "home_module_id": dev.home_module_id,
+        "project_ids": [p.id for p in dev.projects],
         "home_module": dev.home_module.name if dev.home_module else None,
         "skill": dev.skill,
         "base_capacity": dev.base_capacity,
@@ -69,29 +70,42 @@ def get_resource(dev_id: int, db: Session = Depends(get_db)):
     return _dev_with_stats(dev, db)
 
 
-@router.post("", response_model=schemas.Developer, status_code=201)
+@router.post("", status_code=201)
 def create_resource(payload: schemas.DeveloperCreate, db: Session = Depends(get_db),
                      _user=Depends(require_roles("Admin", "Manager"))):
     if db.query(models.Developer).filter(models.Developer.dev_code == payload.dev_code).first():
         raise HTTPException(400, "Developer code already exists")
-    dev = models.Developer(**payload.model_dump())
+    data = payload.model_dump()
+    project_ids = data.pop("project_ids", [])
+    dev = models.Developer(**data)
     db.add(dev)
     db.commit()
+    # Assign projects (many-to-many)
+    if project_ids:
+        projects = db.query(models.Project).filter(models.Project.id.in_(project_ids)).all()
+        dev.projects = projects
+        db.commit()
     db.refresh(dev)
-    return dev
+    return _dev_with_stats(dev, db)
 
 
-@router.put("/{dev_id}", response_model=schemas.Developer)
+@router.put("/{dev_id}")
 def update_resource(dev_id: int, payload: schemas.DeveloperUpdate, db: Session = Depends(get_db),
                      _user=Depends(require_roles("Admin", "Manager"))):
     dev = db.query(models.Developer).get(dev_id)
     if not dev:
         raise HTTPException(404, "Developer not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    project_ids = data.pop("project_ids", None)
+    for key, value in data.items():
         setattr(dev, key, value)
+    # Update project assignments if provided
+    if project_ids is not None:
+        projects = db.query(models.Project).filter(models.Project.id.in_(project_ids)).all() if project_ids else []
+        dev.projects = projects
     db.commit()
     db.refresh(dev)
-    return dev
+    return _dev_with_stats(dev, db)
 
 
 @router.delete("/{dev_id}", status_code=204)

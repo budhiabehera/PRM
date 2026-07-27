@@ -4,11 +4,10 @@ import { validateProjectForm } from '../../utils/validators'
 
 const STATUS_OPTIONS = ['Active', 'Inactive', 'Planning', 'Completed']
 
-export default function ProjectForm({ initial, mainModules = [], onSubmit, onCancel }) {
+export default function ProjectForm({ initial, onSubmit, onCancel }) {
   const [form, setForm] = useState({
     name: initial?.name || '',
     code: initial?.code || '',
-    main_module_id: initial?.main_module_id || '',
     status: initial?.status || 'Active',
     start_date: toDateInput(initial?.start_date) || '',
     end_date: toDateInput(initial?.end_date) || '',
@@ -24,7 +23,6 @@ export default function ProjectForm({ initial, mainModules = [], onSubmit, onCan
     if (Object.keys(errs).length > 0) return
     onSubmit({
       ...form,
-      main_module_id: form.main_module_id ? Number(form.main_module_id) : null,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
     })
@@ -44,14 +42,6 @@ export default function ProjectForm({ initial, mainModules = [], onSubmit, onCan
           <input className="form-input" placeholder="e.g., FXFOM" value={form.code}
             onChange={(e) => update('code', e.target.value)} />
           {errors.code && <span className="text-[11px] text-red-500">{errors.code}</span>}
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="form-label">Main Module</label>
-          <select className="form-select" value={form.main_module_id}
-            onChange={(e) => update('main_module_id', e.target.value)}>
-            <option value="">Select Module...</option>
-            {mainModules.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-          </select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="form-label">Status</label>

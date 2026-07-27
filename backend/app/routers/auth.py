@@ -8,18 +8,41 @@ from ..deps import get_current_user, require_roles
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
+def _user_with_projects(user: models.User) -> dict:
+    """Serialize a user including their project_ids from the many-to-many relationship."""
+    user_dict = schemas.UserOut.model_validate(user).model_dump()
+    user_dict["project_ids"] = [p.id for p in user.projects]
+    return user_dict
+
+
 @router.post("/login", response_model=schemas.Token)
 def login(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == payload.username).first()
     if not user or not user.active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
     token = create_access_token({"sub": str(user.id), "role": user.role})
-    return {"access_token": token, "token_type": "bearer", "user": user}
+    return {"access_token": token, "token_type": "bearer", "user": _user_with_projects(user)}
 
 
 @router.get("/me", response_model=schemas.UserOut)
 def me(current_user: models.User = Depends(get_current_user)):
-    return current_user
+    return _user_with_projects(current_user)
+
+
+@router.post("/change-password")
+def change_password(
+    payload: schemas.ChangePassword,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Change the current user's password. Requires current password verification."""
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(400, "Current password is incorrect")
+    if len(payload.new_password) < 6:
+        raise HTTPException(400, "New password must be at least 6 characters")
+    current_user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password changed successfully"}
 
 
 @router.get("/users", response_model=list[schemas.UserOut])

@@ -7,6 +7,7 @@ from .routers import (
     work_types, dashboard, utilization, availability, timeline, auth as auth_router,
     integrations, reports,
 )
+from .routers import task_activities
 from .deps import get_current_user
 from . import seed_data
 
@@ -47,6 +48,7 @@ app.include_router(availability.router, dependencies=[protected])
 app.include_router(timeline.router, dependencies=[protected])
 app.include_router(integrations.router, dependencies=[protected])
 app.include_router(reports.router, dependencies=[protected])
+app.include_router(task_activities.router, dependencies=[protected])
 
 
 @app.on_event("startup")

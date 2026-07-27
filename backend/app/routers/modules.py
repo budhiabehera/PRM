@@ -16,7 +16,10 @@ def list_main_modules(db: Session = Depends(get_db)):
 def module_tree(db: Session = Depends(get_db)):
     """Main modules with nested sub-modules + counts, for the module hierarchy view."""
     modules = db.query(models.MainModule).order_by(models.MainModule.name).all()
-    result = []
+    projects = db.query(models.Project).order_by(models.Project.name).all()
+
+    # Build module data
+    module_list = []
     for m in modules:
         dev_count = db.query(models.Developer).filter(models.Developer.home_module_id == m.id).count()
         task_count = db.query(models.Task).filter(models.Task.main_module_id == m.id).count()
@@ -29,19 +32,42 @@ def module_tree(db: Session = Depends(get_db)):
                 "tasks": len(s_tasks),
                 "estimated_hours": sum(t.estimated_hours for t in s_tasks),
             })
-        result.append({
+        # Find projects linked to this module (Project.main_module_id == m.id)
+        linked_projects = [p.name for p in projects if p.main_module_id == m.id]
+        module_list.append({
             "id": m.id,
             "name": m.name,
+            "projects": linked_projects,
             "sub_module_count": len(subs),
             "developer_count": dev_count,
             "task_count": task_count,
             "sub_modules": subs,
         })
-    return result
+
+    # Build project tree (Project → Modules → Sub-Modules)
+    project_tree = []
+    for p in projects:
+        p_mods = [m for m in module_list if m["id"] == p.main_module_id] if p.main_module_id else []
+        project_tree.append({
+            "project_id": p.id,
+            "project_name": p.name,
+            "modules": p_mods,
+        })
+    # Also include modules not linked to any project
+    unlinked = [m for m in module_list if not m["projects"]]
+    if unlinked:
+        project_tree.append({
+            "project_id": None,
+            "project_name": "Unassigned",
+            "modules": unlinked,
+        })
+
+    return {"modules": module_list, "project_tree": project_tree}
 
 
 @router.post("", response_model=schemas.MainModule, status_code=201)
-def create_main_module(payload: schemas.MainModuleCreate, db: Session = Depends(get_db),
+def create_main_module(payload: schemas.MainModuleCreate, project_id: int | None = None,
+                        db: Session = Depends(get_db),
                         _user=Depends(require_roles("Admin", "Manager"))):
     if db.query(models.MainModule).filter(models.MainModule.name == payload.name).first():
         raise HTTPException(400, "Main module already exists")
@@ -49,6 +75,12 @@ def create_main_module(payload: schemas.MainModuleCreate, db: Session = Depends(
     db.add(module)
     db.commit()
     db.refresh(module)
+    # Link the project to this module if project_id provided
+    if project_id:
+        project = db.query(models.Project).get(project_id)
+        if project:
+            project.main_module_id = module.id
+            db.commit()
     return module
 
 

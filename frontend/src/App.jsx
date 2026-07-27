@@ -14,6 +14,7 @@ import TimelinePage from './pages/TimelinePage'
 import AdminProjectsPage from './pages/admin/AdminProjectsPage'
 import AdminModulesPage from './pages/admin/AdminModulesPage'
 import AdminResourcesPage from './pages/admin/AdminResourcesPage'
+import DeveloperSetupPage from './pages/admin/DeveloperSetupPage'
 import AdminWorkTypesPage from './pages/admin/AdminWorkTypesPage'
 import AdminSprintsPage from './pages/admin/AdminSprintsPage'
 import AdminTasksPage from './pages/admin/AdminTasksPage'
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
             <Route path="/admin/modules" element={<AdminModulesPage />} />
             <Route path="/admin/resources" element={<AdminResourcesPage />} />
+            <Route path="/admin/developer-setup" element={<DeveloperSetupPage />} />
             <Route path="/admin/work-types" element={<AdminWorkTypesPage />} />
             <Route path="/admin/sprints" element={<AdminSprintsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />

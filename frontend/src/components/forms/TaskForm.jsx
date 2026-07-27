@@ -34,6 +34,14 @@ export default function TaskForm({
     [subModules, form.main_module_id]
   )
 
+  // Filter developers by selected project
+  const filteredResources = useMemo(
+    () => form.project_id
+      ? resources.filter((d) => (d.project_ids || []).includes(Number(form.project_id)))
+      : resources,
+    [resources, form.project_id]
+  )
+
   const handleSubmit = () => {
     const errs = validateTaskForm(form)
     setErrors(errs)
@@ -98,7 +106,7 @@ export default function TaskForm({
           <label className="form-label">Assign Developer *</label>
           <select className="form-select" value={form.developer_id} onChange={(e) => update('developer_id', e.target.value)} disabled={lockDeveloper}>
             <option value="">Select Developer...</option>
-            {resources.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.role}, {d.skill})</option>)}
+            {filteredResources.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.role}, {d.skill})</option>)}
           </select>
           {lockDeveloper && <span className="text-[10px] text-slate-400">Auto-assigned to you</span>}
           {errors.developer_id && <span className="text-[11px] text-red-500">{errors.developer_id}</span>}

@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-slate-100 text-slate-900;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.badge {
+  @apply inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap;
+}
+
+.card {
+  @apply bg-white border border-slate-200 rounded-xl p-5 mb-5;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition-colors;
+}
+.btn-primary { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
+.btn-secondary { @apply bg-white text-slate-700 border border-slate-300 hover:bg-slate-50; }
+.btn-danger { @apply bg-red-50 text-red-600 hover:bg-red-100; }
+.btn-sm { @apply px-3 py-1 text-[11px]; }
+
+.form-label {
+  @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+}
+.form-input, .form-select, .form-textarea {
+  @apply w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:outline-none focus:border-indigo-500 focus:bg-white transition-colors;
+}
+.form-textarea { @apply min-h-[80px] resize-y; }
+
+table.data-table { @apply w-full text-xs border-collapse; }
+table.data-table th {
+  @apply text-left text-slate-500 font-medium py-2.5 px-3 border-b-2 border-slate-200 text-[10px] uppercase tracking-wide;
+}
+table.data-table td {
+  @apply py-3 px-3 text-slate-800 border-b border-slate-100 align-middle;
+}
+table.data-table tr:hover td { @apply bg-slate-50; }

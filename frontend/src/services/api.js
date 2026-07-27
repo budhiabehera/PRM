@@ -31,6 +31,7 @@ export const getMe = () => api.get('/auth/me').then(r => r.data)
 export const getUsers = () => api.get('/auth/users').then(r => r.data)
 export const createUser = (data) => api.post('/auth/users', data).then(r => r.data)
 export const deleteUser = (id) => api.delete(`/auth/users/${id}`)
+export const updateUser = (id, data) => api.put(`/auth/users/${id}`, data).then(r => r.data)
 
 // ---------- Projects ----------
 export const getProjects = () => api.get('/projects').then(r => r.data)
@@ -110,5 +111,9 @@ export const syncTaskToSalesforce = (taskId) => api.post(`/integrations/tasks/${
 export const getSalesforceTasksReport = (params) => api.get('/reports/salesforce-tasks', { params }).then(r => r.data)
 export const getReportCustomers = () => api.get('/reports/customers').then(r => r.data)
 export const getDailyCreatedCounts = (days = 14) => api.get('/reports/daily-created-counts', { params: { days } }).then(r => r.data)
+export const getProjectProgressReport = () => api.get('/reports/project-progress').then(r => r.data)
+export const getOverdueTasksReport = (params) => api.get('/reports/overdue-tasks', { params }).then(r => r.data)
+export const getCustomerSummaryReport = () => api.get('/reports/customer-summary').then(r => r.data)
+export const getTimeVarianceReport = (params) => api.get('/reports/time-variance', { params }).then(r => r.data)
 
 export default api

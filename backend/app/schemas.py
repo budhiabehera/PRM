@@ -199,6 +199,16 @@ class UserCreate(BaseModel):
     email: Optional[str] = None
     role: str = "Developer"  # Admin, Manager, Lead, Developer
     developer_id: Optional[int] = None
+    project_ids: List[int] = []
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    developer_id: Optional[int] = None
+    project_ids: Optional[List[int]] = None
+    active: Optional[bool] = None
 
 
 class UserOut(BaseModel):
@@ -209,6 +219,7 @@ class UserOut(BaseModel):
     email: Optional[str] = None
     role: str
     developer_id: Optional[int] = None
+    project_ids: List[int] = []
     active: bool
 
 

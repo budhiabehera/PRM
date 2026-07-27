@@ -37,6 +37,15 @@ def run_lightweight_migrations():
     inspector = inspect(engine)
     existing_tables = inspector.get_table_names()
     with engine.begin() as conn:
+        # Create the user_projects association table if it doesn't exist
+        if "user_projects" not in existing_tables:
+            conn.execute(text(
+                "CREATE TABLE user_projects ("
+                "  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
+                "  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
+                "  PRIMARY KEY (user_id, project_id)"
+                ")"
+            ))
         for table, column, col_type in _NEW_COLUMNS:
             if table not in existing_tables:
                 continue  # table doesn't exist yet — create_all() will make it with the column already

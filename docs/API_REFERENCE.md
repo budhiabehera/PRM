@@ -124,9 +124,13 @@ See `docs/INTEGRATIONS.md` for setup steps.
 ## Reports — `/api/reports`
 | Method | Path | Access | Description |
 |---|---|---|---|
-| GET | `/api/reports/salesforce-tasks?created_date=&created_from=&created_to=&customer=&product_id=&developer_id=&work_type_id=&status=&priority=&synced=` | Admin, Manager, Lead | Every task created in PRM (day-by-day), with summary totals. Powers the Admin > Salesforce Tasks page. |
-| GET | `/api/reports/customers` | Admin, Manager, Lead | Distinct customer/property names, for the Customer filter |
+| GET | `/api/reports/salesforce-tasks?created_date=&created_from=&created_to=&customer=&product_id=&developer_id=&work_type_id=&status=&priority=&synced=` | Admin, Manager, Lead | Every task created in PRM (day-by-day), with summary totals |
+| GET | `/api/reports/customers` | Admin, Manager, Lead | Distinct customer/property names, for filter dropdowns |
 | GET | `/api/reports/daily-created-counts?days=14` | Admin, Manager, Lead | Task-creation counts per day, for the trend chart |
+| GET | `/api/reports/project-progress` | Admin, Manager, Lead | Per-project task counts by status, % complete, hours |
+| GET | `/api/reports/overdue-tasks?project_id=&developer_id=&priority=` | Admin, Manager, Lead | Tasks past their end date that aren't Completed, sorted most-overdue first |
+| GET | `/api/reports/customer-summary` | Admin, Manager, Lead | Per-customer task volume, completion rate, and hours |
+| GET | `/api/reports/time-variance?project_id=&developer_id=&status=` | Admin, Manager, Lead | Estimated vs. actual hours per task, flags over/under budget |
 
 ## Health (public, unauthenticated)
 | Method | Path | Description |

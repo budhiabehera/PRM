@@ -130,3 +130,151 @@ def daily_created_counts(days: int = 14, db: Session = Depends(get_db)):
         d = (date.today() - timedelta(days=days - 1 - i)).isoformat()
         result.append({"date": d, "count": counts.get(d, 0)})
     return result
+
+
+@router.get("/project-progress")
+def project_progress_report(db: Session = Depends(get_db)):
+    """Per-project completion snapshot: task counts by status, % complete,
+    and hours (estimated/actual/remaining)."""
+    projects = db.query(models.Project).order_by(models.Project.name).all()
+    rows = []
+    for p in projects:
+        tasks = p.tasks
+        total = len(tasks)
+        completed = sum(1 for t in tasks if t.status == "Completed")
+        in_progress = sum(1 for t in tasks if t.status == "In Progress")
+        not_started = sum(1 for t in tasks if t.status == "Not Started")
+        other = total - completed - in_progress - not_started
+        est = sum(t.estimated_hours for t in tasks)
+        act = sum(t.actual_hours for t in tasks)
+        rows.append({
+            "project_id": p.id,
+            "project": p.name,
+            "code": p.code,
+            "status": p.status,
+            "total_tasks": total,
+            "completed": completed,
+            "in_progress": in_progress,
+            "not_started": not_started,
+            "other_status": other,
+            "pct_complete": round((completed / total) * 100) if total else 0,
+            "estimated_hours": est,
+            "actual_hours": act,
+            "remaining_hours": max(est - act, 0),
+        })
+    return rows
+
+
+@router.get("/overdue-tasks")
+def overdue_tasks_report(
+    project_id: int | None = None,
+    developer_id: int | None = None,
+    priority: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Tasks whose end_date has passed but are not yet Completed — the classic
+    'what's slipping' report. Sorted most-overdue first."""
+    today = date.today()
+    q = db.query(models.Task).filter(
+        models.Task.end_date.isnot(None),
+        models.Task.end_date < today,
+        models.Task.status != "Completed",
+    )
+    if project_id:
+        q = q.filter(models.Task.project_id == project_id)
+    if developer_id:
+        q = q.filter(models.Task.developer_id == developer_id)
+    if priority:
+        q = q.filter(models.Task.priority == priority)
+
+    tasks = q.all()
+    rows = []
+    for t in tasks:
+        row = _to_row(t)
+        row["end_date"] = t.end_date.isoformat()
+        row["days_overdue"] = (today - t.end_date).days
+        rows.append(row)
+    rows.sort(key=lambda r: -r["days_overdue"])
+
+    return {
+        "tasks": rows,
+        "summary": {
+            "total_overdue": len(rows),
+            "critical_or_high": sum(1 for r in rows if r["priority"] in ("Critical", "High")),
+            "avg_days_overdue": round(sum(r["days_overdue"] for r in rows) / len(rows), 1) if rows else 0,
+        },
+    }
+
+
+@router.get("/customer-summary")
+def customer_summary_report(db: Session = Depends(get_db)):
+    """Per-customer/property rollup: task volume, hours, committed vs internal,
+    completion rate. Powers a 'who are we spending time on' view."""
+    tasks = (
+        db.query(models.Task)
+        .filter(models.Task.property_client.isnot(None), models.Task.property_client != "")
+        .all()
+    )
+    buckets: dict[str, dict] = {}
+    for t in tasks:
+        b = buckets.setdefault(t.property_client, {
+            "customer": t.property_client,
+            "total_tasks": 0,
+            "completed": 0,
+            "committed_tasks": 0,
+            "estimated_hours": 0.0,
+            "actual_hours": 0.0,
+        })
+        b["total_tasks"] += 1
+        if t.status == "Completed":
+            b["completed"] += 1
+        if t.customer_committed:
+            b["committed_tasks"] += 1
+        b["estimated_hours"] += t.estimated_hours
+        b["actual_hours"] += t.actual_hours
+
+    rows = list(buckets.values())
+    for r in rows:
+        r["pct_complete"] = round((r["completed"] / r["total_tasks"]) * 100) if r["total_tasks"] else 0
+    rows.sort(key=lambda r: -r["estimated_hours"])
+    return rows
+
+
+@router.get("/time-variance")
+def time_variance_report(
+    project_id: int | None = None,
+    developer_id: int | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Estimated vs. actual hours per task, for tasks with logged time — flags
+    which tasks are running over/under their estimate and by how much."""
+    q = db.query(models.Task).filter(models.Task.actual_hours > 0)
+    if project_id:
+        q = q.filter(models.Task.project_id == project_id)
+    if developer_id:
+        q = q.filter(models.Task.developer_id == developer_id)
+    if status:
+        q = q.filter(models.Task.status == status)
+
+    tasks = q.all()
+    rows = []
+    for t in tasks:
+        row = _to_row(t)
+        variance = t.actual_hours - t.estimated_hours
+        row["variance_hours"] = round(variance, 1)
+        row["variance_pct"] = round((variance / t.estimated_hours) * 100, 1) if t.estimated_hours else 0
+        row["budget_state"] = "over" if variance > 0 else ("under" if variance < 0 else "on-budget")
+        rows.append(row)
+    rows.sort(key=lambda r: -abs(r["variance_hours"]))
+
+    return {
+        "tasks": rows,
+        "summary": {
+            "total_tasks": len(rows),
+            "over_budget": sum(1 for r in rows if r["budget_state"] == "over"),
+            "under_budget": sum(1 for r in rows if r["budget_state"] == "under"),
+            "on_budget": sum(1 for r in rows if r["budget_state"] == "on-budget"),
+            "total_variance_hours": round(sum(r["variance_hours"] for r in rows), 1),
+        },
+    }

@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
-  GanttChartSquare, FolderKanban, Boxes, UserCog, Tag, Settings, ClipboardList, ShieldCheck, Cloud,
+  GanttChartSquare, FolderKanban, Boxes, UserCog, Tag, Settings, ClipboardList, ShieldCheck,
+  Cloud, TrendingUp, AlertTriangle, Building2, Clock,
 } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
 
@@ -23,13 +24,22 @@ const ADMIN_ITEMS = [
   { to: '/admin/work-types', label: 'Work Types', icon: Tag, roles: ['Admin', 'Manager'] },
   { to: '/admin/sprints', label: 'Sprints', icon: CalendarRange, roles: ['Admin', 'Manager'] },
   { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, roles: ['Admin', 'Manager', 'Lead'] },
-  { to: '/admin/salesforce-tasks', label: 'Salesforce Tasks', icon: Cloud, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/admin/users', label: 'Users', icon: ShieldCheck, roles: ['Admin'] },
+]
+
+// Reports section — sits after Admin. Same visibility tier as Assignments.
+const REPORT_ITEMS = [
+  { to: '/reports/salesforce-tasks', label: 'Salesforce Tasks', icon: Cloud, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/reports/project-progress', label: 'Project Progress', icon: TrendingUp, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/reports/overdue-tasks', label: 'Overdue Tasks', icon: AlertTriangle, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/reports/customer-summary', label: 'Customer Summary', icon: Building2, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/reports/time-variance', label: 'Time Variance', icon: Clock, roles: ['Admin', 'Manager', 'Lead'] },
 ]
 
 export default function Sidebar() {
   const role = useAuthStore((s) => s.user?.role)
   const visibleAdminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(role))
+  const visibleReportItems = REPORT_ITEMS.filter((item) => item.roles.includes(role))
 
   const linkClass = ({ isActive }) =>
     `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-colors ${
@@ -54,6 +64,20 @@ export default function Sidebar() {
             Admin — Configuration
           </div>
           {visibleAdminItems.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className={linkClass}>
+              <Icon size={15} />
+              {label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+
+      {visibleReportItems.length > 0 && (
+        <div className="px-4 mb-5">
+          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">
+            Reports
+          </div>
+          {visibleReportItems.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={linkClass}>
               <Icon size={15} />
               {label}

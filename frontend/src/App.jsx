@@ -17,12 +17,18 @@ import AdminResourcesPage from './pages/admin/AdminResourcesPage'
 import AdminWorkTypesPage from './pages/admin/AdminWorkTypesPage'
 import AdminSprintsPage from './pages/admin/AdminSprintsPage'
 import AdminTasksPage from './pages/admin/AdminTasksPage'
-import AdminSalesforceTasksPage from './pages/admin/AdminSalesforceTasksPage'
 import AdminAvailabilityPage from './pages/admin/AdminAvailabilityPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import AdminUsersPage from './pages/admin/AdminUsersPage'
 
+import SalesforceTasksReportPage from './pages/reports/SalesforceTasksReportPage'
+import ProjectProgressPage from './pages/reports/ProjectProgressPage'
+import OverdueTasksPage from './pages/reports/OverdueTasksPage'
+import CustomerSummaryPage from './pages/reports/CustomerSummaryPage'
+import TimeVariancePage from './pages/reports/TimeVariancePage'
+
 const ADMIN_MANAGER = ['Admin', 'Manager']
+const ADMIN_MANAGER_LEAD = ['Admin', 'Manager', 'Lead']
 
 export default function App() {
   return (
@@ -48,9 +54,14 @@ export default function App() {
             <Route path="/admin/users" element={<AdminUsersPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={['Admin', 'Manager', 'Lead']} />}>
+          <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER_LEAD} />}>
             <Route path="/admin/assignments" element={<AdminTasksPage />} />
-            <Route path="/admin/salesforce-tasks" element={<AdminSalesforceTasksPage />} />
+
+            <Route path="/reports/salesforce-tasks" element={<SalesforceTasksReportPage />} />
+            <Route path="/reports/project-progress" element={<ProjectProgressPage />} />
+            <Route path="/reports/overdue-tasks" element={<OverdueTasksPage />} />
+            <Route path="/reports/customer-summary" element={<CustomerSummaryPage />} />
+            <Route path="/reports/time-variance" element={<TimeVariancePage />} />
           </Route>
 
           <Route path="/admin/availability" element={<AdminAvailabilityPage />} />

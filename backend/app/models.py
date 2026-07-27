@@ -1,9 +1,17 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime
+    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime, Table
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
+
+
+# Many-to-many: Users <-> Projects
+user_projects = Table(
+    "user_projects", Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class IntegrationSettings(Base):
@@ -42,6 +50,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     developer = relationship("Developer", back_populates="user_account")
+    projects = relationship("Project", secondary=user_projects, backref="users")
 
 
 class MainModule(Base):

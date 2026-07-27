@@ -62,10 +62,16 @@ permission matrix and how to wire up real domain/SSO login: see
 - **Work Types** — category + customer-commitment flag management
 - **Sprints** — monthly sprint configuration with live capacity/utilization stats
 - **Assignments** — full task-creation form (project → module → sub-module → developer → work type → sprint) with recent-assignments list
-- **Salesforce Tasks** — daily log of every task created in PRM, filterable by date, customer, product, developer, work type, status, priority, and Salesforce sync state; sync any unsynced task to Salesforce directly from the list
 - **Availability** — same leave management as the Overview page
 - **Users** — Admin-only login account management
 - **Settings** — app info, capacity assumptions, and Microsoft Teams / Salesforce integration configuration
+
+**Reports** (Admin, Manager, Lead)
+- **Salesforce Tasks** — daily log of every task created in PRM, filterable by date, customer, product, developer, work type, status, priority, and Salesforce sync state; sync any unsynced task to Salesforce directly from the list
+- **Project Progress** — per-project completion %, task counts by status, and hours (estimated/actual/remaining)
+- **Overdue Tasks** — tasks past their end date that aren't Completed, sorted most-overdue first
+- **Customer Summary** — task volume, completion rate, and hours by customer/property
+- **Time Variance** — estimated vs. actual hours per task, flagging what's running over or under budget
 
 ## Integrations
 

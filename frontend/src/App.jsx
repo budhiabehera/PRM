@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import SprintPage from './pages/SprintPage'
 import TasksPage from './pages/TasksPage'
+import ResourceCalendarPage from './pages/ResourceCalendarPage'
 import TeamPage from './pages/TeamPage'
 import UtilizationPage from './pages/UtilizationPage'
 import AvailabilityPage from './pages/AvailabilityPage'
@@ -13,15 +14,16 @@ import TimelinePage from './pages/TimelinePage'
 
 import AdminProjectsPage from './pages/admin/AdminProjectsPage'
 import AdminModulesPage from './pages/admin/AdminModulesPage'
-import AdminResourcesPage from './pages/admin/AdminResourcesPage'
-import DeveloperSetupPage from './pages/admin/DeveloperSetupPage'
+import UserSetupPage from './pages/admin/UserSetupPage'
+import SkillSetupPage from './pages/admin/SkillSetupPage'
 import AdminWorkTypesPage from './pages/admin/AdminWorkTypesPage'
 import AdminSprintsPage from './pages/admin/AdminSprintsPage'
 import AdminTasksPage from './pages/admin/AdminTasksPage'
+import RoleCapacityPage from './pages/admin/RoleCapacityPage'
 import AdminAvailabilityPage from './pages/admin/AdminAvailabilityPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
-import AdminUsersPage from './pages/admin/AdminUsersPage'
 
+import HolidaysPage from './pages/HolidaysPage'
 import SalesforceTasksReportPage from './pages/reports/SalesforceTasksReportPage'
 import ProjectProgressPage from './pages/reports/ProjectProgressPage'
 import OverdueTasksPage from './pages/reports/OverdueTasksPage'
@@ -44,6 +46,8 @@ export default function App() {
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/utilization" element={<UtilizationPage />} />
           <Route path="/availability" element={<AvailabilityPage />} />
+          <Route path="/resource-calendar" element={<ResourceCalendarPage />} />
+          <Route path="/holidays" element={<HolidaysPage />} />
 
           {/* Not available to Developer role */}
           <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>
@@ -55,11 +59,11 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER} />}>
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
             <Route path="/admin/modules" element={<AdminModulesPage />} />
-            <Route path="/admin/resources" element={<AdminResourcesPage />} />
-            <Route path="/admin/developer-setup" element={<DeveloperSetupPage />} />
+            <Route path="/admin/user-setup" element={<UserSetupPage />} />
+            <Route path="/admin/skills" element={<SkillSetupPage />} />
             <Route path="/admin/work-types" element={<AdminWorkTypesPage />} />
             <Route path="/admin/sprints" element={<AdminSprintsPage />} />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/role-capacity" element={<RoleCapacityPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER_LEAD} />}>

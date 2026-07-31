@@ -89,6 +89,56 @@ export const getTaskActivities = (taskId) => api.get(`/task-activities/${taskId}
 export const createTaskActivity = (data) => api.post('/task-activities', data).then(r => r.data)
 export const deleteTaskActivity = (id) => api.delete(`/task-activities/${id}`)
 
+// ---------- Task Attachments ----------
+export const getTaskAttachments = (taskId) => api.get(`/task-attachments/${taskId}`).then(r => r.data)
+export const uploadTaskAttachment = (taskId, file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post(`/task-attachments/${taskId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data)
+}
+export const updateTaskAttachment = (attachmentId, data) => {
+  const formData = new FormData()
+  if (data.file_name) formData.append('file_name', data.file_name)
+  if (data.file) formData.append('file', data.file)
+  return api.put(`/task-attachments/${attachmentId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data)
+}
+export const deleteTaskAttachment = (id) => api.delete(`/task-attachments/${id}`)
+export const getAttachmentDownloadUrl = (attachmentId) => `/api/task-attachments/download/${attachmentId}`
+
+// ---------- Holidays ----------
+export const getHolidays = (params) => api.get('/holidays', { params }).then(r => r.data)
+export const createHoliday = (data) => api.post('/holidays', data).then(r => r.data)
+export const updateHoliday = (id, data) => api.put(`/holidays/${id}`, data).then(r => r.data)
+export const deleteHoliday = (id) => api.delete(`/holidays/${id}`)
+
+// ---------- Role Capacities ----------
+export const getRoleCapacities = () => api.get('/role-capacities').then(r => r.data)
+export const getCapacityByRole = (role) => api.get(`/role-capacities/by-role/${encodeURIComponent(role)}`).then(r => r.data)
+export const createRoleCapacity = (data) => api.post('/role-capacities', data).then(r => r.data)
+export const updateRoleCapacity = (id, data) => api.put(`/role-capacities/${id}`, data).then(r => r.data)
+export const deleteRoleCapacity = (id) => api.delete(`/role-capacities/${id}`)
+
+// ---------- Resource Calendar ----------
+export const getResourceCalendar = (params) => api.get('/resource-calendar', { params }).then(r => r.data)
+
+// ---------- User Setup (unified Developer + Login) ----------
+
+// ---------- Skills ----------
+export const getSkills = () => api.get('/skills').then(r => r.data)
+export const createSkill = (data) => api.post('/skills', data).then(r => r.data)
+export const updateSkill = (id, data) => api.put(`/skills/${id}`, data).then(r => r.data)
+export const deleteSkill = (id) => api.delete(`/skills/${id}`)
+
+export const getUserSetupList = () => api.get('/user-setup').then(r => r.data)
+export const createUserSetup = (data) => api.post('/user-setup', data).then(r => r.data)
+export const updateUserSetup = (id, data) => api.put(`/user-setup/${id}`, data).then(r => r.data)
+export const deleteUserSetup = (id) => api.delete(`/user-setup/${id}`)
+export const resendWelcomeEmail = (devId) => api.post(`/user-setup/${devId}/resend-welcome`).then(r => r.data)
+
 // ---------- Dashboard ----------
 export const getKpis = (params) => api.get('/dashboard/kpis', { params }).then(r => r.data)
 export const getStatusBreakdown = (params) => api.get('/dashboard/status-breakdown', { params }).then(r => r.data)

@@ -156,6 +156,85 @@ export default function AdminSettingsPage() {
               <button className="btn btn-secondary btn-sm mt-3" onClick={handleTestSalesforce}>Test Connection</button>
             </div>
 
+            {/* Azure Blob & Notification Settings */}
+            <div className="border border-slate-200 rounded-lg p-5 mt-5">
+              <h3 className="text-[15px] font-semibold text-slate-800 mb-4">☁️ Azure Blob & Notifications</h3>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Azure Blob Connection String</label>
+                  <input
+                    className="form-input"
+                    placeholder="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net"
+                    value={settings.azure_blob_connection_string || ''}
+                    onChange={(e) => update('azure_blob_connection_string', e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Task Link Base URL</label>
+                  <input
+                    className="form-input"
+                    placeholder="http://localhost:5173/tasks/"
+                    value={settings.task_link_base_url || ''}
+                    onChange={(e) => update('task_link_base_url', e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Company Logo URL</label>
+                  <input
+                    className="form-input"
+                    placeholder="https://example.com/logo.png"
+                    value={settings.company_logo_url || ''}
+                    onChange={(e) => update('company_logo_url', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SMTP Email Settings */}
+            <div className="border border-slate-200 rounded-lg p-5 mt-5">
+              <h3 className="text-[15px] font-semibold text-slate-800 mb-4">📧 SMTP Email Settings</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <input type="checkbox" checked={settings.smtp_enabled} onChange={(e) => update('smtp_enabled', e.target.checked)} />
+                <span className="text-sm font-medium text-slate-700">Enable email notifications (welcome email on user creation)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">SMTP Host</label>
+                  <input className="form-input" placeholder="smtp.gmail.com" value={settings.smtp_host || ''}
+                    onChange={(e) => update('smtp_host', e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">SMTP Port</label>
+                  <input type="number" className="form-input" placeholder="587" value={settings.smtp_port || 587}
+                    onChange={(e) => update('smtp_port', Number(e.target.value))} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">SMTP Username</label>
+                  <input className="form-input" placeholder="your-email@gmail.com" value={settings.smtp_username || ''}
+                    onChange={(e) => update('smtp_username', e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">SMTP Password</label>
+                  <input type="password" className="form-input" placeholder="App password or SMTP password" value={settings.smtp_password || ''}
+                    onChange={(e) => update('smtp_password', e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">From Email</label>
+                  <input className="form-input" placeholder="noreply@company.com" value={settings.smtp_from_email || ''}
+                    onChange={(e) => update('smtp_from_email', e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">From Name</label>
+                  <input className="form-input" placeholder="PRM System" value={settings.smtp_from_name || ''}
+                    onChange={(e) => update('smtp_from_name', e.target.value)} />
+                </div>
+                <div className="flex items-center gap-2 col-span-2">
+                  <input type="checkbox" checked={settings.smtp_use_tls ?? true} onChange={(e) => update('smtp_use_tls', e.target.checked)} />
+                  <span className="text-sm text-slate-600">Use TLS (recommended for port 587)</span>
+                </div>
+              </div>
+            </div>
+
             <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
               {saving ? 'Saving...' : 'Save Integration Settings'}
             </button>

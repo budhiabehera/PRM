@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
+from ..deps import get_current_user, get_user_project_ids
 
 router = APIRouter(prefix="/api/timeline", tags=["Timeline"])
 
@@ -11,8 +12,12 @@ def gantt_data(
     project_id: int | None = None,
     developer_id: int | None = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
+    allowed = get_user_project_ids(current_user)
     q = db.query(models.Task).filter(models.Task.start_date.isnot(None), models.Task.end_date.isnot(None))
+    if allowed is not None:
+        q = q.filter(models.Task.project_id.in_(allowed))
     if project_id:
         q = q.filter(models.Task.project_id == project_id)
     if developer_id:
@@ -39,13 +44,18 @@ def gantt_data(
 
 
 @router.get("/monthly-allocation")
-def monthly_allocation(db: Session = Depends(get_db)):
+def monthly_allocation(db: Session = Depends(get_db),
+                       current_user: models.User = Depends(get_current_user)):
     """Total allocated hours per sprint/month, split by project."""
+    allowed = get_user_project_ids(current_user)
     sprints = db.query(models.Sprint).order_by(models.Sprint.start_date).all()
     result = []
     for s in sprints:
         by_project: dict[str, float] = {}
         for t in s.tasks:
+            # Skip tasks outside user's project access
+            if allowed is not None and t.project_id not in allowed:
+                continue
             key = t.project.name if t.project else "Unassigned"
             by_project[key] = by_project.get(key, 0) + t.estimated_hours
         result.append({"month": s.name, "by_project": by_project})

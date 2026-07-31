@@ -40,7 +40,7 @@ export default function TeamPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-3.5 mb-6">
-        <KPICard label="Active Developers" value={stats.active_developers} />
+        <KPICard label="Active Resources" value={stats.active_developers} />
         <KPICard label="Team Capacity" value={stats.team_capacity} />
         <KPICard label="Monthly Hrs" value={stats.monthly_hours} />
         <KPICard label="Avg Utilization" value={formatPercent(stats.avg_utilization)} />

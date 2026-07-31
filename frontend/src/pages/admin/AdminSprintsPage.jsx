@@ -1,17 +1,21 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import useApi from '../../hooks/useApi'
+import useDropdowns from '../../hooks/useDropdowns'
 import useAppStore from '../../store/useAppStore'
 import { getSprints, createSprint, updateSprint } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import StatusBadge from '../../components/common/StatusBadge'
+import FilterSelect from '../../components/common/FilterSelect'
 import SprintForm from '../../components/forms/SprintForm'
 import { formatDate, formatNumber, formatPercent } from '../../utils/formatters'
 
 export default function AdminSprintsPage() {
+  const { projects } = useDropdowns()
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
   const { data: sprints, loading, reload } = useApi(getSprints, [])
   const [editing, setEditing] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [projectFilter, setProjectFilter] = useState('')
 
   const refreshAll = () => { reload(); bumpRefresh() }
 
@@ -23,6 +27,12 @@ export default function AdminSprintsPage() {
     refreshAll()
   }
 
+  // Project options for filter
+  const projectOptions = useMemo(() =>
+    projects.map((p) => ({ value: String(p.id), label: p.name })),
+    [projects]
+  )
+
   if (loading) return <LoadingSpinner label="Loading sprints..." />
 
   return (
@@ -32,7 +42,16 @@ export default function AdminSprintsPage() {
           <h2 className="text-xl font-bold text-slate-900">Sprint Management</h2>
           <p className="text-xs text-slate-500 mt-0.5">Configure monthly sprints (Jul–Dec 2026)</p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true) }}>+ Add Sprint</button>
+        <div className="flex items-center gap-3">
+          <FilterSelect
+            label="Project"
+            options={projectOptions}
+            value={projectFilter}
+            onChange={setProjectFilter}
+            placeholder="All Projects"
+          />
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true) }}>+ Add Sprint</button>
+        </div>
       </div>
 
       {showForm && (
@@ -47,32 +66,47 @@ export default function AdminSprintsPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Sprint</th><th>Start</th><th>End</th><th>Duration</th><th>Tasks</th>
+              <th>Sprint</th><th>Project</th><th>Start</th><th>End</th><th>Duration</th><th>Tasks</th>
               <th>Alloc Hrs</th><th>Net Capacity</th><th>Utilization</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {sprints.map((s) => (
-              <tr key={s.id}>
-                <td className="font-semibold">{s.name}</td>
-                <td>{formatDate(s.start_date)}</td>
-                <td>{formatDate(s.end_date)}</td>
-                <td>{s.duration_days} days</td>
-                <td>{s.task_count}</td>
-                <td>{formatNumber(s.allocated_hours)}</td>
-                <td>{formatNumber(s.net_capacity)}</td>
-                <td className={s.utilization_pct > 0 ? 'text-amber-700 font-semibold' : 'text-slate-400'}>
-                  {formatPercent(s.utilization_pct)}
-                </td>
-                <td><StatusBadge status={s.status} /></td>
-                <td>
-                  <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowForm(true) }}>Edit</button>
-                </td>
-              </tr>
-            ))}
+            {sprints.map((s) => {
+              // If project filter is set, recalculate task/hour counts for that project
+              const filteredTasks = projectFilter
+                ? (s.tasks_by_project?.[projectFilter] || { count: 0, hours: 0 })
+                : null
+              const taskCount = filteredTasks ? filteredTasks.count : s.task_count
+              const allocHours = filteredTasks ? filteredTasks.hours : s.allocated_hours
+              const utilPct = filteredTasks
+                ? (s.net_capacity > 0 ? round((allocHours / s.net_capacity) * 100) : 0)
+                : s.utilization_pct
+
+              return (
+                <tr key={s.id}>
+                  <td className="font-semibold">{s.name}</td>
+                  <td className="text-xs text-slate-600">{s.project_name || '—'}</td>
+                  <td>{formatDate(s.start_date)}</td>
+                  <td>{formatDate(s.end_date)}</td>
+                  <td>{s.duration_days} days</td>
+                  <td>{taskCount}</td>
+                  <td>{formatNumber(allocHours)}</td>
+                  <td>{formatNumber(s.net_capacity)}</td>
+                  <td className={s.utilization_pct > 0 ? 'text-amber-700 font-semibold' : 'text-slate-400'}>
+                    {formatPercent(filteredTasks ? utilPct : s.utilization_pct)}
+                  </td>
+                  <td><StatusBadge status={s.status} /></td>
+                  <td>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(s); setShowForm(true) }}>Edit</button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
     </div>
   )
 }
+
+function round(v) { return Math.round(v) }

@@ -29,6 +29,24 @@ _NEW_COLUMNS = [
     ("tasks", "created_at", "DATETIME"),
     ("tasks", "salesforce_case_id", "VARCHAR(30)"),
     ("developers", "project_id", "INTEGER"),
+    ("developers", "reporting_to_id", "INTEGER REFERENCES developers(id)"),
+    ("sprints", "project_id", "INTEGER REFERENCES projects(id)"),
+    ("tasks", "team", "VARCHAR(100)"),
+    ("tasks", "percentage", "FLOAT DEFAULT 0"),
+    ("task_activities", "created_by_id", "INTEGER REFERENCES users(id)"),
+    ("integration_settings", "azure_blob_connection_string", "VARCHAR(500)"),
+    ("integration_settings", "task_link_base_url", "VARCHAR(255) DEFAULT 'http://localhost:5173/tasks/'"),
+    ("integration_settings", "company_logo_url", "VARCHAR(500) DEFAULT 'https://fx1fxposprod.blob.core.windows.net/liaison/PrimaryLogo-TriColour-min.png'"),
+    ("integration_settings", "smtp_enabled", "BOOLEAN DEFAULT 0"),
+    ("integration_settings", "smtp_host", "VARCHAR(255)"),
+    ("integration_settings", "smtp_port", "INTEGER DEFAULT 587"),
+    ("integration_settings", "smtp_username", "VARCHAR(255)"),
+    ("integration_settings", "smtp_password", "VARCHAR(255)"),
+    ("integration_settings", "smtp_from_email", "VARCHAR(255)"),
+    ("integration_settings", "smtp_from_name", "VARCHAR(100) DEFAULT 'PRM System'"),
+    ("integration_settings", "smtp_use_tls", "BOOLEAN DEFAULT 1"),
+    ("tasks", "subject", "VARCHAR(255) DEFAULT ''"),
+    ("tasks", "point_of_contact", "VARCHAR(150) DEFAULT ''"),
 ]
 
 
@@ -61,3 +79,18 @@ def run_lightweight_migrations():
             existing_columns = {c["name"] for c in inspector.get_columns(table)}
             if column not in existing_columns:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+
+        # Remove UNIQUE constraint from users.email (if it exists)
+        if "users" in existing_tables:
+            # Check if email has a unique index
+            indexes = inspector.get_indexes("users")
+            unique_cols = inspector.get_unique_constraints("users")
+            # SQLite: recreate table without the unique constraint on email
+            cols = inspector.get_columns("users")
+            col_names = [c["name"] for c in cols]
+            if "email" in col_names:
+                # Drop and recreate the unique index if it exists
+                for idx in indexes:
+                    if "email" in idx.get("column_names", []) and idx.get("unique"):
+                        conn.execute(text(f"DROP INDEX IF EXISTS {idx['name']}"))
+                        print(f"[MIGRATION] Dropped unique index on users.email: {idx['name']}")

@@ -8,6 +8,12 @@ from .routers import (
     integrations, reports,
 )
 from .routers import task_activities
+from .routers import user_setup
+from .routers import skills
+from .routers import task_attachments
+from .routers import holidays
+from .routers import role_capacities
+from .routers import resource_calendar
 from .deps import get_current_user
 from . import seed_data
 
@@ -31,6 +37,9 @@ app.add_middleware(
 # Auth routes are public (login itself can't require a token).
 app.include_router(auth_router.router)
 
+# Public integration endpoints (no auth required)
+app.include_router(integrations.public_router)
+
 # Every other route requires a valid logged-in user. Fine-grained role checks
 # (e.g. "only Admin/Manager/Lead can edit this task") are applied per-endpoint
 # inside each router via app.deps.require_roles / can_edit_task / can_delete_task.
@@ -49,6 +58,12 @@ app.include_router(timeline.router, dependencies=[protected])
 app.include_router(integrations.router, dependencies=[protected])
 app.include_router(reports.router, dependencies=[protected])
 app.include_router(task_activities.router, dependencies=[protected])
+app.include_router(user_setup.router, dependencies=[protected])
+app.include_router(skills.router, dependencies=[protected])
+app.include_router(task_attachments.router, dependencies=[protected])
+app.include_router(holidays.router, dependencies=[protected])
+app.include_router(role_capacities.router, dependencies=[protected])
+app.include_router(resource_calendar.router, dependencies=[protected])
 
 
 @app.on_event("startup")

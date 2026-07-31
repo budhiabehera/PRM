@@ -107,7 +107,7 @@ export default function AdminSalesforceTasksPage() {
               options={customers.map((c) => ({ value: c, label: c }))} />
             <FilterSelect label="Product" allLabel="All Products" onChange={setFilter('product_id')}
               options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-            <FilterSelect label="Developer" allLabel="All Developers" onChange={setFilter('developer_id')}
+            <FilterSelect label="Resource" allLabel="All Resources" onChange={setFilter('developer_id')}
               options={resources.map((d) => ({ value: d.id, label: d.name }))} />
             <FilterSelect label="Work Type" allLabel="All Work Types" onChange={setFilter('work_type_id')}
               options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />
@@ -120,7 +120,7 @@ export default function AdminSalesforceTasksPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Created</th><th>Task</th><th>Customer</th><th>Product</th><th>Developer</th>
+                  <th>Created</th><th>Task</th><th>Customer</th><th>Product</th><th>Resource</th>
                   <th>Work Type</th><th>Priority</th><th>Status</th><th>Est Hrs</th><th>Salesforce</th><th>Actions</th>
                 </tr>
               </thead>

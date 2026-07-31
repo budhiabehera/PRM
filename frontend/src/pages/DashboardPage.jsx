@@ -73,7 +73,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-5 gap-3.5 mb-6">
-        <KPICard label="Total Developers" value={kpis.total_developers} />
+        <KPICard label="Total Resources" value={kpis.total_developers} />
         <KPICard label="Total Tasks" value={kpis.total_tasks} />
         <KPICard label="Total Est. Hours" value={formatNumber(kpis.total_estimated_hours)} />
         <KPICard label="Customer Committed" value={kpis.customer_committed_tasks} />

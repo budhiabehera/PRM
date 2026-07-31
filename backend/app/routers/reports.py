@@ -4,6 +4,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
+from ..deps import get_current_user, get_user_project_ids
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
@@ -35,6 +36,14 @@ def _to_row(t: models.Task) -> dict:
     }
 
 
+def _apply_project_access(q, current_user, db):
+    """Apply project-based filtering to a Task query."""
+    allowed = get_user_project_ids(current_user)
+    if allowed is not None:
+        q = q.filter(models.Task.project_id.in_(allowed))
+    return q, allowed
+
+
 @router.get("/salesforce-tasks")
 def salesforce_tasks_report(
     created_date: date | None = None,
@@ -48,11 +57,10 @@ def salesforce_tasks_report(
     priority: str | None = None,
     synced: bool | None = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    """Powers the Admin > Salesforce Tasks page: every task created in PRM,
-    filterable by creation date/range, customer, product (project), developer,
-    work type, status, priority, and Salesforce-sync state."""
     q = db.query(models.Task)
+    q, _ = _apply_project_access(q, current_user, db)
 
     if created_date:
         start = datetime.combine(created_date, datetime.min.time())
@@ -100,30 +108,29 @@ def salesforce_tasks_report(
 
 
 @router.get("/customers")
-def list_customers(db: Session = Depends(get_db)):
-    """Distinct customer/property names, for the Customer filter dropdown."""
-    rows = (
-        db.query(models.Task.property_client)
-        .filter(models.Task.property_client.isnot(None), models.Task.property_client != "")
-        .distinct()
-        .order_by(models.Task.property_client)
-        .all()
+def list_customers(db: Session = Depends(get_db),
+                   current_user: models.User = Depends(get_current_user)):
+    allowed = get_user_project_ids(current_user)
+    q = db.query(models.Task.property_client).filter(
+        models.Task.property_client.isnot(None), models.Task.property_client != ""
     )
+    if allowed is not None:
+        q = q.filter(models.Task.project_id.in_(allowed))
+    rows = q.distinct().order_by(models.Task.property_client).all()
     return [r[0] for r in rows]
 
 
 @router.get("/daily-created-counts")
-def daily_created_counts(days: int = 14, db: Session = Depends(get_db)):
-    """Task-creation counts per day for the last N days, for a small trend view
-    at the top of the Salesforce Tasks page."""
+def daily_created_counts(days: int = 14, db: Session = Depends(get_db),
+                         current_user: models.User = Depends(get_current_user)):
+    allowed = get_user_project_ids(current_user)
     since = datetime.combine(date.today() - timedelta(days=days - 1), datetime.min.time())
-    rows = (
-        db.query(func.date(models.Task.created_at).label("day"), func.count(models.Task.id))
-        .filter(models.Task.created_at >= since)
-        .group_by("day")
-        .order_by("day")
-        .all()
+    q = db.query(func.date(models.Task.created_at).label("day"), func.count(models.Task.id)).filter(
+        models.Task.created_at >= since
     )
+    if allowed is not None:
+        q = q.filter(models.Task.project_id.in_(allowed))
+    rows = q.group_by("day").order_by("day").all()
     counts = {day: count for day, count in rows}
     result = []
     for i in range(days):
@@ -133,10 +140,13 @@ def daily_created_counts(days: int = 14, db: Session = Depends(get_db)):
 
 
 @router.get("/project-progress")
-def project_progress_report(db: Session = Depends(get_db)):
-    """Per-project completion snapshot: task counts by status, % complete,
-    and hours (estimated/actual/remaining)."""
-    projects = db.query(models.Project).order_by(models.Project.name).all()
+def project_progress_report(db: Session = Depends(get_db),
+                            current_user: models.User = Depends(get_current_user)):
+    allowed = get_user_project_ids(current_user)
+    pq = db.query(models.Project)
+    if allowed is not None:
+        pq = pq.filter(models.Project.id.in_(allowed))
+    projects = pq.order_by(models.Project.name).all()
     rows = []
     for p in projects:
         tasks = p.tasks
@@ -171,15 +181,15 @@ def overdue_tasks_report(
     developer_id: int | None = None,
     priority: str | None = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    """Tasks whose end_date has passed but are not yet Completed — the classic
-    'what's slipping' report. Sorted most-overdue first."""
     today = date.today()
     q = db.query(models.Task).filter(
         models.Task.end_date.isnot(None),
         models.Task.end_date < today,
         models.Task.status != "Completed",
     )
+    q, _ = _apply_project_access(q, current_user, db)
     if project_id:
         q = q.filter(models.Task.project_id == project_id)
     if developer_id:
@@ -207,14 +217,16 @@ def overdue_tasks_report(
 
 
 @router.get("/customer-summary")
-def customer_summary_report(db: Session = Depends(get_db)):
-    """Per-customer/property rollup: task volume, hours, committed vs internal,
-    completion rate. Powers a 'who are we spending time on' view."""
-    tasks = (
-        db.query(models.Task)
-        .filter(models.Task.property_client.isnot(None), models.Task.property_client != "")
-        .all()
+def customer_summary_report(db: Session = Depends(get_db),
+                            current_user: models.User = Depends(get_current_user)):
+    allowed = get_user_project_ids(current_user)
+    q = db.query(models.Task).filter(
+        models.Task.property_client.isnot(None), models.Task.property_client != ""
     )
+    if allowed is not None:
+        q = q.filter(models.Task.project_id.in_(allowed))
+    tasks = q.all()
+
     buckets: dict[str, dict] = {}
     for t in tasks:
         b = buckets.setdefault(t.property_client, {
@@ -246,10 +258,10 @@ def time_variance_report(
     developer_id: int | None = None,
     status: str | None = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    """Estimated vs. actual hours per task, for tasks with logged time — flags
-    which tasks are running over/under their estimate and by how much."""
     q = db.query(models.Task).filter(models.Task.actual_hours > 0)
+    q, _ = _apply_project_access(q, current_user, db)
     if project_id:
         q = q.filter(models.Task.project_id == project_id)
     if developer_id:

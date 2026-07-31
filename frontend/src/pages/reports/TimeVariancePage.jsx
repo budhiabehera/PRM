@@ -46,7 +46,7 @@ export default function TimeVariancePage() {
           <div className="flex flex-wrap gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl items-end">
             <FilterSelect label="Project" onChange={setFilter('project_id')}
               options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-            <FilterSelect label="Developer" onChange={setFilter('developer_id')}
+            <FilterSelect label="Resource" onChange={setFilter('developer_id')}
               options={resources.map((d) => ({ value: d.id, label: d.name }))} />
             <FilterSelect label="Status" onChange={setFilter('status')} options={STATUS_OPTIONS} />
           </div>
@@ -55,7 +55,7 @@ export default function TimeVariancePage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Task</th><th>Product</th><th>Developer</th><th>Status</th>
+                  <th>Task</th><th>Product</th><th>Resource</th><th>Status</th>
                   <th>Est Hrs</th><th>Actual Hrs</th><th>Variance</th><th>Variance %</th>
                 </tr>
               </thead>

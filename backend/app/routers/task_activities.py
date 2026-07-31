@@ -1,10 +1,54 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from datetime import datetime, timezone, timedelta
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
 
 router = APIRouter(prefix="/api/task-activities", tags=["Task Activities"])
+
+
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def _now_ist():
+    return datetime.now(IST)
+
+
+
+def _recalculate_task_stats(task, db):
+    """Recalculate task actual_hours (sum of all activities) and percentage (latest activity)."""
+    total_hours = (
+        db.query(func.coalesce(func.sum(models.TaskActivity.hours_spent), 0))
+        .filter(models.TaskActivity.task_id == task.id)
+        .scalar()
+    )
+    task.actual_hours = total_hours
+
+    latest = (
+        db.query(models.TaskActivity)
+        .filter(models.TaskActivity.task_id == task.id, models.TaskActivity.percentage > 0)
+        .order_by(models.TaskActivity.activity_date.desc(), models.TaskActivity.id.desc())
+        .first()
+    )
+    if latest:
+        task.percentage = latest.percentage
+
+
+def _serialize_activity(a):
+    return {
+        "id": a.id,
+        "task_id": a.task_id,
+        "developer_id": a.developer_id,
+        "developer_name": a.developer.name if a.developer else None,
+        "activity_date": a.activity_date,
+        "description": a.description,
+        "hours_spent": a.hours_spent,
+        "percentage": a.percentage,
+        "created_at": a.created_at,
+        "created_by_id": a.created_by_id,
+        "created_by_name": a.created_by.full_name if a.created_by else None,
+    }
 
 
 @router.get("/{task_id}")
@@ -13,23 +57,10 @@ def list_activities(task_id: int, db: Session = Depends(get_db)):
     activities = (
         db.query(models.TaskActivity)
         .filter(models.TaskActivity.task_id == task_id)
-        .order_by(models.TaskActivity.activity_date.desc())
+        .order_by(models.TaskActivity.activity_date.desc(), models.TaskActivity.id.desc())
         .all()
     )
-    result = []
-    for a in activities:
-        result.append({
-            "id": a.id,
-            "task_id": a.task_id,
-            "developer_id": a.developer_id,
-            "developer_name": a.developer.name if a.developer else None,
-            "activity_date": a.activity_date,
-            "description": a.description,
-            "hours_spent": a.hours_spent,
-            "percentage": a.percentage,
-            "created_at": a.created_at,
-        })
-    return result
+    return [_serialize_activity(a) for a in activities]
 
 
 @router.post("", status_code=201)
@@ -43,7 +74,6 @@ def create_activity(
     if not task:
         raise HTTPException(404, "Task not found")
 
-    # Auto-set developer_id from current user if not provided
     developer_id = payload.developer_id or current_user.developer_id
 
     activity = models.TaskActivity(
@@ -53,24 +83,17 @@ def create_activity(
         description=payload.description,
         hours_spent=payload.hours_spent,
         percentage=payload.percentage,
+        created_by_id=current_user.id,
+        created_at=_now_ist(),
     )
     db.add(activity)
+    db.flush()
 
-    # Update task's actual_hours and percent (based on latest activity percentage)
-    task.actual_hours = (task.actual_hours or 0) + payload.hours_spent
+    _recalculate_task_stats(task, db)
+
     db.commit()
     db.refresh(activity)
-    return {
-        "id": activity.id,
-        "task_id": activity.task_id,
-        "developer_id": activity.developer_id,
-        "developer_name": activity.developer.name if activity.developer else None,
-        "activity_date": activity.activity_date,
-        "description": activity.description,
-        "hours_spent": activity.hours_spent,
-        "percentage": activity.percentage,
-        "created_at": activity.created_at,
-    }
+    return _serialize_activity(activity)
 
 
 @router.delete("/{activity_id}", status_code=204)
@@ -82,5 +105,11 @@ def delete_activity(
     activity = db.query(models.TaskActivity).get(activity_id)
     if not activity:
         raise HTTPException(404, "Activity not found")
+    task = db.query(models.Task).get(activity.task_id)
     db.delete(activity)
+    db.flush()
+
+    if task:
+        _recalculate_task_stats(task, db)
+
     db.commit()

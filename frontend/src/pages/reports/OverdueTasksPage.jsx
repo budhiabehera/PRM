@@ -41,7 +41,7 @@ export default function OverdueTasksPage() {
           <div className="flex flex-wrap gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl items-end">
             <FilterSelect label="Project" onChange={setFilter('project_id')}
               options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-            <FilterSelect label="Developer" onChange={setFilter('developer_id')}
+            <FilterSelect label="Resource" onChange={setFilter('developer_id')}
               options={resources.map((d) => ({ value: d.id, label: d.name }))} />
             <FilterSelect label="Priority" onChange={setFilter('priority')} options={PRIORITY_OPTIONS} />
           </div>
@@ -50,7 +50,7 @@ export default function OverdueTasksPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Task</th><th>Customer</th><th>Product</th><th>Developer</th>
+                  <th>Task</th><th>Customer</th><th>Product</th><th>Resource</th>
                   <th>Priority</th><th>Status</th><th>Due Date</th><th>Days Overdue</th>
                 </tr>
               </thead>

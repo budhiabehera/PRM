@@ -59,7 +59,7 @@ export default function AdminTasksPage() {
         {loading ? <LoadingSpinner /> : (
           <table className="data-table">
             <thead>
-              <tr><th>ID</th><th>Task</th><th>Developer</th><th>Project</th><th>Priority</th><th>Status</th><th>Est Hrs</th><th>Actions</th></tr>
+              <tr><th>ID</th><th>Task</th><th>Resource</th><th>Project</th><th>Priority</th><th>Status</th><th>Est Hrs</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {[...tasks].reverse().slice(0, 20).map((t) => (

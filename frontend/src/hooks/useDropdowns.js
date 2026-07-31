@@ -19,7 +19,6 @@ export default function useDropdowns() {
   const filteredProjects = useMemo(() => {
     if (isAdmin) return projects
     const userProjectIds = user.project_ids || []
-    if (userProjectIds.length === 0) return projects
     return projects.filter((p) => userProjectIds.includes(p.id))
   }, [projects, user, isAdmin])
 
@@ -34,14 +33,12 @@ export default function useDropdowns() {
   // Filter main modules — only those linked to user's projects
   const filteredMainModules = useMemo(() => {
     if (isAdmin || !allowedModuleIds) return mainModules
-    if (allowedModuleIds.length === 0) return mainModules // no restriction if no link
     return mainModules.filter((m) => allowedModuleIds.includes(m.id))
   }, [mainModules, allowedModuleIds, isAdmin])
 
   // Filter sub-modules — only those under allowed main modules
   const filteredSubModules = useMemo(() => {
     if (isAdmin || !allowedModuleIds) return subModules
-    if (allowedModuleIds.length === 0) return subModules
     return subModules.filter((s) => allowedModuleIds.includes(s.main_module_id))
   }, [subModules, allowedModuleIds, isAdmin])
 
@@ -49,7 +46,6 @@ export default function useDropdowns() {
   const filteredResources = useMemo(() => {
     if (isAdmin) return resources
     const userProjectIds = (user?.project_ids || [])
-    if (userProjectIds.length === 0) return resources
     // Show developers assigned to any of the user's projects + those with no project (unassigned)
     return resources.filter((d) => {
       const devProjects = d.project_ids || []

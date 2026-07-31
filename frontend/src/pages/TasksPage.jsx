@@ -15,6 +15,7 @@ import { formatShortDate } from '../utils/formatters'
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from '../utils/constants'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import TaskActivityPanel from '../components/TaskActivityPanel'
+import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
 
 const KANBAN_COLUMNS = ['Not Started', 'In Progress', 'On Hold', 'Completed']
 
@@ -119,7 +120,7 @@ export default function TasksPage() {
         <FilterSelect label="Sub Module" value={filters.sub_module_id} onChange={setFilter('sub_module_id')}
           options={subModules.map((s) => ({ value: s.id, label: s.name }))} />
         {!isDeveloper && (
-          <FilterSelect label="Developer" value={filters.developer_id} onChange={setFilter('developer_id')}
+          <FilterSelect label="Resource" value={filters.developer_id} onChange={setFilter('developer_id')}
             options={
               filters.project_id
                 ? resources
@@ -147,7 +148,7 @@ export default function TasksPage() {
                 <th>Case#</th>
                 <th>Property</th>
                 <th>Task</th>
-                {!isDeveloper && <th>Developer</th>}
+                {!isDeveloper && <th>Resource</th>}
                 <th>Work Type</th>
                 <th>Priority</th>
                 <th>Status</th>
@@ -239,7 +240,10 @@ export default function TasksPage() {
                           )}
 
                           {/* Task Activity Log */}
-                          <TaskActivityPanel task={t} user={user} />
+                          <TaskActivityPanel task={t} user={user} onUpdate={reload} />
+
+                          {/* Task Attachments */}
+                          <TaskAttachmentsPanel task={t} />
                         </td>
                       </tr>
                     )}

@@ -41,15 +41,30 @@ def send_teams_message(webhook_url: str, title: str, text: str, facts: list[tupl
         return False, f"Could not reach Teams webhook: {exc}"
 
 
-def notify_task_event(webhook_url: str, event: str, task) -> tuple[bool, str]:
-    """Convenience wrapper for task-related notifications (created/updated/completed)."""
-    title = f"Task {event}: {task.task_code}"
-    text = task.description
-    facts = [
-        ("Project", task.project.name if task.project else "—"),
-        ("Developer", task.developer.name if task.developer else "Unassigned"),
-        ("Priority", task.priority),
-        ("Status", task.status),
-        ("Estimated Hours", task.estimated_hours),
-    ]
-    return send_teams_message(webhook_url, title, text, facts)
+def notify_task_event(webhook_url: str, event: str, task, assigned_by: str = None) -> tuple[bool, str]:
+    """Send structured task notification to Teams/Power Automate webhook.
+    Posts the payload in the format expected by Power Automate flows/blob:
+    {EmployeeName, ProjectName, SprintName, TaskName, Priority, AssignedBy, DueDate}
+    """
+    if not webhook_url:
+        return False, "No Teams webhook URL configured."
+
+    payload = {
+        "EmployeeName": task.developer.name if task.developer else "Unassigned",
+        "ProjectName": task.project.name if task.project else "—",
+        "SprintName": task.sprint.name if task.sprint else "—",
+        "TaskName": task.description,
+        "Priority": task.priority or "Medium",
+        "AssignedBy": assigned_by
+            or (task.developer.reporting_to.name if (task.developer and task.developer.reporting_to) else None)
+            or "—",
+        "DueDate": task.end_date.isoformat() if task.end_date else "—",
+    }
+
+    try:
+        resp = requests.post(webhook_url, json=payload, timeout=TIMEOUT_SECONDS)
+        if resp.status_code in (200, 202):
+            return True, "Task notification sent to Teams."
+        return False, f"Teams webhook returned HTTP {resp.status_code}: {resp.text[:300]}"
+    except requests.RequestException as exc:
+        return False, f"Could not reach Teams webhook: {exc}"

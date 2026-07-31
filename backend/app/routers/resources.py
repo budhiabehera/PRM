@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..deps import require_roles
+from ..deps import require_roles, get_current_user, get_user_project_ids
 from ..utils.calculations import utilization_status
 
 router = APIRouter(prefix="/api/resources", tags=["Resources"])
@@ -36,8 +36,16 @@ def list_resources(
     role: str | None = None,
     skill: str | None = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     q = db.query(models.Developer)
+    # Filter developers by user's project access
+    allowed = get_user_project_ids(current_user)
+    if allowed is not None:
+        from ..models import developer_projects
+        q = q.filter(models.Developer.id.in_(
+            db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
+        ))
     if module_id:
         q = q.filter(models.Developer.home_module_id == module_id)
     if role:
@@ -49,10 +57,18 @@ def list_resources(
 
 
 @router.get("/stats")
-def resource_stats(db: Session = Depends(get_db)):
-    devs = db.query(models.Developer).filter(models.Developer.active == True).all()  # noqa: E712
+def resource_stats(db: Session = Depends(get_db),
+                   current_user: models.User = Depends(get_current_user)):
+    allowed = get_user_project_ids(current_user)
+    dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
+    if allowed is not None:
+        from ..models import developer_projects
+        dev_q = dev_q.filter(models.Developer.id.in_(
+            db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
+        ))
+    devs = dev_q.all()
     total_capacity = sum(d.base_capacity for d in devs)
-    total_assigned = sum(sum(t.estimated_hours for t in d.tasks) for d in devs)
+    total_assigned = sum(sum(t.estimated_hours for t in d.tasks if allowed is None or t.project_id in allowed) for d in devs)
     avg_util = round((total_assigned / total_capacity) * 100, 1) if total_capacity else 0
     return {
         "active_developers": len(devs),

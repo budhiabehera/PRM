@@ -26,7 +26,7 @@ export default function AvailabilityForm({
     <div>
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
-          <label className="form-label">Developer *</label>
+          <label className="form-label">Resource *</label>
           <select
             className="form-select"
             value={form.developer_id}

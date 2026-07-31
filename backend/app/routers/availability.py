@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
-from ..deps import get_current_user, require_roles
+from ..deps import get_current_user, require_roles, get_user_project_ids
 
 router = APIRouter(prefix="/api/availability", tags=["Availability"])
 
@@ -24,8 +24,16 @@ def list_availability(
     sprint_id: int | None = None,
     developer_id: int | None = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     q = db.query(models.Availability)
+    # Filter to developers within user's project access
+    allowed = get_user_project_ids(current_user)
+    if allowed is not None:
+        from ..models import developer_projects
+        allowed_dev_ids = [row[0] for row in db.query(developer_projects.c.developer_id).filter(
+            developer_projects.c.project_id.in_(allowed)).all()]
+        q = q.filter(models.Availability.developer_id.in_(allowed_dev_ids))
     if sprint_id:
         q = q.filter(models.Availability.sprint_id == sprint_id)
     if developer_id:

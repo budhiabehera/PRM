@@ -3,14 +3,19 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from .. import models, schemas
 from ..database import get_db
-from ..deps import require_roles
+from ..deps import require_roles, get_current_user, get_user_project_ids
 
 router = APIRouter(prefix="/api/projects", tags=["Projects"])
 
 
 @router.get("", response_model=list[schemas.Project])
-def list_projects(db: Session = Depends(get_db)):
-    return db.query(models.Project).order_by(models.Project.name).all()
+def list_projects(db: Session = Depends(get_db),
+                  current_user: models.User = Depends(get_current_user)):
+    q = db.query(models.Project)
+    allowed = get_user_project_ids(current_user)
+    if allowed is not None:
+        q = q.filter(models.Project.id.in_(allowed))
+    return q.order_by(models.Project.name).all()
 
 
 @router.get("/stats")

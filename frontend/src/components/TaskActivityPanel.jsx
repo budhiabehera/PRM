@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getTaskActivities, createTaskActivity, deleteTaskActivity } from '../services/api'
 import { formatShortDate } from '../utils/formatters'
 
-export default function TaskActivityPanel({ task, user }) {
+export default function TaskActivityPanel({ task, user, onUpdate }) {
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -42,6 +42,7 @@ export default function TaskActivityPanel({ task, user }) {
       setForm({ activity_date: new Date().toISOString().split('T')[0], description: '', hours_spent: '', percentage: '' })
       setShowForm(false)
       loadActivities()
+      if (onUpdate) onUpdate()
     } catch (err) {
       setError(err.response?.data?.detail || 'Could not save activity')
     }
@@ -50,6 +51,13 @@ export default function TaskActivityPanel({ task, user }) {
   const handleDelete = async (id) => {
     await deleteTaskActivity(id)
     loadActivities()
+    if (onUpdate) onUpdate()
+  }
+
+  const formatDateTime = (dt) => {
+    if (!dt) return ''
+    const d = new Date(dt)
+    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' })
   }
 
   return (
@@ -71,7 +79,7 @@ export default function TaskActivityPanel({ task, user }) {
           <div className="grid grid-cols-4 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-slate-500 font-medium">Date *</label>
-              <input type="date" className="form-input text-xs" value={form.activity_date}
+              <input type="date" className="form-input text-xs" value={form.activity_date} max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setForm((f) => ({ ...f, activity_date: e.target.value }))} required />
             </div>
             <div className="flex flex-col gap-1 col-span-2">
@@ -109,9 +117,14 @@ export default function TaskActivityPanel({ task, user }) {
               <div className="flex items-center gap-3">
                 <span className="text-slate-400 font-medium w-16">{formatShortDate(a.activity_date)}</span>
                 <span className="text-slate-700">{a.description}</span>
-                {a.developer_name && <span className="text-slate-400">— {a.developer_name}</span>}
+                {a.created_by_name && (
+                  <span className="text-slate-400">— by {a.created_by_name}</span>
+                )}
               </div>
               <div className="flex items-center gap-3">
+                {a.created_at && (
+                  <span className="text-slate-400 text-[10px]">{formatDateTime(a.created_at)}</span>
+                )}
                 {a.hours_spent > 0 && <span className="text-slate-500">{a.hours_spent}h</span>}
                 {a.percentage > 0 && (
                   <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium">

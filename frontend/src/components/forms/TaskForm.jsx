@@ -10,6 +10,8 @@ export default function TaskForm({
   const [form, setForm] = useState({
     case_ref: initial?.case_ref || '',
     property_client: initial?.property_client || '',
+    subject: initial?.subject || '',
+    point_of_contact: initial?.point_of_contact || '',
     description: initial?.description || '',
     project_id: initial?.project_id || '',
     main_module_id: initial?.main_module_id || '',
@@ -48,6 +50,8 @@ export default function TaskForm({
     if (Object.keys(errs).length > 0) return
     onSubmit({
       ...form,
+      subject: form.subject,
+      point_of_contact: form.point_of_contact,
       project_id: form.project_id ? Number(form.project_id) : null,
       main_module_id: form.main_module_id ? Number(form.main_module_id) : null,
       sub_module_id: form.sub_module_id ? Number(form.sub_module_id) : null,
@@ -62,6 +66,22 @@ export default function TaskForm({
   return (
     <div>
       <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1 col-span-2">
+          <label className="form-label">Task Subject</label>
+          <input className="form-input" placeholder="e.g., API Integration for Payment Module" value={form.subject}
+            onChange={(e) => update('subject', e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1 col-span-2">
+          <label className="form-label">Task Description *</label>
+          <textarea className="form-textarea" placeholder="Describe the task in detail..." value={form.description}
+            onChange={(e) => update('description', e.target.value)} />
+          {errors.description && <span className="text-[11px] text-red-500">{errors.description}</span>}
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="form-label">Point of Contact</label>
+          <input className="form-input" placeholder="e.g., John Smith" value={form.point_of_contact}
+            onChange={(e) => update('point_of_contact', e.target.value)} />
+        </div>
         <div className="flex flex-col gap-1">
           <label className="form-label">Case # / Reference</label>
           <input className="form-input" placeholder="e.g., 1290237 or Internal" value={form.case_ref}
@@ -71,12 +91,6 @@ export default function TaskForm({
           <label className="form-label">Property / Client</label>
           <input className="form-input" placeholder="e.g., Dragon Beach Hotel" value={form.property_client}
             onChange={(e) => update('property_client', e.target.value)} />
-        </div>
-        <div className="flex flex-col gap-1 col-span-2">
-          <label className="form-label">Task Description *</label>
-          <textarea className="form-textarea" placeholder="Describe the task in detail..." value={form.description}
-            onChange={(e) => update('description', e.target.value)} />
-          {errors.description && <span className="text-[11px] text-red-500">{errors.description}</span>}
         </div>
         <div className="flex flex-col gap-1">
           <label className="form-label">Project *</label>
@@ -103,7 +117,7 @@ export default function TaskForm({
           <span className="text-[10px] text-slate-400">Depends on Main Module selection</span>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Assign Developer *</label>
+          <label className="form-label">Resource *</label>
           <select className="form-select" value={form.developer_id} onChange={(e) => update('developer_id', e.target.value)} disabled={lockDeveloper}>
             <option value="">Select Developer...</option>
             {filteredResources.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.role}, {d.skill})</option>)}

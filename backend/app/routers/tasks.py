@@ -12,6 +12,8 @@ def _to_detail(t: models.Task) -> dict:
         "id": t.id,
         "task_code": t.task_code,
         "case_ref": t.case_ref,
+        "subject": t.subject,
+        "point_of_contact": t.point_of_contact,
         "property_client": t.property_client,
         "description": t.description,
         "project_id": t.project_id,
@@ -61,8 +63,14 @@ def list_tasks(
     status: str | None = None,
     priority: str | None = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     q = db.query(models.Task)
+    # Enforce project-based access
+    from ..deps import get_user_project_ids
+    allowed_project_ids = get_user_project_ids(current_user)
+    if allowed_project_ids is not None:
+        q = q.filter(models.Task.project_id.in_(allowed_project_ids))
     if project_id:
         q = q.filter(models.Task.project_id == project_id)
     if main_module_id:

@@ -12,11 +12,22 @@ from .auth import hash_password
 def run_seed(db: Session):
     _seed_core_data(db)
     _seed_default_users(db)
+    _seed_skills(db)
 
 
 def _seed_core_data(db: Session):
     if db.query(models.Project).count() > 0:
         return  # already seeded
+
+
+def _seed_skills(db: Session):
+    """Seed default skills if none exist."""
+    if db.query(models.Skill).count() > 0:
+        return
+    default_skills = ["Backend", "Frontend", "Mobile", "QA", "DevOps", "Full Stack", "UI/UX"]
+    for name in default_skills:
+        db.add(models.Skill(name=name))
+    db.commit()
 
     # ---------- Main Modules ----------
     fom = models.MainModule(name="FX FOM", description="Front Office Management")

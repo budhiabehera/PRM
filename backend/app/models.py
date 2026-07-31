@@ -39,6 +39,20 @@ class IntegrationSettings(Base):
     salesforce_password = Column(String(255), nullable=True)
     salesforce_security_token = Column(String(255), nullable=True)
 
+    # Azure Blob & Notification settings
+    azure_blob_connection_string = Column(String(500), nullable=True)
+    task_link_base_url = Column(String(255), default="http://localhost:5173/tasks/")
+    company_logo_url = Column(String(500), default="https://fx1fxposprod.blob.core.windows.net/liaison/PrimaryLogo-TriColour-min.png")
+
+    # SMTP Email settings
+    smtp_enabled = Column(Boolean, default=False)
+    smtp_host = Column(String(255), nullable=True)
+    smtp_port = Column(Integer, default=587)
+    smtp_username = Column(String(255), nullable=True)
+    smtp_password = Column(String(255), nullable=True)
+    smtp_from_email = Column(String(255), nullable=True)
+    smtp_from_name = Column(String(100), default="PRM System")
+    smtp_use_tls = Column(Boolean, default=True)
 
 class User(Base):
     """Login account. Roles: Admin, Manager, Lead, Developer.
@@ -48,7 +62,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
-    email = Column(String(150), unique=True, nullable=True)
+    email = Column(String(150), nullable=True)
     full_name = Column(String(150), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="Developer")  # Admin, Manager, Lead, Developer
@@ -111,12 +125,22 @@ class Developer(Base):
     skill = Column(String(50), default="Backend")  # Backend, Frontend, Mobile
     base_capacity = Column(Float, default=192)  # hrs/month
     active = Column(Boolean, default=True)
+    reporting_to_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
 
     home_module = relationship("MainModule", back_populates="developers")
     projects = relationship("Project", secondary=developer_projects, backref="assigned_developers")
     tasks = relationship("Task", back_populates="developer")
     availabilities = relationship("Availability", back_populates="developer", cascade="all, delete-orphan")
     user_account = relationship("User", back_populates="developer", uselist=False)
+    reporting_to = relationship("Developer", remote_side=[id], foreign_keys=[reporting_to_id])
+
+
+class Skill(Base):
+    __tablename__ = "skills"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(String(255), default="")
 
 
 class WorkType(Base):
@@ -138,7 +162,9 @@ class Sprint(Base):
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     status = Column(String(30), default="Not Started")  # Not Started, Planned, Active, Completed
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
 
+    project = relationship("Project")
     tasks = relationship("Task", back_populates="sprint")
 
 
@@ -148,6 +174,8 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     task_code = Column(String(20), unique=True, nullable=False)  # e.g. T09001
     case_ref = Column(String(100), default="")
+    subject = Column(String(255), default="")
+    point_of_contact = Column(String(150), default="")
     property_client = Column(String(150), default="")
     description = Column(Text, nullable=False)
 
@@ -161,11 +189,13 @@ class Task(Base):
     priority = Column(String(20), default="Medium")  # Critical, High, Medium, Low
     status = Column(String(30), default="Not Started")
     customer_committed = Column(Boolean, default=False)
+    team = Column(String(100), nullable=True)  # e.g. Backend, Frontend, QA, DevOps
 
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     estimated_hours = Column(Float, default=0)
     actual_hours = Column(Float, default=0)
+    percentage = Column(Float, default=0)  # task completion % (updated from activity log)
 
     # When this task record was actually created in PRM (distinct from start_date,
     # which is the planned work date and can be set in the future/past). Powers
@@ -185,6 +215,9 @@ class Task(Base):
 
     @property
     def percent_complete(self):
+        # Prefer manually-set percentage from activity log
+        if self.percentage and self.percentage > 0:
+            return round(self.percentage)
         if not self.estimated_hours:
             return 0
         return round(min(self.actual_hours / self.estimated_hours, 1.5) * 100)
@@ -222,6 +255,54 @@ class TaskActivity(Base):
     hours_spent = Column(Float, default=0)
     percentage = Column(Float, default=0)  # task % completion at this point
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     task = relationship("Task", backref="activities")
     developer = relationship("Developer")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+
+
+class TaskAttachment(Base):
+    """File attachments stored in Azure Blob Storage for a task."""
+    __tablename__ = "task_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    blob_name = Column(String(500), nullable=False)  # full blob path in container
+    file_size = Column(Integer, default=0)  # bytes
+    content_type = Column(String(100), default="application/octet-stream")
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_modified = Column(DateTime(timezone=True), server_default=func.now())
+
+    task = relationship("Task", backref="attachments")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+
+
+class Holiday(Base):
+    """Company holidays. Weekends (Sat/Sun) are implicit; this stores
+    additional declared holidays (e.g. national holidays, company days off)."""
+    __tablename__ = "holidays"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, unique=True, nullable=False, index=True)
+    name = Column(String(150), nullable=False)
+    month = Column(Integer, nullable=False)  # 1-12, derived from date for fast filtering
+    year = Column(Integer, nullable=False)   # e.g. 2026
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    created_by = relationship("User", foreign_keys=[created_by_id])
+
+
+class RoleCapacity(Base):
+    """Defines default capacity (hours/month) per role.
+    Used to auto-fill base_capacity in User Setup when a role is selected."""
+    __tablename__ = "role_capacities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    role = Column(String(50), unique=True, nullable=False)  # e.g. Admin, Manager, Lead, Developer
+    capacity_hours = Column(Float, nullable=False, default=192)  # hrs/month
+    description = Column(String(255), default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

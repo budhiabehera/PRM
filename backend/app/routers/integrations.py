@@ -3,9 +3,12 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user, require_roles
-from ..integrations import teams, salesforce
+from ..integrations import teams, salesforce, azure_blob
 
 router = APIRouter(prefix="/api/integrations", tags=["Integrations"])
+
+# Anonymous router — no auth required
+public_router = APIRouter(prefix="/api/integrations", tags=["Integrations (Public)"])
 
 
 def _get_or_create_settings(db: Session) -> models.IntegrationSettings:
@@ -59,22 +62,44 @@ def test_salesforce(db: Session = Depends(get_db), _user=Depends(require_roles("
     return {"success": True, "message": message}
 
 
-@router.post("/tasks/{task_id}/notify-teams")
+@public_router.post("/tasks/{task_id}/notify-teams")
 def notify_teams_for_task(
     task_id: int,
     db: Session = Depends(get_db),
-    _user=Depends(require_roles("Admin", "Manager", "Lead")),
 ):
     task = db.query(models.Task).get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
+
+    # Get settings for blob connection, task link, and logo
     settings = _get_or_create_settings(db)
-    if not settings.teams_enabled:
-        raise HTTPException(400, "Teams integration is not enabled. Configure it in Admin > Settings first.")
-    success, message = teams.notify_task_event(settings.teams_webhook_url, "update", task)
+
+    # Build the task JSON payload
+    task_data = {
+        "ResourceName": task.developer.name if task.developer else "Unassigned",
+        "ResourceEmail": (task.developer.user_account.email if (task.developer and task.developer.user_account and task.developer.user_account.email) else "—"),
+        "ProjectName": task.project.name if task.project else "—",
+        "SprintName": task.sprint.name if task.sprint else "—",
+        "TaskName": task.description,
+        "Priority": task.priority or "Medium",
+        "AssignedBy": (task.developer.reporting_to.name if (task.developer and task.developer.reporting_to) else "—"),
+        "DueDate": task.end_date.isoformat() if task.end_date else "—",
+        "Tasklink": (settings.task_link_base_url or "http://localhost:5173/tasks/"),
+        "CompanyLogo": (settings.company_logo_url or "https://fx1fxposprod.blob.core.windows.net/liaison/PrimaryLogo-TriColour-min.png"),
+    }
+
+    # Upload to Azure Blob Storage
+    blob_conn_str = settings.azure_blob_connection_string or ""
+    success, result = azure_blob.upload_task_json(task_data, blob_conn_str)
     if not success:
-        raise HTTPException(400, message)
-    return {"success": True, "message": message}
+        raise HTTPException(400, result)
+
+    return {
+        "success": True,
+        "message": "Task JSON uploaded to Azure Blob Storage",
+        "blob_url": result,
+        "payload": task_data,
+    }
 
 
 @router.post("/tasks/{task_id}/sync-salesforce")

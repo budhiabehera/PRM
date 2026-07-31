@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut, PanelLeftClose, PanelLeftOpen, KeyRound, LayoutGrid } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
@@ -13,6 +13,16 @@ export default function Header() {
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' })
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState('')
+
+  // Live date/time
+  const [now, setNow] = useState(new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const formattedDate = now.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
+  const formattedTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
 
   const handleLogout = () => {
     logout()
@@ -61,6 +71,9 @@ export default function Header() {
             </div>
             PRM <span className="font-normal text-slate-300">— Project & Resource Management</span>
           </h1>
+        </div>
+        <div className="text-sm font-bold text-white tracking-wide">
+          {formattedDate} &nbsp;|&nbsp; {formattedTime}
         </div>
         <div className="flex items-center gap-3 text-xs">
           <div className="bg-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">

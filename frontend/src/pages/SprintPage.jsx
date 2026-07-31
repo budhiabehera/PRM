@@ -76,7 +76,7 @@ export default function SprintPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th><th>Task</th><th>Sub Module</th><th>Developer</th><th>Work Type</th>
+                <th>ID</th><th>Task</th><th>Sub Module</th><th>Resource</th><th>Work Type</th>
                 <th>Priority</th><th>Status</th><th>Est</th><th>Actual</th><th>%</th>
               </tr>
             </thead>

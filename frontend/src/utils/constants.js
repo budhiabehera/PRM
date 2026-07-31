@@ -45,5 +45,5 @@ export const STATUS_OPTIONS = [
 
 export const PRIORITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low']
 
-export const ROLE_OPTIONS = ['Manager', 'Lead - Manager', 'Lead', 'Developer']
+export const ROLE_OPTIONS = ['Admin', 'Manager', 'Lead - Manager', 'Lead', 'Developer']
 export const SKILL_OPTIONS = ['Backend', 'Frontend', 'Mobile']

@@ -2,17 +2,26 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
+from ..deps import get_current_user, get_user_project_ids
 from ..utils.calculations import net_capacity, utilization_status
 
 router = APIRouter(prefix="/api/utilization", tags=["Utilization"])
 
 
 @router.get("/grid")
-def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = None):
+def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = None,
+                     current_user: models.User = Depends(get_current_user)):
     """Developer x Sprint(month) utilization grid."""
+    allowed = get_user_project_ids(current_user)
     dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
     if developer_id:
         dev_q = dev_q.filter(models.Developer.id == developer_id)
+    # Filter developers to only those in user's projects
+    if allowed is not None:
+        from ..models import developer_projects
+        dev_q = dev_q.filter(models.Developer.id.in_(
+            db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
+        ))
     devs = dev_q.all()
     sprints = db.query(models.Sprint).order_by(models.Sprint.start_date).all()
 
@@ -27,7 +36,10 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
             )
             leave_days = leave.leave_days if leave else 0
             cap = net_capacity(d.base_capacity, leave_days)
-            allocated = sum(t.estimated_hours for t in d.tasks if t.sprint_id == s.id)
+            sprint_tasks = [t for t in d.tasks if t.sprint_id == s.id]
+            if allowed is not None:
+                sprint_tasks = [t for t in sprint_tasks if t.project_id in allowed]
+            allocated = sum(t.estimated_hours for t in sprint_tasks)
             pct = round((allocated / cap) * 100) if cap else 0
             cells.append({
                 "sprint_id": s.id,

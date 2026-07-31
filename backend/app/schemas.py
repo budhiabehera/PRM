@@ -84,6 +84,47 @@ class Developer(DeveloperBase):
     id: int
 
 
+# ---------- Unified User Setup (creates Developer + User login in one go) ----------
+class UserSetupCreate(BaseModel):
+    dev_code: str
+    username: str
+    full_name: str
+    email: str
+    password: Optional[str] = None
+    role: str = "Developer"
+    skill: str = "Backend"
+    project_ids: List[int] = []
+    base_capacity: float = 192
+    active: bool = True
+    reporting_to_id: Optional[int] = None
+
+
+class UserSetupUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    skill: Optional[str] = None
+    project_ids: Optional[List[int]] = None
+    base_capacity: Optional[float] = None
+    active: Optional[bool] = None
+    reporting_to_id: Optional[int] = None
+
+
+# ---------- Skill ----------
+class SkillBase(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+
+class SkillCreate(SkillBase):
+    pass
+
+
+class Skill(SkillBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+
+
 # ---------- Work Type ----------
 class WorkTypeBase(BaseModel):
     name: str
@@ -106,6 +147,7 @@ class SprintBase(BaseModel):
     start_date: date
     end_date: date
     status: str = "Not Started"
+    project_id: Optional[int] = None
 
 
 class SprintCreate(SprintBase):
@@ -144,6 +186,8 @@ class Availability(AvailabilityBase):
 class TaskBase(BaseModel):
     case_ref: Optional[str] = ""
     property_client: Optional[str] = ""
+    subject: Optional[str] = ""
+    point_of_contact: Optional[str] = ""
     description: str
     project_id: Optional[int] = None
     main_module_id: Optional[int] = None
@@ -178,6 +222,8 @@ class TaskDetail(Task):
     project_name: Optional[str] = None
     main_module_name: Optional[str] = None
     sub_module_name: Optional[str] = None
+    subject: Optional[str] = ""
+    point_of_contact: Optional[str] = ""
     developer_name: Optional[str] = None
     work_type_name: Optional[str] = None
     sprint_name: Optional[str] = None
@@ -258,6 +304,55 @@ class TaskActivityOut(BaseModel):
     created_at: Optional[datetime] = None
 
 
+# ---------- Task Attachment ----------
+class TaskAttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    task_id: int
+    file_name: str
+    blob_name: str
+    file_size: int
+    content_type: str
+    created_by_id: Optional[int] = None
+    created_by_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    last_modified: Optional[datetime] = None
+
+
+# ---------- Holiday ----------
+class HolidayCreate(BaseModel):
+    date: date
+    name: str
+
+
+class HolidayOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    date: date
+    name: str
+    month: int
+    year: int
+    created_by_id: Optional[int] = None
+    created_by_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+# ---------- Role Capacity ----------
+class RoleCapacityCreate(BaseModel):
+    role: str
+    capacity_hours: float = 192
+    description: Optional[str] = ""
+
+
+class RoleCapacityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    role: str
+    capacity_hours: float
+    description: Optional[str] = ""
+    created_at: Optional[datetime] = None
+
+
 class IntegrationSettingsIn(BaseModel):
     teams_enabled: bool = False
     teams_webhook_url: Optional[str] = None
@@ -268,6 +363,17 @@ class IntegrationSettingsIn(BaseModel):
     salesforce_username: Optional[str] = None
     salesforce_password: Optional[str] = None
     salesforce_security_token: Optional[str] = None
+    azure_blob_connection_string: Optional[str] = None
+    task_link_base_url: str = "http://localhost:5173/tasks/"
+    company_logo_url: str = "https://fx1fxposprod.blob.core.windows.net/liaison/PrimaryLogo-TriColour-min.png"
+    smtp_enabled: bool = False
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from_email: Optional[str] = None
+    smtp_from_name: str = "PRM System"
+    smtp_use_tls: bool = True
 
 
 class IntegrationSettingsOut(IntegrationSettingsIn):

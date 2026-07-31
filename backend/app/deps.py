@@ -66,3 +66,19 @@ def restrict_fields_for_developer(user: models.User, update_data: dict) -> dict:
     if user.role == "Developer":
         return {k: v for k, v in update_data.items() if k in DEVELOPER_EDITABLE_FIELDS}
     return update_data
+
+
+def get_user_project_ids(user: models.User) -> list[int] | None:
+    """Return list of project IDs the user has access to.
+    Returns None for Admin (meaning 'all projects' — no filter needed).
+    Returns empty list if user has no assigned projects (sees nothing)."""
+    if user.role == "Admin":
+        return None  # Admin sees everything
+    # For Manager/Lead/Developer — check their user.projects (many-to-many)
+    project_ids = [p.id for p in user.projects]
+    if not project_ids and user.developer_id:
+        # Fallback: check developer's project assignments
+        dev = user.developer
+        if dev:
+            project_ids = [p.id for p in dev.projects]
+    return project_ids

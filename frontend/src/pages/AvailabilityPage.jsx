@@ -48,7 +48,7 @@ export default function AvailabilityPage() {
           <table className="data-table">
             <thead>
               <tr>
-                {!isDeveloper && <th>Developer</th>}
+                {!isDeveloper && <th>Resource</th>}
                 <th>Sprint</th>
                 <th>Leave Days</th>
                 <th>Notes</th>
@@ -77,7 +77,7 @@ export default function AvailabilityPage() {
       </div>
 
       {canAddLeave && (
-        <Modal open={modalOpen} title={isDeveloper ? 'Add My Leave' : 'Set Developer Leave'} onClose={() => setModalOpen(false)}>
+        <Modal open={modalOpen} title={isDeveloper ? 'Add My Leave' : 'Set Resource Leave'} onClose={() => setModalOpen(false)}>
           <AvailabilityForm
             resources={resources}
             sprints={sprints}

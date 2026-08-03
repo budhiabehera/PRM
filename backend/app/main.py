@@ -35,10 +35,12 @@ app.add_middleware(
     allow_origins=[
         "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
         "http://localhost:5173",
+        "http://localhost:8001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Auth routes are public (login itself can't require a token).

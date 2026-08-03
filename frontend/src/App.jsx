@@ -20,6 +20,8 @@ import AdminWorkTypesPage from './pages/admin/AdminWorkTypesPage'
 import AdminSprintsPage from './pages/admin/AdminSprintsPage'
 import AdminTasksPage from './pages/admin/AdminTasksPage'
 import RoleCapacityPage from './pages/admin/RoleCapacityPage'
+import TaskStatusPage from './pages/admin/TaskStatusPage'
+import PageAccessPage from './pages/admin/PageAccessPage'
 import AdminAvailabilityPage from './pages/admin/AdminAvailabilityPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 
@@ -64,6 +66,8 @@ export default function App() {
             <Route path="/admin/work-types" element={<AdminWorkTypesPage />} />
             <Route path="/admin/sprints" element={<AdminSprintsPage />} />
             <Route path="/admin/role-capacity" element={<RoleCapacityPage />} />
+            <Route path="/admin/task-statuses" element={<TaskStatusPage />} />
+            <Route path="/admin/page-access" element={<PageAccessPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER_LEAD} />}>

@@ -1,13 +1,12 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import useApi from '../../hooks/useApi'
 import useDropdowns from '../../hooks/useDropdowns'
 import useAppStore from '../../store/useAppStore'
-import { getUserSetupList, createUserSetup, updateUserSetup, deleteUserSetup, getSkills, getRoleCapacities, getCapacityByRole, resendWelcomeEmail } from '../../services/api'
+import { getUserSetupList, createUserSetup, updateUserSetup, deleteUserSetup, getSkills, getRoleCapacities, getCapacityByRole, resendWelcomeEmail, getNextResourceCode } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import RoleBadge from '../../components/common/RoleBadge'
 import Modal from '../../components/common/Modal'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
-import { ROLE_OPTIONS } from '../../utils/constants'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
 export default function UserSetupPage() {
@@ -18,11 +17,9 @@ export default function UserSetupPage() {
   const { data: roleCapacities } = useApi(getRoleCapacities, [])
   const [editing, setEditing] = useState(null)
 
-  // Merge predefined ROLE_OPTIONS with roles from Role Capacity table
+  // Role options come exclusively from the Role Capacity page
   const allRoleOptions = useMemo(() => {
-    const rcRoles = (roleCapacities || []).map((rc) => rc.role)
-    const merged = [...new Set([...ROLE_OPTIONS, ...rcRoles])]
-    return merged
+    return (roleCapacities || []).map((rc) => rc.role)
   }, [roleCapacities])
 
   const [showForm, setShowForm] = useState(false)
@@ -32,7 +29,7 @@ export default function UserSetupPage() {
 
   const emptyForm = {
     dev_code: '', username: '', full_name: '', email: '',
-    pw: '',
+    pw: 'Ids@1001',
     role: 'Developer', skill: 'Backend', base_capacity: 192, active: true,
     project_ids: [], reporting_to_id: '',
   }
@@ -76,11 +73,16 @@ export default function UserSetupPage() {
 
   const toggleRow = (id) => setExpandedRow((prev) => (prev === id ? null : id))
 
-  const openCreate = () => {
+  const openCreate = async () => {
     setEditing(null)
     setForm(emptyForm)
     setErrors({})
     setShowForm(true)
+    // Auto-fetch next resource code
+    try {
+      const res = await getNextResourceCode()
+      setForm((f) => ({ ...f, dev_code: res.next_code }))
+    } catch { /* ignore */ }
   }
 
   const openEdit = (user) => {
@@ -104,7 +106,6 @@ export default function UserSetupPage() {
 
   const validate = () => {
     const errs = {}
-    if (!form.dev_code.trim()) errs.dev_code = 'Developer code is required'
     if (!form.full_name.trim()) errs.full_name = 'Full name is required'
     if (!form.email.trim()) errs.email = 'Email is required'
     if (!editing) {
@@ -293,9 +294,9 @@ export default function UserSetupPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <label className="form-label">Resource Code *</label>
-              <input className="form-input" placeholder="e.g., DEV040" value={form.dev_code}
-                onChange={(e) => update('dev_code', e.target.value)} disabled={!!editing} />
-              {errors.dev_code && <span className="text-[11px] text-red-500">{errors.dev_code}</span>}
+              <input className="form-input bg-slate-50" value={form.dev_code}
+                readOnly disabled />
+              <span className="text-[10px] text-slate-400">Auto-generated (read-only)</span>
             </div>
             <div className="flex flex-col gap-1">
               <label className="form-label">Username *</label>

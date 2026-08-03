@@ -10,9 +10,11 @@ from .auth import hash_password
 
 
 def run_seed(db: Session):
-    _seed_core_data(db)
-    _seed_default_users(db)
-    _seed_skills(db)
+    # Seeding disabled — data is managed manually via the UI
+    # _seed_core_data(db)
+    # _seed_default_users(db)
+    # _seed_skills(db)
+    pass
 
 
 def _seed_core_data(db: Session):

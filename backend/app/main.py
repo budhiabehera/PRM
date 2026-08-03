@@ -1,5 +1,7 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from .database import Base, engine, SessionLocal, run_lightweight_migrations
 from .routers import (
@@ -14,6 +16,8 @@ from .routers import task_attachments
 from .routers import holidays
 from .routers import role_capacities
 from .routers import resource_calendar
+from .routers import task_statuses
+from .routers import page_access
 from .deps import get_current_user
 from . import seed_data
 
@@ -28,7 +32,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,6 +71,8 @@ app.include_router(task_attachments.router, dependencies=[protected])
 app.include_router(holidays.router, dependencies=[protected])
 app.include_router(role_capacities.router, dependencies=[protected])
 app.include_router(resource_calendar.router, dependencies=[protected])
+app.include_router(task_statuses.router, dependencies=[protected])
+app.include_router(page_access.router, dependencies=[protected])
 
 
 @app.on_event("startup")
@@ -75,11 +84,27 @@ def seed_on_startup():
         db.close()
 
 
-@app.get("/")
-def root():
-    return {"status": "ok", "service": "PRM — Project & Resource Management API"}
-
 
 @app.get("/api/health")
 def health():
     return {"status": "healthy"}
+
+
+# --- Serve Frontend Production Build ---
+import os
+FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "frontend", "dist")
+
+if os.path.isdir(FRONTEND_DIST):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(request: Request, full_path: str):
+        """Serve the React SPA — all non-API routes return index.html."""
+        file_path = os.path.join(FRONTEND_DIST, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {"status": "ok", "service": "PRM — Project & Resource Management API"}

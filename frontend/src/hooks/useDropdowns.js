@@ -5,7 +5,7 @@ import useAuthStore from '../store/useAuthStore'
 /** Ensures shared dropdown/reference data is loaded once, on first use.
  *  Filters projects, modules, sub-modules, and developers by user's project access (Admin sees all). */
 export default function useDropdowns() {
-  const { projects, mainModules, subModules, resources, workTypes, sprints, loadingDropdowns, loadDropdowns, refreshToken } = useAppStore()
+  const { projects, mainModules, subModules, resources, workTypes, sprints, skills, taskStatuses, loadingDropdowns, loadDropdowns, refreshToken } = useAppStore()
   const user = useAuthStore((s) => s.user)
 
   useEffect(() => {
@@ -60,6 +60,8 @@ export default function useDropdowns() {
     resources: filteredResources,
     workTypes,
     sprints,
+    skills,
+    taskStatuses,
     loadingDropdowns,
     // Unfiltered versions for special cases (Admin user management, etc.)
     allProjects: projects,

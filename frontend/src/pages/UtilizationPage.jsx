@@ -30,7 +30,6 @@ export default function UtilizationPage() {
             <tr>
               <th className="sticky left-0 bg-white">Developer</th>
               <th>Role</th>
-              <th>Module</th>
               {sprints.map((m) => <th key={m} className="text-center">{m}</th>)}
             </tr>
           </thead>
@@ -39,7 +38,6 @@ export default function UtilizationPage() {
               <tr key={row.developer_id}>
                 <td className="font-medium sticky left-0 bg-white">{row.developer_name}</td>
                 <td>{row.role}</td>
-                <td>{row.module || '—'}</td>
                 {row.cells.map((cell) => (
                   <td key={cell.sprint_id} className="text-center">
                     <span className={UTIL_STATUS_COLORS[cell.status]}>{formatPercent(cell.utilization_pct)}</span>

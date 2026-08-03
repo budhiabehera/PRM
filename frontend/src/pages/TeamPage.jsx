@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import useApi from '../hooks/useApi'
+import useDropdowns from '../hooks/useDropdowns'
 import { getResources, getResourceStats } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import KPICard from '../components/common/KPICard'
@@ -18,6 +19,7 @@ const avatarColor = (name) => {
 export default function TeamPage() {
   const { data: stats, loading: l1 } = useApi(getResourceStats, [])
   const { data: resources, loading: l2 } = useApi(() => getResources({}), [])
+  const { skills } = useDropdowns()
   const [skillFilter, setSkillFilter] = useState('')
 
   if (l1 || l2) return <LoadingSpinner label="Loading team..." />
@@ -33,9 +35,7 @@ export default function TeamPage() {
         </div>
         <select className="form-select max-w-[140px]" value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)}>
           <option value="">All Skills</option>
-          <option value="Backend">Backend</option>
-          <option value="Frontend">Frontend</option>
-          <option value="Mobile">Mobile</option>
+          {(skills || []).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
         </select>
       </div>
 

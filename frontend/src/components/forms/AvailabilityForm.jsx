@@ -1,4 +1,19 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+
+function countWorkingDays(start, end) {
+  if (!start || !end) return 0
+  const s = new Date(start + 'T00:00:00')
+  const e = new Date(end + 'T00:00:00')
+  if (e < s) return 0
+  let count = 0
+  const current = new Date(s)
+  while (current <= e) {
+    const dow = current.getDay() // 0=Sun, 6=Sat
+    if (dow !== 0 && dow !== 6) count++
+    current.setDate(current.getDate() + 1)
+  }
+  return count
+}
 
 export default function AvailabilityForm({
   resources = [], sprints = [], onSubmit, onCancel,
@@ -7,18 +22,25 @@ export default function AvailabilityForm({
   const [form, setForm] = useState({
     developer_id: defaultDeveloperId ? String(defaultDeveloperId) : '',
     sprint_id: '',
-    leave_days: 0,
+    start_date: '',
+    end_date: '',
     notes: '',
   })
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }))
 
+  const leaveDays = useMemo(() => countWorkingDays(form.start_date, form.end_date), [form.start_date, form.end_date])
+  const reducedHours = leaveDays * 8
+
   const handleSubmit = () => {
     if (!form.developer_id || !form.sprint_id) return
+    if (!form.start_date || !form.end_date) return
     onSubmit({
-      ...form,
       developer_id: Number(form.developer_id),
       sprint_id: Number(form.sprint_id),
-      leave_days: Number(form.leave_days) || 0,
+      start_date: form.start_date,
+      end_date: form.end_date,
+      leave_days: leaveDays,
+      notes: form.notes,
     })
   }
 
@@ -33,7 +55,7 @@ export default function AvailabilityForm({
             onChange={(e) => update('developer_id', e.target.value)}
             disabled={lockDeveloper}
           >
-            <option value="">Select Developer...</option>
+            <option value="">Select Resource...</option>
             {resources.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
           {lockDeveloper && <span className="text-[10px] text-slate-400">Your own leave</span>}
@@ -46,13 +68,28 @@ export default function AvailabilityForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Leave Days</label>
-          <input type="number" min="0" max="31" className="form-input" value={form.leave_days}
-            onChange={(e) => update('leave_days', e.target.value)} />
+          <label className="form-label">Start Date *</label>
+          <input type="date" className="form-input" value={form.start_date}
+            onChange={(e) => update('start_date', e.target.value)} />
         </div>
         <div className="flex flex-col gap-1">
+          <label className="form-label">End Date *</label>
+          <input type="date" className="form-input" value={form.end_date}
+            onChange={(e) => update('end_date', e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="form-label">Leave Days (auto-calculated)</label>
+          <input type="number" className="form-input bg-slate-50" value={leaveDays} readOnly disabled />
+          <span className="text-[10px] text-slate-400">Weekdays only (Sat/Sun excluded)</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="form-label">Reduced Hours</label>
+          <input className="form-input bg-slate-50 font-semibold text-red-600" value={`${reducedHours}h`} readOnly disabled />
+          <span className="text-[10px] text-slate-400">{leaveDays} days × 8 hrs/day</span>
+        </div>
+        <div className="flex flex-col gap-1 col-span-2">
           <label className="form-label">Notes</label>
-          <input className="form-input" placeholder="e.g., Planned vacation" value={form.notes}
+          <input className="form-input" placeholder="e.g., Planned vacation, Medical leave" value={form.notes}
             onChange={(e) => update('notes', e.target.value)} />
         </div>
       </div>

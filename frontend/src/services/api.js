@@ -2,7 +2,7 @@ import axios from 'axios'
 import useAuthStore from '../store/useAuthStore'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -107,7 +107,7 @@ export const updateTaskAttachment = (attachmentId, data) => {
   }).then(r => r.data)
 }
 export const deleteTaskAttachment = (id) => api.delete(`/task-attachments/${id}`)
-export const getAttachmentDownloadUrl = (attachmentId) => `/api/task-attachments/download/${attachmentId}`
+export const getAttachmentDownloadUrl = (attachmentId) => `${import.meta.env.VITE_API_BASE_URL || '/api'}/task-attachments/download/${attachmentId}`
 
 // ---------- Holidays ----------
 export const getHolidays = (params) => api.get('/holidays', { params }).then(r => r.data)
@@ -122,6 +122,18 @@ export const createRoleCapacity = (data) => api.post('/role-capacities', data).t
 export const updateRoleCapacity = (id, data) => api.put(`/role-capacities/${id}`, data).then(r => r.data)
 export const deleteRoleCapacity = (id) => api.delete(`/role-capacities/${id}`)
 
+// ---------- Task Statuses ----------
+export const getTaskStatuses = () => api.get('/task-statuses').then(r => r.data)
+export const createTaskStatus = (data) => api.post('/task-statuses', data).then(r => r.data)
+export const updateTaskStatus = (id, data) => api.put(`/task-statuses/${id}`, data).then(r => r.data)
+export const deleteTaskStatus = (id) => api.delete(`/task-statuses/${id}`)
+
+// ---------- Page Access ----------
+export const getPageAccess = () => api.get('/page-access').then(r => r.data)
+export const getPagesForRole = (role) => api.get(`/page-access/for-role/${encodeURIComponent(role)}`).then(r => r.data)
+export const bulkSavePageAccess = (data) => api.post('/page-access/bulk', data).then(r => r.data)
+export const upsertPageAccess = (data) => api.post('/page-access', data).then(r => r.data)
+
 // ---------- Resource Calendar ----------
 export const getResourceCalendar = (params) => api.get('/resource-calendar', { params }).then(r => r.data)
 
@@ -134,6 +146,7 @@ export const updateSkill = (id, data) => api.put(`/skills/${id}`, data).then(r =
 export const deleteSkill = (id) => api.delete(`/skills/${id}`)
 
 export const getUserSetupList = () => api.get('/user-setup').then(r => r.data)
+export const getNextResourceCode = () => api.get('/user-setup/next-code').then(r => r.data)
 export const createUserSetup = (data) => api.post('/user-setup', data).then(r => r.data)
 export const updateUserSetup = (id, data) => api.put(`/user-setup/${id}`, data).then(r => r.data)
 export const deleteUserSetup = (id) => api.delete(`/user-setup/${id}`)

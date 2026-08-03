@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
-  GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2,
+  GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock,
   Cloud, TrendingUp, AlertTriangle, Building2, Clock, ChevronsLeft, ChevronsRight,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
 import useUIStore from '../../store/useUIStore'
+import { getPageAccess } from '../../services/api'
 
 // Full overview items — visible to Admin, Manager, Lead
 const ALL_OVERVIEW_ITEMS = [
@@ -16,7 +17,7 @@ const ALL_OVERVIEW_ITEMS = [
   { to: '/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/team', label: 'Team', icon: Users },
   { to: '/utilization', label: 'Utilization', icon: Gauge },
-  { to: '/availability', label: 'Availability', icon: CalendarClock },
+  { to: '/availability', label: 'Leave Tracker', icon: CalendarClock },
   { to: '/holidays', label: 'Holidays', icon: CalendarDays },
   { to: '/resource-calendar', label: 'Resource Calendar', icon: CalendarCheck2 },
   { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
@@ -27,7 +28,7 @@ const DEVELOPER_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/tasks', label: 'My Tasks', icon: ListChecks },
   { to: '/utilization', label: 'Utilization', icon: Gauge },
-  { to: '/availability', label: 'Availability', icon: CalendarClock },
+  { to: '/availability', label: 'Leave Tracker', icon: CalendarClock },
   { to: '/holidays', label: 'Holidays', icon: CalendarDays },
   { to: '/resource-calendar', label: 'Resource Calendar', icon: CalendarCheck2 },
 ]
@@ -41,7 +42,9 @@ const ADMIN_ITEMS = [
   { to: '/admin/work-types', label: 'Work Types', icon: Tag, roles: ['Admin', 'Manager'] },
   { to: '/admin/sprints', label: 'Sprints', icon: CalendarRange, roles: ['Admin', 'Manager'] },
   { to: '/admin/role-capacity', label: 'Role Capacity', icon: ShieldCheck, roles: ['Admin', 'Manager'] },
+  { to: '/admin/task-statuses', label: 'Task Status', icon: CircleDot, roles: ['Admin', 'Manager'] },
   { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/admin/page-access', label: 'Page Access', icon: Lock, roles: ['Admin'] },
 ]
 
 // Integration section
@@ -61,12 +64,37 @@ export default function Sidebar() {
   const role = useAuthStore((s) => s.user?.role)
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const location = useLocation()
+  const [pageAccessRules, setPageAccessRules] = useState(null)
 
-  const isDeveloper = role === 'Developer'
-  const overviewItems = isDeveloper ? DEVELOPER_ITEMS : ALL_OVERVIEW_ITEMS
-  const visibleAdminItems = ADMIN_ITEMS.filter((item) => item.roles.includes(role))
-  const visibleIntegrationItems = INTEGRATION_ITEMS.filter((item) => item.roles.includes(role))
-  const visibleReportItems = REPORT_ITEMS.filter((item) => item.roles.includes(role))
+  useEffect(() => {
+    getPageAccess().then(setPageAccessRules).catch(() => setPageAccessRules(null))
+  }, [])
+
+  // Filter function: check if the current role has access to a page
+  const hasAccess = (pageKey) => {
+    // If no rules saved yet, fall back to role-based defaults
+    if (!pageAccessRules || pageAccessRules.length === 0) return true
+    const rule = pageAccessRules.find((r) => r.page_key === pageKey)
+    if (!rule) return true // page not in rules = accessible by all
+    return rule.roles.includes(role)
+  }
+
+  const hasRules = pageAccessRules && pageAccessRules.length > 0
+
+  // When page access rules exist, use them exclusively (ignore hardcoded role arrays)
+  // When no rules exist, fall back to the old hardcoded behavior
+  const isDeveloper = !hasRules && role === 'Developer'
+  const baseOverviewItems = isDeveloper ? DEVELOPER_ITEMS : ALL_OVERVIEW_ITEMS
+  const overviewItems = baseOverviewItems.filter((item) => hasAccess(item.to))
+  const visibleAdminItems = hasRules
+    ? ADMIN_ITEMS.filter((item) => hasAccess(item.to))
+    : ADMIN_ITEMS.filter((item) => item.roles.includes(role))
+  const visibleIntegrationItems = hasRules
+    ? INTEGRATION_ITEMS.filter((item) => hasAccess(item.to))
+    : INTEGRATION_ITEMS.filter((item) => item.roles.includes(role))
+  const visibleReportItems = hasRules
+    ? REPORT_ITEMS.filter((item) => hasAccess(item.to))
+    : REPORT_ITEMS.filter((item) => item.roles.includes(role))
 
   // Auto-expand sections if current route is within them
   const isAdminActive = visibleAdminItems.some((item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/'))

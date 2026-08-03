@@ -80,9 +80,10 @@ class MainModule(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(String(255), default="")
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
 
     sub_modules = relationship("SubModule", back_populates="main_module", cascade="all, delete-orphan")
-    projects = relationship("Project", back_populates="main_module")
+    project = relationship("Project", back_populates="modules", foreign_keys=[project_id])
     developers = relationship("Developer", back_populates="home_module")
     tasks = relationship("Task", back_populates="main_module")
 
@@ -110,7 +111,7 @@ class Project(Base):
     end_date = Column(Date, nullable=True)
     description = Column(Text, default="")
 
-    main_module = relationship("MainModule", back_populates="projects")
+    modules = relationship("MainModule", back_populates="project", foreign_keys="MainModule.project_id")
     tasks = relationship("Task", back_populates="project")
 
 
@@ -237,6 +238,8 @@ class Availability(Base):
     developer_id = Column(Integer, ForeignKey("developers.id"), nullable=False)
     sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=False)
     leave_days = Column(Float, default=0)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
     notes = Column(String(255), default="")
 
     developer = relationship("Developer", back_populates="availabilities")
@@ -305,4 +308,27 @@ class RoleCapacity(Base):
     role = Column(String(50), unique=True, nullable=False)  # e.g. Admin, Manager, Lead, Developer
     capacity_hours = Column(Float, nullable=False, default=192)  # hrs/month
     description = Column(String(255), default="")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TaskStatus(Base):
+    """User-defined task statuses (e.g., Not Started, In Progress, etc.)."""
+    __tablename__ = "task_statuses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+    color = Column(String(20), default="#4f46e5")
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PageAccess(Base):
+    """Controls which roles can see which pages/menu items."""
+    __tablename__ = "page_access"
+
+    id = Column(Integer, primary_key=True, index=True)
+    page_key = Column(String(100), nullable=False)   # e.g. '/tasks', '/admin/projects'
+    page_label = Column(String(100), nullable=False)  # e.g. 'Tasks', 'Projects'
+    section = Column(String(50), default="overview")  # overview, admin, reports
+    roles = Column(String(500), nullable=False)       # comma-separated: "Admin,Manager,Lead,Developer"
     created_at = Column(DateTime(timezone=True), server_default=func.now())

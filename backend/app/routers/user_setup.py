@@ -11,6 +11,22 @@ from ..integrations.email_service import generate_random_password, send_welcome_
 router = APIRouter(prefix="/api/user-setup", tags=["User Setup"])
 
 
+def _generate_dev_code(db: Session) -> str:
+    """Auto-generate resource code in format RES100, RES101, ..."""
+    # Find the highest existing numeric suffix among RES-prefixed codes
+    existing = (
+        db.query(models.Developer.dev_code)
+        .filter(models.Developer.dev_code.like("RES%"))
+        .all()
+    )
+    max_num = 99  # start from 100
+    for (code,) in existing:
+        num_part = code.replace("RES", "")
+        if num_part.isdigit():
+            max_num = max(max_num, int(num_part))
+    return f"RES{max_num + 1}"
+
+
 def _serialize(dev: models.Developer, db: Session):
     user_account = dev.user_account
     return {
@@ -32,8 +48,14 @@ def _serialize(dev: models.Developer, db: Session):
 
 @router.get("")
 def list_users(db: Session = Depends(get_db)):
-    devs = db.query(models.Developer).order_by(models.Developer.name).all()
+    devs = db.query(models.Developer).order_by(models.Developer.dev_code.desc()).all()
     return [_serialize(d, db) for d in devs]
+
+
+@router.get("/next-code")
+def get_next_code(db: Session = Depends(get_db)):
+    """Get the next auto-generated resource code."""
+    return {"next_code": _generate_dev_code(db)}
 
 
 @router.get("/{dev_id}")
@@ -51,18 +73,19 @@ def create_user(
     _admin=Depends(require_roles("Admin", "Manager")),
 ):
     """Create a Developer record AND a linked User login in one step."""
-    # Generate random password if none provided
-    raw_pw = payload.password if payload.password else generate_random_password()
+    # Default password is Ids@1001 if none provided
+    raw_pw = payload.password if payload.password else "Ids@1001"
 
-    # Validate uniqueness
-    if db.query(models.Developer).filter(models.Developer.dev_code == payload.dev_code).first():
-        raise HTTPException(400, "Developer code already exists")
+    # Auto-generate dev_code if not provided
+    dev_code = payload.dev_code.strip() if payload.dev_code else ""
+    if not dev_code:
+        dev_code = _generate_dev_code(db)
     if db.query(models.User).filter(models.User.username == payload.username).first():
         raise HTTPException(400, "Username already exists")
     
     # Create Developer record
     dev = models.Developer(
-        dev_code=payload.dev_code,
+        dev_code=dev_code,
         name=payload.full_name,
         role=payload.role,
         skill=payload.skill,

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import {
   getProjects, getMainModules, getSubModules, getResources,
-  getWorkTypes, getSprints,
+  getWorkTypes, getSprints, getSkills, getTaskStatuses,
 } from '../services/api'
 
 /**
@@ -16,6 +16,8 @@ const useAppStore = create((set, get) => ({
   resources: [],
   workTypes: [],
   sprints: [],
+  skills: [],
+  taskStatuses: [],
   loadingDropdowns: false,
   refreshToken: 0,
 
@@ -24,10 +26,10 @@ const useAppStore = create((set, get) => ({
   loadDropdowns: async () => {
     set({ loadingDropdowns: true })
     try {
-      const [projects, mainModules, subModules, resources, workTypes, sprints] = await Promise.all([
-        getProjects(), getMainModules(), getSubModules(), getResources(), getWorkTypes(), getSprints(),
+      const [projects, mainModules, subModules, resources, workTypes, sprints, skills, taskStatuses] = await Promise.all([
+        getProjects(), getMainModules(), getSubModules(), getResources(), getWorkTypes(), getSprints(), getSkills(), getTaskStatuses(),
       ])
-      set({ projects, mainModules, subModules, resources, workTypes, sprints })
+      set({ projects, mainModules, subModules, resources, workTypes, sprints, skills, taskStatuses })
     } finally {
       set({ loadingDropdowns: false })
     }

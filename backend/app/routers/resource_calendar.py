@@ -41,11 +41,16 @@ def get_resource_calendar(
 
     dev_ids = [d.id for d in developers]
 
-    # Get all task activities for these developers in this month
+    # Get all task activities for these developers in this month.
+    # Include activities where:
+    # 1. developer_id matches directly, OR
+    # 2. developer_id is NULL but the task is assigned to the developer
+    from sqlalchemy import or_
     activities = (
         db.query(models.TaskActivity)
+        .join(models.Task, models.TaskActivity.task_id == models.Task.id)
         .filter(
-            models.TaskActivity.developer_id.in_(dev_ids),
+            or_(models.TaskActivity.developer_id.in_(dev_ids), (models.TaskActivity.developer_id == None) & (models.Task.developer_id.in_(dev_ids))),
             models.TaskActivity.activity_date >= start_date,
             models.TaskActivity.activity_date < end_date,
         )
@@ -67,14 +72,18 @@ def get_resource_calendar(
 
     for a in activities:
         date_str = a.activity_date.isoformat()
-        task = a.task
-        activity_map[a.developer_id][date_str].append({
+        task = a.task 
+        # Determine which developer this activity belongs to
+        dev_id = a.developer_id or (task.developer_id if task else None)
+        if not dev_id or dev_id not in dev_ids:
+            continue
+        activity_map[dev_id][date_str].append({
             "task_id": a.task_id,
             "task_code": task.task_code if task else None,
             "description": a.description,
             "hours_spent": a.hours_spent,
         })
-        daily_totals[a.developer_id][date_str] += a.hours_spent
+        daily_totals[dev_id][date_str] += a.hours_spent
 
     # Build response
     resources = []

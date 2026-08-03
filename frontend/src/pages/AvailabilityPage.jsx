@@ -35,9 +35,9 @@ export default function AvailabilityPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Availability</h2>
+          <h2 className="text-xl font-bold text-slate-900">Leave Tracker</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {isDeveloper ? 'Your leave days that reduce your net capacity' : 'Leave days that reduce a developer\'s net capacity for a sprint'}
+            {isDeveloper ? 'Your leaves that reduce total hours from your capacity' : 'Track leaves that reduce total hours from a resource\'s capacity'}
           </p>
         </div>
         {canAddLeave && <button className="btn btn-primary" onClick={() => setModalOpen(true)}>+ Add Leave</button>}
@@ -50,19 +50,25 @@ export default function AvailabilityPage() {
               <tr>
                 {!isDeveloper && <th>Resource</th>}
                 <th>Sprint</th>
-                <th>Leave Days</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Days</th>
+                <th>Reduced Hours</th>
                 <th>Notes</th>
                 {canAddLeave && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
-                <tr><td colSpan={isDeveloper ? 4 : 5} className="text-center text-slate-400 py-8">No leave records yet</td></tr>
+                <tr><td colSpan={isDeveloper ? 7 : 8} className="text-center text-slate-400 py-8">No leave records yet</td></tr>
               ) : records.map((r) => (
                 <tr key={r.id}>
                   {!isDeveloper && <td className="font-medium">{r.developer_name}</td>}
                   <td>{r.sprint_name}</td>
-                  <td>{r.leave_days}</td>
+                  <td>{r.start_date || '—'}</td>
+                  <td>{r.end_date || '—'}</td>
+                  <td className="font-semibold">{r.leave_days}</td>
+                  <td className="font-semibold text-red-600">{r.reduced_hours || (r.leave_days * 8)}h</td>
                   <td className="text-slate-500">{r.notes || '—'}</td>
                   {canAddLeave && (
                     <td>

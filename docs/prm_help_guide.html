@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PRM — Help Guide</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --color-bg: #f8f9fb;
+  --color-surface: #ffffff;
+  --color-text: #1e293b;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-primary: #4f46e5;
+  --color-primary-light: #eef2ff;
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--color-bg); color: var(--color-text); display: flex; min-height: 100vh; }
+
+/* Sidebar Navigation */
+.sidebar { width: 280px; background: var(--color-surface); border-right: 1px solid var(--color-border); padding: 24px 0; position: fixed; top: 0; left: 0; bottom: 0; overflow-y: auto; z-index: 100; }
+.sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid var(--color-border-light); margin-bottom: 16px; }
+.sidebar-header h1 { font-size: 18px; color: var(--color-primary); display: flex; align-items: center; gap: 8px; }
+.sidebar-header p { font-size: 11px; color: var(--color-text-muted); margin-top: 4px; }
+
+.nav-section { padding: 0 12px; margin-bottom: 16px; }
+.nav-section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); padding: 4px 12px; margin-bottom: 4px; font-weight: 600; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; color: var(--color-text-secondary); transition: all 0.15s; text-decoration: none; }
+.nav-item:hover { background: var(--color-primary-light); color: var(--color-primary); }
+.nav-item.active { background: var(--color-primary-light); color: var(--color-primary); font-weight: 600; }
+.nav-item i { width: 16px; text-align: center; font-size: 13px; }
+
+/* Main Content */
+.main { margin-left: 280px; flex: 1; padding: 32px 40px; max-width: 900px; }
+.page-section { display: none; }
+.page-section.active { display: block; }
+
+h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+h3 { font-size: 18px; font-weight: 600; margin: 24px 0 12px; color: var(--color-text); }
+h4 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; color: var(--color-text-secondary); }
+.page-desc { font-size: 14px; color: var(--color-text-secondary); margin-bottom: 24px; line-height: 1.6; }
+
+.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.card-title { font-size: 13px; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+
+.feature-list { list-style: none; }
+.feature-list li { padding: 8px 0; font-size: 13px; color: var(--color-text-secondary); display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.feature-list li::before { content: ''; display: none; }
+.feature-list li i { color: var(--color-primary); margin-top: 3px; font-size: 11px; }
+
+.steps { counter-reset: step; }
+.step { position: relative; padding: 12px 0 12px 40px; font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
+.step::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 12px; width: 24px; height: 24px; border-radius: 50%; background: var(--color-primary); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+.badge-admin { background: #fef3c7; color: #92400e; }
+.badge-manager { background: #dbeafe; color: #1e40af; }
+.badge-all { background: #dcfce7; color: #166534; }
+
+.tip { background: #eff6ff; border-left: 3px solid var(--color-primary); padding: 12px 16px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin: 16px 0; font-size: 12px; color: #1e40af; line-height: 1.5; }
+.tip strong { display: block; margin-bottom: 4px; }
+
+.screenshot-placeholder { background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); border: 1px dashed var(--color-border); border-radius: var(--radius-sm); height: 200px; display: flex; align-items: center; justify-content: center; color: var(--color-text-muted); font-size: 12px; margin: 12px 0; flex-direction: column; gap: 6px; }
+.screenshot-placeholder i { font-size: 24px; opacity: 0.5; }
+
+.shortcut { display: inline-block; background: var(--color-border-light); border: 1px solid var(--color-border); border-radius: 4px; padding: 1px 6px; font-size: 11px; font-family: monospace; color: var(--color-text-secondary); }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 12px 0; }
+th { text-align: left; padding: 8px 12px; background: var(--color-border-light); color: var(--color-text-muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--color-border-light); color: var(--color-text-secondary); }
+tr:last-child td { border-bottom: none; }
+
+.search-box { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 13px; width: 100%; margin: 0 20px 16px; outline: none; }
+.search-box:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+
+@media print {
+  .sidebar { display: none; }
+  .main { margin-left: 0; max-width: 100%; }
+  .page-section { display: block !important; page-break-inside: avoid; margin-bottom: 32px; border-bottom: 1px solid #ddd; padding-bottom: 24px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <h1><i class="fa-solid fa-book-open"></i> PRM Help Guide</h1>
+    <p>Project & Resource Management</p>
+  </div>
+  <input class="search-box" type="text" placeholder="Search help topics..." oninput="filterNav(this.value)">
+
+  <div class="nav-section">
+    <div class="nav-section-title">Getting Started</div>
+    <a class="nav-item active" data-page="welcome"><i class="fa-solid fa-house"></i> Welcome</a>
+    <a class="nav-item" data-page="quick-start"><i class="fa-solid fa-rocket"></i> Quick Start</a>
+    <a class="nav-item" data-page="roles"><i class="fa-solid fa-users-gear"></i> Roles & Permissions</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Overview Pages</div>
+    <a class="nav-item" data-page="dashboard"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
+    <a class="nav-item" data-page="tasks"><i class="fa-solid fa-list-check"></i> Tasks</a>
+    <a class="nav-item" data-page="sprint"><i class="fa-solid fa-calendar"></i> Sprint View</a>
+    <a class="nav-item" data-page="team"><i class="fa-solid fa-users"></i> Team</a>
+    <a class="nav-item" data-page="utilization"><i class="fa-solid fa-gauge"></i> Utilization</a>
+    <a class="nav-item" data-page="leave-tracker"><i class="fa-solid fa-calendar-xmark"></i> Leave Tracker</a>
+    <a class="nav-item" data-page="holidays"><i class="fa-solid fa-umbrella-beach"></i> Holidays</a>
+    <a class="nav-item" data-page="resource-calendar"><i class="fa-solid fa-calendar-days"></i> Resource Calendar</a>
+    <a class="nav-item" data-page="timeline"><i class="fa-solid fa-timeline"></i> Timeline</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Admin Setup</div>
+    <a class="nav-item" data-page="projects"><i class="fa-solid fa-folder-open"></i> Projects</a>
+    <a class="nav-item" data-page="modules"><i class="fa-solid fa-sitemap"></i> Modules</a>
+    <a class="nav-item" data-page="user-setup"><i class="fa-solid fa-user-plus"></i> User Setup</a>
+    <a class="nav-item" data-page="skills"><i class="fa-solid fa-wrench"></i> Skills</a>
+    <a class="nav-item" data-page="work-types"><i class="fa-solid fa-tags"></i> Work Types</a>
+    <a class="nav-item" data-page="sprints"><i class="fa-solid fa-arrows-spin"></i> Sprints</a>
+    <a class="nav-item" data-page="role-capacity"><i class="fa-solid fa-shield"></i> Role Capacity</a>
+    <a class="nav-item" data-page="task-status"><i class="fa-solid fa-circle-dot"></i> Task Status</a>
+    <a class="nav-item" data-page="page-access"><i class="fa-solid fa-lock"></i> Page Access</a>
+    <a class="nav-item" data-page="settings"><i class="fa-solid fa-gear"></i> Settings</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Reports</div>
+    <a class="nav-item" data-page="reports"><i class="fa-solid fa-chart-bar"></i> All Reports</a>
+  </div>
+</nav>
+
+<main class="main">
+
+<!-- WELCOME -->
+<section class="page-section active" id="welcome">
+  <h2>Welcome to PRM</h2>
+  <p class="page-desc">PRM (Project & Resource Management) is a comprehensive tool for managing projects, sprints, tasks, resources, and capacity planning across multiple development teams.</p>
+
+  <div class="card">
+    <div class="card-title">Key Capabilities</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span><strong>Project & Module Management</strong> — Organize work into Projects → Modules → Sub Modules</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Task Tracking</strong> — Create tasks with activity logs, attachments, status tracking</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Resource Calendar</strong> — Daily/Weekly/Monthly view of time spent per resource (8h/day capacity)</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Utilization Tracking</strong> — Sprint-based capacity and utilization grid</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Leave & Holiday Management</strong> — Track leaves and holidays that reduce capacity</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Dynamic Role-Based Access</strong> — Control page visibility per role via Page Access settings</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Integrations</strong> — MS Teams notifications, Salesforce sync, SMTP email, Azure Blob storage</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">System Architecture</div>
+    <table>
+      <tr><th>Component</th><th>Technology</th></tr>
+      <tr><td>Frontend</td><td>React 18 + Vite + TailwindCSS + Zustand</td></tr>
+      <tr><td>Backend</td><td>FastAPI + SQLAlchemy + Pydantic</td></tr>
+      <tr><td>Database</td><td>SQLite (resource_tracker.db)</td></tr>
+      <tr><td>File Storage</td><td>Azure Blob Storage (PRMAttachmentFiles container)</td></tr>
+      <tr><td>Email</td><td>SMTP (Office 365 / custom)</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- QUICK START -->
+<section class="page-section" id="quick-start">
+  <h2>Quick Start Guide</h2>
+  <p class="page-desc">Get up and running in 5 minutes. Follow these steps in order.</p>
+
+  <div class="card">
+    <div class="card-title">Initial Setup Steps</div>
+    <div class="steps">
+      <div class="step"><strong>Define Roles & Capacity</strong> — Go to Admin → Role Capacity. Add roles (e.g., Developer = 192 hrs, Lead = 96 hrs).</div>
+      <div class="step"><strong>Add Skills</strong> — Go to Admin → Skills. Add skill categories (Backend, Frontend, QA, etc.).</div>
+      <div class="step"><strong>Create Task Statuses</strong> — Go to Admin → Task Status. Add statuses like Not Started, In Progress, Completed.</div>
+      <div class="step"><strong>Create a Project</strong> — Go to Admin → Projects. Add your first project with a code and dates.</div>
+      <div class="step"><strong>Create Modules</strong> — Go to Admin → Modules. Add modules under your project, then sub-modules.</div>
+      <div class="step"><strong>Add Work Types</strong> — Go to Admin → Work Types. Define types like New Requirement, Bug Fix, etc.</div>
+      <div class="step"><strong>Create Sprints</strong> — Go to Admin → Sprints. Define monthly sprint periods.</div>
+      <div class="step"><strong>Add Users/Resources</strong> — Go to Admin → User Setup. Add team members (resource code auto-generates as RES100, RES101, etc.).</div>
+      <div class="step"><strong>Set Page Access</strong> — Go to Admin → Page Access. Control which roles can see which pages.</div>
+      <div class="step"><strong>Start Creating Tasks!</strong> — Go to Tasks page and start tracking work.</div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong><i class="fa-solid fa-lightbulb"></i> Pro Tip</strong>
+    Default password for new users is <strong>Ids@1001</strong>. Users can change it after first login.
+  </div>
+</section>
+
+<!-- ROLES -->
+<section class="page-section" id="roles">
+  <h2>Roles & Permissions</h2>
+  <p class="page-desc">PRM uses a dynamic role system. Roles are defined on the Role Capacity page and access is controlled via Page Access.</p>
+
+  <div class="card">
+    <div class="card-title">How Roles Work</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Roles are created in <strong>Admin → Role Capacity</strong> (e.g., Developer, Lead, Manager)</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Each role has a default capacity in hours/month</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Page visibility is controlled in <strong>Admin → Page Access</strong></span></li>
+      <li><i class="fa-solid fa-check"></i> <span>If a role has access to any admin page, it gets admin-level API permissions</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Admin</strong> always has full access to Settings and Page Access (cannot be revoked)</span></li>
+    </ul>
+  </div>
+
+  <div class="tip">
+    <strong><i class="fa-solid fa-triangle-exclamation"></i> Important</strong>
+    When you create a new custom role (e.g., "Development Manager"), make sure to grant it page access in the Page Access settings — otherwise it won't see any admin pages.
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="page-section" id="dashboard">
+  <h2>Dashboard</h2>
+  <p class="page-desc">The Dashboard shows program-wide KPIs across all projects, modules, and sprints. <span class="badge badge-all">All Roles</span></p>
+
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Dashboard — KPIs, Status Breakdown, Charts</div>
+
+  <div class="card">
+    <div class="card-title">KPI Cards</div>
+    <table>
+      <tr><th>Metric</th><th>Description</th></tr>
+      <tr><td>Total Resources</td><td>Number of active developers/team members</td></tr>
+      <tr><td>Total Tasks</td><td>Count of all tasks matching current filters</td></tr>
+      <tr><td>Total Est. Hours</td><td>Sum of estimated hours across all tasks</td></tr>
+      <tr><td>Customer Committed</td><td>Tasks marked as customer-committed</td></tr>
+      <tr><td>Cross-Month Tasks</td><td>Tasks spanning across multiple sprints</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Charts</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-chart-pie"></i> <span><strong>Status Distribution</strong> — Donut chart showing task count by status</span></li>
+      <li><i class="fa-solid fa-table"></i> <span><strong>Tasks by Status</strong> — Table with status, count, and estimated hours</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- TASKS -->
+<section class="page-section" id="tasks">
+  <h2>Tasks</h2>
+  <p class="page-desc">The main task management page. Create, edit, track activity, and manage attachments. <span class="badge badge-all">All Roles</span></p>
+
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Tasks — List view with filters</div>
+
+  <div class="card">
+    <div class="card-title">Task Fields</div>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Task Subject</td><td>Short title/subject line</td></tr>
+      <tr><td>Task Description</td><td>Detailed description of the work (required)</td></tr>
+      <tr><td>Point of Contact</td><td>Person to contact regarding this task</td></tr>
+      <tr><td>Case # / Reference</td><td>External reference number</td></tr>
+      <tr><td>Property / Client</td><td>Customer or property name</td></tr>
+      <tr><td>Project</td><td>Which project this task belongs to (required)</td></tr>
+      <tr><td>Module / Sub Module</td><td>Module hierarchy classification</td></tr>
+      <tr><td>Resource</td><td>Developer assigned to the task</td></tr>
+      <tr><td>Work Type</td><td>Type of work (from Work Types setup)</td></tr>
+      <tr><td>Sprint</td><td>Sprint period for the task</td></tr>
+      <tr><td>Priority</td><td>Critical, High, Medium, Low</td></tr>
+      <tr><td>Status</td><td>From Task Status setup page</td></tr>
+      <tr><td>Start/End Date</td><td>Planned date range</td></tr>
+      <tr><td>Estimated Hours</td><td>Planned effort</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Task Activity Log</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Click the expand arrow (▶) on any task row to see its activity log</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Log daily work: date, description, hours spent, % completion</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Activities are sorted newest-first</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Total actual hours auto-updates from activity entries</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Task Attachments</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Upload files to Azure Blob Storage (container: PRMAttachmentFiles)</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>View file name, size, last modified, created by</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Actions: <strong>Edit</strong> (rename) | <strong>View</strong> (download/preview) | <strong>Del</strong> (delete)</span></li>
+    </ul>
+  </div>
+
+  <div class="tip">
+    <strong><i class="fa-solid fa-lightbulb"></i> Tip</strong>
+    Use the Kanban view toggle (List / Kanban) for a drag-friendly board layout grouped by status.
+  </div>
+</section>
+
+<!-- SPRINT VIEW -->
+<section class="page-section" id="sprint">
+  <h2>Sprint View</h2>
+  <p class="page-desc">Plan and monitor sprint progress. View tasks grouped by sprint with capacity tracking.</p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Sprint View — Tasks grouped by sprint</div>
+  <div class="card">
+    <div class="card-title">Features</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Tasks grouped by assigned sprint</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Sprint capacity vs allocated hours comparison</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Status breakdown per sprint</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section class="page-section" id="team">
+  <h2>Team</h2>
+  <p class="page-desc">Overview of all team members with their current workload and utilization.</p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Team — Resource cards with skill filter</div>
+  <div class="card">
+    <div class="card-title">Features</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span><strong>Skill Filter</strong> — dropdown pulls from Skills setup page</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>KPI cards: Active Resources, Team Capacity, Monthly Hours, Avg Utilization</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Resource cards with name, role, skill, and utilization bar</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- UTILIZATION -->
+<section class="page-section" id="utilization">
+  <h2>Utilization</h2>
+  <p class="page-desc">Developer × Month utilization grid showing capacity usage across sprints.</p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Utilization — Grid with percentage and hours</div>
+  <div class="card">
+    <div class="card-title">How It Works</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Rows: Developers | Columns: Sprints</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Each cell shows: utilization %, allocated/capacity hours</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Leave days reduce net capacity (from Leave Tracker)</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Color coding: 🟢 Healthy, 🟡 Under, 🔴 Over-allocated</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- LEAVE TRACKER -->
+<section class="page-section" id="leave-tracker">
+  <h2>Leave Tracker</h2>
+  <p class="page-desc">Track leaves that reduce total hours from a resource's capacity.</p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Leave Tracker — Form with date range</div>
+  <div class="card">
+    <div class="card-title">Adding Leave</div>
+    <div class="steps">
+      <div class="step">Select the <strong>Resource</strong> and <strong>Sprint/Month</strong></div>
+      <div class="step">Set <strong>Start Date</strong> and <strong>End Date</strong></div>
+      <div class="step"><strong>Leave Days</strong> auto-calculates (weekdays only, excludes Sat/Sun & holidays)</div>
+      <div class="step"><strong>Reduced Hours</strong> = Leave Days × 8h shown automatically</div>
+      <div class="step">Add optional notes and save</div>
+    </div>
+  </div>
+  <div class="tip">
+    <strong><i class="fa-solid fa-lightbulb"></i> Tip</strong>
+    Holidays from the Holidays page are automatically excluded from leave day calculation.
+  </div>
+</section>
+
+<!-- HOLIDAYS -->
+<section class="page-section" id="holidays">
+  <h2>Holidays</h2>
+  <p class="page-desc">Monthly calendar view to manage company holidays. Sat/Sun are weekends (automatic).</p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Holidays — Calendar with holiday markers</div>
+  <div class="card">
+    <div class="card-title">Features</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Calendar grid with Sat/Sun highlighted in red as weekends</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Click any weekday to add a holiday</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Holiday cells shown in amber with name</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Navigate between months with arrows</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Shows holiday count + working days for the month</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Holidays reduce capacity in Utilization and Resource Calendar</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- RESOURCE CALENDAR -->
+<section class="page-section" id="resource-calendar">
+  <h2>Resource Calendar</h2>
+  <p class="page-desc">Daily time spent per resource with 8 hrs/day capacity baseline.</p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Resource Calendar — Month view with hours</div>
+  <div class="card">
+    <div class="card-title">View Modes</div>
+    <table>
+      <tr><th>Mode</th><th>Description</th></tr>
+      <tr><td><strong>Day</strong></td><td>Single day — detailed view per resource</td></tr>
+      <tr><td><strong>Week</strong></td><td>7 days with progress bars</td></tr>
+      <tr><td><strong>Month</strong></td><td>Full month grid (default)</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">Features</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span><strong>Resource Filter</strong> — filter by specific developer</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Project Filter</strong> — show only resources assigned to a project</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Color coding</strong>: 🟢 ≥50% | 🟡 <50% | 🔴 Over 8h</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Click a cell</strong> to see task breakdown for that day</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Weekends & holidays are greyed out</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Data comes from Task Activity Log entries</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- TIMELINE -->
+<section class="page-section" id="timeline">
+  <h2>Timeline</h2>
+  <p class="page-desc">Gantt chart view of tasks showing start/end dates and resource allocation over time.</p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Timeline — Gantt chart</div>
+</section>
+
+<!-- PROJECTS -->
+<section class="page-section" id="projects">
+  <h2>Projects</h2>
+  <p class="page-desc">Create and manage projects. <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">Project Fields</div>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Project Name</td><td>Display name (unique)</td></tr>
+      <tr><td>Project Code</td><td>Short code identifier (unique)</td></tr>
+      <tr><td>Status</td><td>Active, Inactive, Planning, Completed</td></tr>
+      <tr><td>Start / End Date</td><td>Project duration</td></tr>
+      <tr><td>Description</td><td>Optional project description</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section class="page-section" id="modules">
+  <h2>Modules</h2>
+  <p class="page-desc">Organize work into a hierarchy: Project → Module → Sub Module. <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">Hierarchy</div>
+    <div class="steps">
+      <div class="step"><strong>Select Project</strong> — every module must belong to a project</div>
+      <div class="step"><strong>Create Module</strong> — e.g., "Reservation", "POS Settlement"</div>
+      <div class="step"><strong>Add Sub Modules</strong> — e.g., "Create Reservation", "Cashiering"</div>
+    </div>
+  </div>
+  <div class="tip">
+    <strong><i class="fa-solid fa-triangle-exclamation"></i> Note</strong>
+    A module without a project appears as "Unassigned". Always select a project when creating modules.
+  </div>
+</section>
+
+<!-- USER SETUP -->
+<section class="page-section" id="user-setup">
+  <h2>User Setup</h2>
+  <p class="page-desc">Create user accounts with developer profiles and project assignments. <span class="badge badge-admin">Admin</span></p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> User Setup — Form with auto-code</div>
+  <div class="card">
+    <div class="card-title">Key Features</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span><strong>Auto Resource Code</strong> — auto-generates RES100, RES101, etc. (read-only)</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Default Password</strong> — Ids@1001 (pre-filled)</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Role dropdown</strong> — pulls from Role Capacity page</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Skill dropdown</strong> — pulls from Skills setup page</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>Capacity auto-fill</strong> — updates when role is selected</span></li>
+      <li><i class="fa-solid fa-check"></i> <span><strong>📧 Send Mail button</strong> — resend welcome email with new password</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>List ordered by resource code descending (newest first)</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section class="page-section" id="skills">
+  <h2>Skills Setup</h2>
+  <p class="page-desc">Define skill categories that appear in User Setup and Team page filter. <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">Examples</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-code"></i> <span>Backend, Frontend, Mobile, Full Stack</span></li>
+      <li><i class="fa-solid fa-bug"></i> <span>QA, Manual Testing, Functional Testing</span></li>
+      <li><i class="fa-solid fa-server"></i> <span>DevOps, UI/UX</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- WORK TYPES -->
+<section class="page-section" id="work-types">
+  <h2>Work Types</h2>
+  <p class="page-desc">Define task categories with customer-committed flag and color. <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">Fields</div>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Name</td><td>e.g., New Requirement, Bug, Production Issue</td></tr>
+      <tr><td>Customer Committed</td><td>Yes/No — flags for reporting</td></tr>
+      <tr><td>Color</td><td>Display color for visual identification</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- SPRINTS -->
+<section class="page-section" id="sprints">
+  <h2>Sprints</h2>
+  <p class="page-desc">Define sprint periods (typically monthly). <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">Sprint Fields</div>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Name</td><td>e.g., "Aug-2026", "Sep-2026"</td></tr>
+      <tr><td>Start Date</td><td>Sprint start</td></tr>
+      <tr><td>End Date</td><td>Sprint end</td></tr>
+      <tr><td>Status</td><td>Not Started, Planned, Active, Completed</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ROLE CAPACITY -->
+<section class="page-section" id="role-capacity">
+  <h2>Role Capacity</h2>
+  <p class="page-desc">Define monthly capacity (hours) for each role. Auto-fills in User Setup. <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">How It Works</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Enter any role name (free text) and its monthly capacity</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>When selecting a role in User Setup, capacity auto-fills</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Capacity can still be overridden per user</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Roles defined here appear in the User Setup role dropdown</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- TASK STATUS -->
+<section class="page-section" id="task-status">
+  <h2>Task Status Setup</h2>
+  <p class="page-desc">Define task statuses that appear in the task form dropdown. <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">Fields</div>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>Status Name</td><td>e.g., Not Started, In Progress, QA-WIP, Completed</td></tr>
+      <tr><td>Color</td><td>Badge color for visual display</td></tr>
+      <tr><td>Sort Order</td><td>Lower numbers appear first in dropdowns</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- PAGE ACCESS -->
+<section class="page-section" id="page-access">
+  <h2>Page Access Control</h2>
+  <p class="page-desc">Control which roles can see each page in the sidebar menu. <span class="badge badge-admin">Admin Only</span></p>
+  <div class="screenshot-placeholder"><i class="fa-solid fa-image"></i> Page Access — Role × Page matrix</div>
+  <div class="card">
+    <div class="card-title">How It Works</div>
+    <ul class="feature-list">
+      <li><i class="fa-solid fa-check"></i> <span>Grid: Rows = pages, Columns = roles (from Role Capacity)</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Check/uncheck boxes to grant or revoke access</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Admin always keeps access to Settings and Page Access</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>Changes take effect on next page load</span></li>
+      <li><i class="fa-solid fa-check"></i> <span>If a role has admin page access, it also gets API-level admin permissions</span></li>
+    </ul>
+  </div>
+  <div class="tip">
+    <strong><i class="fa-solid fa-triangle-exclamation"></i> Important</strong>
+    If no page access rules are saved (first time), all pages are visible to all roles (backward compatible).
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section class="page-section" id="settings">
+  <h2>Settings</h2>
+  <p class="page-desc">Integration settings for Teams, Salesforce, SMTP, and Azure. <span class="badge badge-admin">Admin</span></p>
+  <div class="card">
+    <div class="card-title">Integration Sections</div>
+    <table>
+      <tr><th>Section</th><th>Purpose</th></tr>
+      <tr><td>MS Teams</td><td>Webhook URL for task notifications</td></tr>
+      <tr><td>Salesforce</td><td>Client ID/Secret for case sync</td></tr>
+      <tr><td>Azure Blob</td><td>Connection string for file attachments</td></tr>
+      <tr><td>SMTP Email</td><td>Welcome emails, notifications (smtp.office365.com)</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- REPORTS -->
+<section class="page-section" id="reports">
+  <h2>Reports</h2>
+  <p class="page-desc">Analytics and reporting across projects and tasks.</p>
+  <div class="card">
+    <div class="card-title">Available Reports</div>
+    <table>
+      <tr><th>Report</th><th>Description</th></tr>
+      <tr><td>Salesforce Tasks</td><td>Tasks synced to Salesforce as Cases</td></tr>
+      <tr><td>Project Progress</td><td>Completion % and status breakdown per project</td></tr>
+      <tr><td>Overdue Tasks</td><td>Tasks past their end date</td></tr>
+      <tr><td>Customer Summary</td><td>Work grouped by customer/property</td></tr>
+      <tr><td>Time Variance</td><td>Estimated vs actual hours — highlights over/under estimation</td></tr>
+    </table>
+  </div>
+</section>
+
+</main>
+
+<script>
+// Navigation
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    const page = item.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+    document.getElementById(page).classList.add('active');
+    window.scrollTo(0, 0);
+  });
+});
+
+// Search
+function filterNav(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const text = item.textContent.toLowerCase();
+    const page = document.getElementById(item.dataset.page);
+    const pageText = page ? page.textContent.toLowerCase() : '';
+    item.style.display = (!q || text.includes(q) || pageText.includes(q)) ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

@@ -30,18 +30,20 @@ const useAuthStore = create((set) => ({
   isAuthenticated: () => !!useAuthStore.getState().token,
 }))
 
-// Role helpers — used throughout the UI to show/hide admin actions.
+
 export const isAdmin = (user) => user?.role === 'Admin'
-export const isManagerOrAbove = (user) => ['Admin', 'Manager'].includes(user?.role)
-export const isLeadOrAbove = (user) => ['Admin', 'Manager', 'Lead'].includes(user?.role)
+// With dynamic roles from Role Capacity page, any non-basic role should be treated as elevated
+// The backend enforces real permissions via page_access table
+export const isManagerOrAbove = (user) => !!user && user.role !== 'Developer'
+export const isLeadOrAbove = (user) => !!user && user.role !== 'Developer'
 export const canEditTask = (user, task) => {
   if (!user) return false
   if (isLeadOrAbove(user)) return true
-  return user.role === 'Developer' && user.developer_id != null && task.developer_id === user.developer_id
+  return user.developer_id != null && task.developer_id === user.developer_id
 }
 export const canDeleteTask = (user) => isLeadOrAbove(user)
 // Developers can create tasks (backend will force self-assignment)
-export const canCreateTask = (user) => !!user && (isLeadOrAbove(user) || (user.role === 'Developer' && user.developer_id != null))
-export const canManageAdminConfig = (user) => isManagerOrAbove(user)
+export const canCreateTask = (user) => !!user
+export const canManageAdminConfig = (user) => !!user && user.role !== 'Developer'
 
 export default useAuthStore

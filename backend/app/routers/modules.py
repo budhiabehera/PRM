@@ -14,14 +14,12 @@ def list_main_modules(db: Session = Depends(get_db)):
 
 @router.get("/tree")
 def module_tree(db: Session = Depends(get_db)):
-    """Main modules with nested sub-modules + counts, for the module hierarchy view."""
+    """Project → Modules → Sub-Modules hierarchy."""
     modules = db.query(models.MainModule).order_by(models.MainModule.name).all()
     projects = db.query(models.Project).order_by(models.Project.name).all()
 
     # Build module data
-    module_list = []
-    for m in modules:
-        dev_count = db.query(models.Developer).filter(models.Developer.home_module_id == m.id).count()
+    def _build_module(m):
         task_count = db.query(models.Task).filter(models.Task.main_module_id == m.id).count()
         subs = []
         for s in m.sub_modules:
@@ -32,29 +30,29 @@ def module_tree(db: Session = Depends(get_db)):
                 "tasks": len(s_tasks),
                 "estimated_hours": sum(t.estimated_hours for t in s_tasks),
             })
-        # Find projects linked to this module (Project.main_module_id == m.id)
-        linked_projects = [p.name for p in projects if p.main_module_id == m.id]
-        module_list.append({
+        return {
             "id": m.id,
             "name": m.name,
-            "projects": linked_projects,
+            "project_id": m.project_id,
             "sub_module_count": len(subs),
-            "developer_count": dev_count,
             "task_count": task_count,
             "sub_modules": subs,
-        })
+        }
 
-    # Build project tree (Project → Modules → Sub-Modules)
+    module_list = [_build_module(m) for m in modules]
+
+    # Build project tree: group modules by their project_id
     project_tree = []
     for p in projects:
-        p_mods = [m for m in module_list if m["id"] == p.main_module_id] if p.main_module_id else []
+        p_mods = [m for m in module_list if m["project_id"] == p.id]
         project_tree.append({
             "project_id": p.id,
             "project_name": p.name,
             "modules": p_mods,
         })
-    # Also include modules not linked to any project
-    unlinked = [m for m in module_list if not m["projects"]]
+
+    # Modules not linked to any project
+    unlinked = [m for m in module_list if not m["project_id"]]
     if unlinked:
         project_tree.append({
             "project_id": None,
@@ -71,27 +69,29 @@ def create_main_module(payload: schemas.MainModuleCreate, project_id: int | None
                         _user=Depends(require_roles("Admin", "Manager"))):
     if db.query(models.MainModule).filter(models.MainModule.name == payload.name).first():
         raise HTTPException(400, "Main module already exists")
-    module = models.MainModule(**payload.model_dump())
+    module = models.MainModule(
+        name=payload.name,
+        description=payload.description or "",
+        project_id=project_id,
+    )
     db.add(module)
     db.commit()
     db.refresh(module)
-    # Link the project to this module if project_id provided
-    if project_id:
-        project = db.query(models.Project).get(project_id)
-        if project:
-            project.main_module_id = module.id
-            db.commit()
     return module
 
 
 @router.put("/{module_id}", response_model=schemas.MainModule)
-def update_main_module(module_id: int, payload: schemas.MainModuleCreate, db: Session = Depends(get_db),
+def update_main_module(module_id: int, payload: schemas.MainModuleCreate,
+                        project_id: int | None = None,
+                        db: Session = Depends(get_db),
                         _user=Depends(require_roles("Admin", "Manager"))):
     module = db.query(models.MainModule).get(module_id)
     if not module:
         raise HTTPException(404, "Main module not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
-        setattr(module, key, value)
+    module.name = payload.name
+    module.description = payload.description or ""
+    if project_id is not None:
+        module.project_id = project_id
     db.commit()
     db.refresh(module)
     return module

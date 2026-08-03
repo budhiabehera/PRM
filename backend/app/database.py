@@ -47,6 +47,9 @@ _NEW_COLUMNS = [
     ("integration_settings", "smtp_use_tls", "BOOLEAN DEFAULT 1"),
     ("tasks", "subject", "VARCHAR(255) DEFAULT ''"),
     ("tasks", "point_of_contact", "VARCHAR(150) DEFAULT ''"),
+    ("main_modules", "project_id", "INTEGER REFERENCES projects(id)"),
+    ("availabilities", "start_date", "DATE"),
+    ("availabilities", "end_date", "DATE"),
 ]
 
 

@@ -31,10 +31,39 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), db: Session = D
 def require_roles(*allowed_roles: str):
     """Dependency factory: raises 403 unless current_user.role is in allowed_roles."""
     def dependency(current_user: models.User = Depends(get_current_user)) -> models.User:
-        if current_user.role not in allowed_roles:
-            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You don't have permission to do that.")
-        return current_user
+        if current_user.role in allowed_roles:
+            return current_user
+        # Check page_access table: if user's role has been granted access to
+        # admin pages, treat them as having the equivalent API permission.
+        from .database import SessionLocal
+        db = SessionLocal()
+        try:
+            admin_pages = db.query(models.PageAccess).filter(
+                models.PageAccess.section == "admin"
+            ).all()
+            for page in admin_pages:
+                role_list = [r.strip() for r in page.roles.split(",") if r.strip()]
+                if current_user.role in role_list:
+                    return current_user
+        finally:
+            db.close()
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You don't have permission to do that.")
     return dependency
+
+
+def _has_admin_page_access(role: str) -> bool:
+    """Check if a role has been granted access to any admin page."""
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        admin_pages = db.query(models.PageAccess).filter(models.PageAccess.section == "admin").all()
+        for page in admin_pages:
+            role_list = [r.strip() for r in page.roles.split(",") if r.strip()]
+            if role in role_list:
+                return True
+    finally:
+        db.close()
+    return False
 
 
 def can_edit_task(user: models.User, task: models.Task) -> bool:
@@ -42,14 +71,17 @@ def can_edit_task(user: models.User, task: models.Task) -> bool:
     assigned to their own linked Developer record."""
     if user.role in ("Admin", "Manager", "Lead"):
         return True
-    if user.role == "Developer":
-        return user.developer_id is not None and task.developer_id == user.developer_id
-    return False
+    if _has_admin_page_access(user.role):
+        return True
+    # Fallback: user can only edit their own tasks
+    return user.developer_id is not None and task.developer_id == user.developer_id
 
 
 def can_delete_task(user: models.User) -> bool:
     """Only Admin/Manager/Lead may delete tasks; Developers never can."""
-    return user.role in ("Admin", "Manager", "Lead")
+    if user.role in ("Admin", "Manager", "Lead"):
+        return True
+    return _has_admin_page_access(user.role)
 
 
 DEVELOPER_EDITABLE_FIELDS = {
@@ -72,7 +104,7 @@ def get_user_project_ids(user: models.User) -> list[int] | None:
     """Return list of project IDs the user has access to.
     Returns None for Admin (meaning 'all projects' — no filter needed).
     Returns empty list if user has no assigned projects (sees nothing)."""
-    if user.role == "Admin":
+    if user.role == "Admin" or _has_admin_page_access(user.role):
         return None  # Admin sees everything
     # For Manager/Lead/Developer — check their user.projects (many-to-many)
     project_ids = [p.id for p in user.projects]

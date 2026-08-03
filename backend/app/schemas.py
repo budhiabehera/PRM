@@ -16,6 +16,7 @@ class MainModuleCreate(MainModuleBase):
 class MainModule(MainModuleBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    project_id: Optional[int] = None
 
 
 # ---------- Sub Module ----------
@@ -86,7 +87,7 @@ class Developer(DeveloperBase):
 
 # ---------- Unified User Setup (creates Developer + User login in one go) ----------
 class UserSetupCreate(BaseModel):
-    dev_code: str
+    dev_code: Optional[str] = ""
     username: str
     full_name: str
     email: str
@@ -169,7 +170,9 @@ class Sprint(SprintBase):
 class AvailabilityBase(BaseModel):
     developer_id: int
     sprint_id: int
-    leave_days: float = 0
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    leave_days: Optional[float] = 0
     notes: Optional[str] = ""
 
 
@@ -350,6 +353,22 @@ class RoleCapacityOut(BaseModel):
     role: str
     capacity_hours: float
     description: Optional[str] = ""
+    created_at: Optional[datetime] = None
+
+
+# ---------- Task Status ----------
+class TaskStatusCreate(BaseModel):
+    name: str
+    color: Optional[str] = "#4f46e5"
+    sort_order: Optional[int] = 0
+
+
+class TaskStatusOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    color: str
+    sort_order: int
     created_at: Optional[datetime] = None
 
 

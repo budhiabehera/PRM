@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getResourceCalendar, getProjects } from '../services/api'
+import useDropdowns from '../hooks/useDropdowns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import FilterSelect from '../components/common/FilterSelect'
@@ -15,18 +16,17 @@ function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
 }
 
-function getUtilColor(hours, capacity) {
-  if (capacity === 0) return ''
-  const pct = (hours / capacity) * 100
-  if (pct === 0) return 'bg-white'
-  if (pct < 50) return 'bg-amber-50 text-amber-700'
-  if (pct <= 100) return 'bg-green-50 text-green-700'
-  return 'bg-red-50 text-red-700'
-}
-
 function getBarWidth(hours, capacity) {
   if (capacity === 0) return 0
   return Math.min((hours / capacity) * 100, 100)
+}
+
+function getWeekNumber(d) {
+  const date = new Date(d)
+  date.setHours(0, 0, 0, 0)
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7))
+  const week1 = new Date(date.getFullYear(), 0, 4)
+  return 1 + Math.round(((date - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
 }
 
 export default function ResourceCalendarPage() {
@@ -37,12 +37,28 @@ export default function ResourceCalendarPage() {
   const [loading, setLoading] = useState(true)
   const [projects, setProjects] = useState([])
   const [projectFilter, setProjectFilter] = useState('')
+  const [resourceFilter, setResourceFilter] = useState('')
+  const [viewMode, setViewMode] = useState('month') // 'day', 'week', 'month'
+  const [selectedDay, setSelectedDay] = useState(today.getDate())
+  const [selectedWeekStart, setSelectedWeekStart] = useState(null)
   const [expandedResource, setExpandedResource] = useState(null)
-  const [selectedCell, setSelectedCell] = useState(null) // { devId, dateStr }
+  const [selectedCell, setSelectedCell] = useState(null)
+
+  const { resources: allResources } = useDropdowns()
 
   useEffect(() => {
     getProjects().then(setProjects).catch(() => {})
   }, [])
+
+  // Initialize week start to current week's Monday
+  useEffect(() => {
+    const d = new Date(year, month - 1, today.getDate())
+    const dayOfWeek = d.getDay() // 0=Sun
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(d)
+    monday.setDate(d.getDate() + diff)
+    setSelectedWeekStart(monday.getDate())
+  }, [month, year])
 
   const loadData = async () => {
     setLoading(true)
@@ -65,27 +81,74 @@ export default function ResourceCalendarPage() {
     if (month === 1) { setMonth(12); setYear(year - 1) }
     else setMonth(month - 1)
   }
-
   const nextMonth = () => {
     if (month === 12) { setMonth(1); setYear(year + 1) }
     else setMonth(month + 1)
   }
 
-  // Build day headers
+  // Determine which days to show based on view mode
+  const visibleDays = useMemo(() => {
+    const days = []
+    if (viewMode === 'day') {
+      days.push(selectedDay)
+    } else if (viewMode === 'week') {
+      const start = selectedWeekStart || 1
+      for (let d = start; d < start + 7 && d <= daysInMonth; d++) {
+        days.push(d)
+      }
+    } else {
+      for (let d = 1; d <= daysInMonth; d++) {
+        days.push(d)
+      }
+    }
+    return days
+  }, [viewMode, selectedDay, selectedWeekStart, daysInMonth])
+
+  // Day headers for visible days
   const dayHeaders = useMemo(() => {
-    const headers = []
-    for (let d = 1; d <= daysInMonth; d++) {
+    return visibleDays.map((d) => {
       const dt = new Date(year, month - 1, d)
       const dow = dt.getDay() // 0=Sun, 6=Sat
-      headers.push({
+      return {
         day: d,
         dow,
         isWeekend: dow === 0 || dow === 6,
-        label: DAY_ABBR[dow === 0 ? 6 : dow - 1], // convert JS dow to Mon-indexed
-      })
+        label: DAY_ABBR[dow === 0 ? 6 : dow - 1],
+      }
+    })
+  }, [visibleDays, year, month])
+
+  // Filter resources
+  const filteredResources = useMemo(() => {
+    if (!data) return []
+    let resources = data.resources
+    if (resourceFilter) {
+      resources = resources.filter((r) => r.developer_id === Number(resourceFilter))
     }
-    return headers
-  }, [year, month, daysInMonth])
+    return resources
+  }, [data, resourceFilter])
+
+  // Week navigation
+  const prevWeek = () => {
+    const newStart = (selectedWeekStart || 1) - 7
+    if (newStart >= 1) setSelectedWeekStart(newStart)
+    else prevMonth()
+  }
+  const nextWeek = () => {
+    const newStart = (selectedWeekStart || 1) + 7
+    if (newStart <= daysInMonth) setSelectedWeekStart(newStart)
+    else nextMonth()
+  }
+
+  // Day navigation
+  const prevDay = () => {
+    if (selectedDay > 1) setSelectedDay(selectedDay - 1)
+    else { prevMonth(); setSelectedDay(getDaysInMonth(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1)) }
+  }
+  const nextDay = () => {
+    if (selectedDay < daysInMonth) setSelectedDay(selectedDay + 1)
+    else { nextMonth(); setSelectedDay(1) }
+  }
 
   const toggleResource = (devId) => {
     setExpandedResource((prev) => (prev === devId ? null : devId))
@@ -104,18 +167,46 @@ export default function ResourceCalendarPage() {
         </div>
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center gap-4 mb-5 bg-white border border-slate-200 rounded-xl px-5 py-3">
-        <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600">
+      {/* Controls Row */}
+      <div className="flex items-center gap-4 mb-5 bg-white border border-slate-200 rounded-xl px-5 py-3 flex-wrap">
+        {/* Navigation */}
+        <button onClick={viewMode === 'day' ? prevDay : viewMode === 'week' ? prevWeek : prevMonth}
+          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600">
           <ChevronLeft size={20} />
         </button>
-        <h3 className="text-lg font-semibold text-slate-800 min-w-[180px] text-center">
-          {MONTH_NAMES[month - 1]} {year}
+        <h3 className="text-lg font-semibold text-slate-800 min-w-[200px] text-center">
+          {viewMode === 'day' && `${selectedDay} ${MONTH_NAMES[month - 1]} ${year}`}
+          {viewMode === 'week' && `Week of ${selectedWeekStart || 1} ${MONTH_NAMES[month - 1]} ${year}`}
+          {viewMode === 'month' && `${MONTH_NAMES[month - 1]} ${year}`}
         </h3>
-        <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600">
+        <button onClick={viewMode === 'day' ? nextDay : viewMode === 'week' ? nextWeek : nextMonth}
+          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600">
           <ChevronRight size={20} />
         </button>
-        <div className="ml-auto">
+
+        {/* View Mode Switcher */}
+        <div className="flex gap-1 bg-slate-100 rounded-lg p-1 ml-4">
+          {['day', 'week', 'month'].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-colors ${
+                viewMode === mode ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="ml-auto flex items-center gap-3">
+          <FilterSelect
+            label="Resource"
+            value={resourceFilter}
+            onChange={setResourceFilter}
+            options={(allResources || []).map((r) => ({ value: r.id, label: r.name }))}
+          />
           <FilterSelect
             label="Project"
             value={projectFilter}
@@ -126,7 +217,7 @@ export default function ResourceCalendarPage() {
       </div>
 
       {/* Calendar Grid */}
-      {data && data.resources.length > 0 ? (
+      {filteredResources.length > 0 ? (
         <div className="card overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
@@ -137,7 +228,7 @@ export default function ResourceCalendarPage() {
                 {dayHeaders.map((h) => (
                   <th
                     key={h.day}
-                    className={`text-center px-1 py-1.5 min-w-[40px] ${
+                    className={`text-center px-1 py-1.5 ${viewMode === 'day' ? 'min-w-[120px]' : viewMode === 'week' ? 'min-w-[70px]' : 'min-w-[40px]'} ${
                       h.isWeekend ? 'bg-red-50/60 text-red-400' : 'text-slate-500'
                     }`}
                   >
@@ -154,8 +245,19 @@ export default function ResourceCalendarPage() {
               </tr>
             </thead>
             <tbody>
-              {data.resources.map((res) => {
+              {filteredResources.map((res) => {
                 const isExpanded = expandedResource === res.developer_id
+                // Calculate totals for visible days only
+                const visibleTotal = visibleDays.reduce((sum, d) => {
+                  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                  return sum + (res.days[dateStr]?.total_hours || 0)
+                }, 0)
+                const visibleCapacity = visibleDays.reduce((sum, d) => {
+                  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                  return sum + (res.days[dateStr]?.capacity_hours || 0)
+                }, 0)
+                const visibleUtil = visibleCapacity > 0 ? Math.round((visibleTotal / visibleCapacity) * 100) : 0
+
                 return (
                   <>
                     <tr
@@ -186,6 +288,7 @@ export default function ResourceCalendarPage() {
                               e.stopPropagation()
                               if (!isWeekend && !isHoliday) {
                                 setSelectedCell({ devId: res.developer_id, dateStr })
+                                setExpandedResource(res.developer_id)
                               }
                             }}
                             title={
@@ -205,16 +308,18 @@ export default function ResourceCalendarPage() {
                                 }`}>
                                   {hours}
                                 </span>
-                                <div className="w-6 h-1 bg-slate-200 rounded-full mt-0.5">
-                                  <div
-                                    className={`h-1 rounded-full ${
-                                      hours > capacity ? 'bg-red-500' :
-                                      hours >= capacity * 0.5 ? 'bg-green-500' :
-                                      'bg-amber-400'
-                                    }`}
-                                    style={{ width: `${getBarWidth(hours, capacity)}%` }}
-                                  />
-                                </div>
+                                {viewMode !== 'month' && (
+                                  <div className="w-8 h-1 bg-slate-200 rounded-full mt-0.5">
+                                    <div
+                                      className={`h-1 rounded-full ${
+                                        hours > capacity ? 'bg-red-500' :
+                                        hours >= capacity * 0.5 ? 'bg-green-500' :
+                                        'bg-amber-400'
+                                      }`}
+                                      style={{ width: `${getBarWidth(hours, capacity)}%` }}
+                                    />
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <span className="text-[9px] text-slate-300">0</span>
@@ -223,16 +328,16 @@ export default function ResourceCalendarPage() {
                         )
                       })}
                       <td className="text-center px-2 py-2 bg-slate-50 font-semibold text-slate-700">
-                        {res.summary.total_spent}h
+                        {visibleTotal}h
                       </td>
                       <td className="text-center px-2 py-2 bg-slate-50">
                         <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          res.summary.utilization_pct > 100 ? 'bg-red-100 text-red-700' :
-                          res.summary.utilization_pct >= 70 ? 'bg-green-100 text-green-700' :
-                          res.summary.utilization_pct >= 40 ? 'bg-amber-100 text-amber-700' :
+                          visibleUtil > 100 ? 'bg-red-100 text-red-700' :
+                          visibleUtil >= 70 ? 'bg-green-100 text-green-700' :
+                          visibleUtil >= 40 ? 'bg-amber-100 text-amber-700' :
                           'bg-slate-100 text-slate-500'
                         }`}>
-                          {res.summary.utilization_pct}%
+                          {visibleUtil}%
                         </span>
                       </td>
                     </tr>
@@ -240,30 +345,27 @@ export default function ResourceCalendarPage() {
                     {/* Expanded detail row */}
                     {isExpanded && (
                       <tr key={`${res.developer_id}-detail`} className="bg-indigo-50/30">
-                        <td colSpan={daysInMonth + 3} className="px-4 py-3">
-                          <div className="text-[11px] font-semibold text-slate-600 mb-2">
-                            {res.developer_name} — {MONTH_NAMES[month - 1]} Summary
-                          </div>
+                        <td colSpan={visibleDays.length + 3} className="px-4 py-3">
                           <div className="grid grid-cols-4 gap-3 mb-3">
                             <div className="bg-white rounded-lg p-2 border border-slate-200">
-                              <div className="text-[10px] text-slate-400">Working Days</div>
-                              <div className="text-sm font-bold text-slate-800">{res.summary.working_days}</div>
+                              <div className="text-[10px] text-slate-400">View Period</div>
+                              <div className="text-sm font-bold text-slate-800 capitalize">{viewMode}</div>
                             </div>
                             <div className="bg-white rounded-lg p-2 border border-slate-200">
                               <div className="text-[10px] text-slate-400">Capacity</div>
-                              <div className="text-sm font-bold text-slate-800">{res.summary.total_capacity}h</div>
+                              <div className="text-sm font-bold text-slate-800">{visibleCapacity}h</div>
                             </div>
                             <div className="bg-white rounded-lg p-2 border border-slate-200">
                               <div className="text-[10px] text-slate-400">Total Spent</div>
-                              <div className="text-sm font-bold text-indigo-600">{res.summary.total_spent}h</div>
+                              <div className="text-sm font-bold text-indigo-600">{visibleTotal}h</div>
                             </div>
                             <div className="bg-white rounded-lg p-2 border border-slate-200">
                               <div className="text-[10px] text-slate-400">Utilization</div>
                               <div className={`text-sm font-bold ${
-                                res.summary.utilization_pct > 100 ? 'text-red-600' :
-                                res.summary.utilization_pct >= 70 ? 'text-green-600' :
+                                visibleUtil > 100 ? 'text-red-600' :
+                                visibleUtil >= 70 ? 'text-green-600' :
                                 'text-amber-600'
-                              }`}>{res.summary.utilization_pct}%</div>
+                              }`}>{visibleUtil}%</div>
                             </div>
                           </div>
 

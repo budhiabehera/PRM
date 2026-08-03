@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '../../utils/constants'
+import { PRIORITY_OPTIONS } from '../../utils/constants'
 import { toDateInput } from '../../utils/formatters'
 import { validateTaskForm } from '../../utils/validators'
 
 export default function TaskForm({
-  initial, projects = [], mainModules = [], subModules = [], resources = [], workTypes = [], sprints = [],
+  initial, projects = [], mainModules = [], subModules = [], resources = [], workTypes = [], sprints = [], taskStatuses = [],
   onSubmit, onCancel, lockDeveloper = false,
 }) {
   const [form, setForm] = useState({
@@ -144,7 +144,8 @@ export default function TaskForm({
         <div className="flex flex-col gap-1">
           <label className="form-label">Status</label>
           <select className="form-select" value={form.status} onChange={(e) => update('status', e.target.value)}>
-            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+            <option value="">Select Status...</option>
+            {taskStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-1">

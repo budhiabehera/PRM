@@ -12,7 +12,7 @@ import Modal from '../components/common/Modal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import TaskForm from '../components/forms/TaskForm'
 import { formatShortDate } from '../utils/formatters'
-import { STATUS_OPTIONS, PRIORITY_OPTIONS } from '../utils/constants'
+import { PRIORITY_OPTIONS } from '../utils/constants'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import TaskActivityPanel from '../components/TaskActivityPanel'
 import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
@@ -20,7 +20,7 @@ import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
 const KANBAN_COLUMNS = ['Not Started', 'In Progress', 'On Hold', 'Completed']
 
 export default function TasksPage() {
-  const { projects, mainModules, subModules, resources, workTypes, sprints } = useDropdowns()
+  const { projects, mainModules, subModules, resources, workTypes, sprints, taskStatuses } = useDropdowns()
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
   const user = useAuthStore((s) => s.user)
   const isDeveloper = user?.role === 'Developer'
@@ -130,7 +130,7 @@ export default function TasksPage() {
             }
           />
         )}
-        <FilterSelect label="Status" value={filters.status} onChange={setFilter('status')} options={STATUS_OPTIONS} />
+        <FilterSelect label="Status" value={filters.status} onChange={setFilter('status')} options={(taskStatuses || []).map((s) => s.name)} />
         <FilterSelect label="Priority" value={filters.priority} onChange={setFilter('priority')} options={PRIORITY_OPTIONS} />
         <FilterSelect label="Work Type" value={filters.work_type_id} onChange={setFilter('work_type_id')}
           options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />
@@ -294,6 +294,7 @@ export default function TasksPage() {
           resources={resources}
           workTypes={workTypes}
           sprints={sprints}
+          taskStatuses={taskStatuses}
           onSubmit={handleCreate}
           onCancel={() => setCreatingTask(false)}
           lockDeveloper={isDeveloper}
@@ -311,6 +312,7 @@ export default function TasksPage() {
             resources={resources}
             workTypes={workTypes}
             sprints={sprints}
+            taskStatuses={taskStatuses}
             onSubmit={handleSave}
             onCancel={() => setEditingTask(null)}
             lockDeveloper={isDeveloper}

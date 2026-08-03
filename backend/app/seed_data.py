@@ -10,11 +10,25 @@ from .auth import hash_password
 
 
 def run_seed(db: Session):
-    # Seeding disabled — data is managed manually via the UI
-    # _seed_core_data(db)
-    # _seed_default_users(db)
-    # _seed_skills(db)
-    pass
+    """Only creates the admin user if no users exist (fresh database)."""
+    _ensure_admin_user(db)
+
+
+def _ensure_admin_user(db: Session):
+    """Create default admin account if no users exist in the database."""
+    if db.query(models.User).count() > 0:
+        return  # users already exist, skip
+    admin = models.User(
+        username="admin",
+        full_name="System Administrator",
+        email="admin@prm.local",
+        role="Admin",
+        password_hash=hash_password("Ids@1001"),
+        active=True,
+    )
+    db.add(admin)
+    db.commit()
+    print("[SEED] Created default admin user (admin / Ids@1001)")
 
 
 def _seed_core_data(db: Session):

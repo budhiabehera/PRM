@@ -65,11 +65,11 @@ _NEW_COLUMNS = [
 def run_lightweight_migrations():
     if not DATABASE_URL.startswith("sqlite"):
         return  # only implemented for SQLite; other DBs should use a real migration tool (e.g. Alembic)
-    inspector = inspect(engine)
-    existing_tables = inspector.get_table_names()
-    with engine.begin() as conn:
-        # Create the user_projects association table if it doesn't exist
-        if "user_projects" not in existing_tables:
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        with engine.begin() as conn:
+            # Create association tables if they don't exist
             conn.execute(text(
                 "CREATE TABLE IF NOT EXISTS user_projects ("
                 "  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
@@ -77,7 +77,6 @@ def run_lightweight_migrations():
                 "  PRIMARY KEY (user_id, project_id)"
                 ")"
             ))
-        if "developer_projects" not in existing_tables:
             conn.execute(text(
                 "CREATE TABLE IF NOT EXISTS developer_projects ("
                 "  developer_id INTEGER NOT NULL REFERENCES developers(id) ON DELETE CASCADE,"
@@ -85,24 +84,24 @@ def run_lightweight_migrations():
                 "  PRIMARY KEY (developer_id, project_id)"
                 ")"
             ))
-        for table, column, col_type in _NEW_COLUMNS:
-            if table not in existing_tables:
-                continue  # table doesn't exist yet — create_all() will make it with the column already
-            existing_columns = {c["name"] for c in inspector.get_columns(table)}
-            if column not in existing_columns:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+            for table, column, col_type in _NEW_COLUMNS:
+                if table not in existing_tables:
+                    continue
+                existing_columns = {c["name"] for c in inspector.get_columns(table)}
+                if column not in existing_columns:
+                    try:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+                    except Exception:
+                        pass  # column might already exist
 
-        # Remove UNIQUE constraint from users.email (if it exists)
-        if "users" in existing_tables:
-            # Check if email has a unique index
-            indexes = inspector.get_indexes("users")
-            unique_cols = inspector.get_unique_constraints("users")
-            # SQLite: recreate table without the unique constraint on email
-            cols = inspector.get_columns("users")
-            col_names = [c["name"] for c in cols]
-            if "email" in col_names:
-                # Drop and recreate the unique index if it exists
+            # Remove UNIQUE constraint from users.email (if it exists)
+            if "users" in existing_tables:
+                indexes = inspector.get_indexes("users")
                 for idx in indexes:
                     if "email" in idx.get("column_names", []) and idx.get("unique"):
-                        conn.execute(text(f"DROP INDEX IF EXISTS {idx['name']}"))
-                        print(f"[MIGRATION] Dropped unique index on users.email: {idx['name']}")
+                        try:
+                            conn.execute(text(f"DROP INDEX IF EXISTS {idx['name']}"))
+                        except Exception:
+                            pass
+    except Exception as e:
+        print(f"[MIGRATION WARNING] Lightweight migrations skipped: {e}")

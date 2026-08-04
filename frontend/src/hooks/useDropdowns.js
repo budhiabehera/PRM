@@ -22,25 +22,24 @@ export default function useDropdowns() {
     return projects.filter((p) => userProjectIds.includes(p.id))
   }, [projects, user, isAdmin])
 
-  // Get module IDs linked to user's projects (Project.main_module_id)
-  const allowedModuleIds = useMemo(() => {
-    if (isAdmin) return null // null = no filter
-    return filteredProjects
-      .map((p) => p.main_module_id)
-      .filter(Boolean)
+  // Get project IDs the user has access to
+  const userProjectIds = useMemo(() => {
+    if (isAdmin) return null // null = no filter (Admin sees all)
+    return filteredProjects.map((p) => p.id)
   }, [filteredProjects, isAdmin])
 
-  // Filter main modules — only those linked to user's projects
+  // Filter main modules — only those belonging to user's projects (by module.project_id)
   const filteredMainModules = useMemo(() => {
-    if (isAdmin || !allowedModuleIds) return mainModules
-    return mainModules.filter((m) => allowedModuleIds.includes(m.id))
-  }, [mainModules, allowedModuleIds, isAdmin])
+    if (isAdmin || !userProjectIds) return mainModules
+    return mainModules.filter((m) => !m.project_id || userProjectIds.includes(m.project_id))
+  }, [mainModules, userProjectIds, isAdmin])
 
   // Filter sub-modules — only those under allowed main modules
   const filteredSubModules = useMemo(() => {
-    if (isAdmin || !allowedModuleIds) return subModules
-    return subModules.filter((s) => allowedModuleIds.includes(s.main_module_id))
-  }, [subModules, allowedModuleIds, isAdmin])
+    if (isAdmin || !userProjectIds) return subModules
+    const allowedMainModuleIds = filteredMainModules.map((m) => m.id)
+    return subModules.filter((s) => allowedMainModuleIds.includes(s.main_module_id))
+  }, [subModules, filteredMainModules, userProjectIds, isAdmin])
 
   // Developers: filter by project_ids (many-to-many on the developer record)
   const filteredResources = useMemo(() => {

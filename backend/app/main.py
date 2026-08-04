@@ -95,9 +95,10 @@ def health():
 # --- Serve Frontend Production Build ---
 import os
 FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "frontend", "dist")
+FRONTEND_ASSETS = os.path.join(FRONTEND_DIST, "assets")
 
-if os.path.isdir(FRONTEND_DIST):
-    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIST, "assets")), name="static-assets")
+if os.path.isdir(FRONTEND_DIST) and os.path.isdir(FRONTEND_ASSETS):
+    app.mount("/assets", StaticFiles(directory=FRONTEND_ASSETS), name="static-assets")
 
     @app.get("/{full_path:path}")
     async def serve_spa(request: Request, full_path: str):

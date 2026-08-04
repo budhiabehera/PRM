@@ -45,6 +45,8 @@ def require_roles(*allowed_roles: str):
                 role_list = [r.strip() for r in page.roles.split(",") if r.strip()]
                 if current_user.role in role_list:
                     return current_user
+        except Exception:
+            pass  # table might not exist yet
         finally:
             db.close()
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You don't have permission to do that.")
@@ -61,6 +63,8 @@ def _has_admin_page_access(role: str) -> bool:
             role_list = [r.strip() for r in page.roles.split(",") if r.strip()]
             if role in role_list:
                 return True
+    except Exception:
+        pass  # table might not exist yet on fresh deploy
     finally:
         db.close()
     return False

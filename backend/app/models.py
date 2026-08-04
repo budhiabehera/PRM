@@ -111,7 +111,7 @@ class Project(Base):
     end_date = Column(Date, nullable=True)
     description = Column(Text, default="")
 
-    modules = relationship("MainModule", back_populates="project", foreign_keys="MainModule.project_id")
+    modules = relationship("MainModule", back_populates="project", foreign_keys="[MainModule.project_id]")
     tasks = relationship("Task", back_populates="project")
 
 

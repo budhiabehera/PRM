@@ -77,23 +77,6 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-
-        <div className="mt-6 pt-5 border-t border-slate-100">
-          <p className="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mb-2">Demo Accounts</p>
-          <div className="grid grid-cols-2 gap-2">
-            {DEMO_ACCOUNTS.map((acct) => (
-              <button
-                key={acct.username}
-                type="button"
-                onClick={() => fillDemo(acct)}
-                className="text-left border border-slate-200 rounded-lg px-3 py-2 text-xs hover:bg-slate-50 transition-colors"
-              >
-                <div className="font-semibold text-slate-700">{acct.role}</div>
-                <div className="text-slate-400">{acct.username}</div>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   )

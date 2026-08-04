@@ -4,12 +4,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Use /home directory on Azure (persistent across deploys) or local fallback
-if os.path.isdir("/home"):
-    # Azure App Service — persistent storage
-    DB_PATH = "/home/resource_tracker.db"
+# Use /home directory on Azure (persistent across deploys) or local fallback.
+# Azure App Service Linux has /home as persistent mounted storage.
+AZURE_HOME = os.getenv("HOME", "")
+if AZURE_HOME and os.path.isdir(AZURE_HOME) and AZURE_HOME.startswith("/home"):
+    DB_PATH = os.path.join(AZURE_HOME, "resource_tracker.db")
 else:
-    # Local development
+    # Local development / Windows
     DB_PATH = os.path.join(BASE_DIR, "resource_tracker.db")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 

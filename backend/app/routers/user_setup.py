@@ -146,7 +146,7 @@ def create_user(
                 "from_email": settings.smtp_from_email or settings.smtp_username,
                 "from_name": settings.smtp_from_name or "PRM System",
                 "use_tls": settings.smtp_use_tls if settings.smtp_use_tls is not None else True,
-                "login_url": "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net/login",
+                "login_url": settings.task_link_base_url.rstrip("/") if settings.task_link_base_url else "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
                 "company_logo": settings.company_logo_url or "",
             }
             result = send_welcome_email(**kwargs)
@@ -280,7 +280,7 @@ def resend_welcome_email(
             "from_email": settings.smtp_from_email or settings.smtp_username,
             "from_name": settings.smtp_from_name or "PRM System",
             "use_tls": settings.smtp_use_tls if settings.smtp_use_tls is not None else True,
-            "login_url": "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net/login",
+            "login_url": settings.task_link_base_url.rstrip("/") if settings.task_link_base_url else "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
             "company_logo": settings.company_logo_url or "",
         }
         result = send_welcome_email(**kwargs)

@@ -80,6 +80,11 @@ def _build_welcome_html(full_name: str, username: str, password: str,
                     </a>
                   </td>
                 </tr>
+                <tr>
+                  <td align="center" style="padding:0 0 25px;">
+                    <p style="color:#64748b;font-size:12px;margin:0;">App URL: <a href="{login_url}" style="color:#4f46e5;text-decoration:underline;">{login_url}</a></p>
+                  </td>
+                </tr>
               </table>
 
               <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0;border-top:1px solid #e2e8f0;padding-top:20px;">

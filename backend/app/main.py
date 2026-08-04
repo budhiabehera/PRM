@@ -1,7 +1,5 @@
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 
 from .database import Base, engine, SessionLocal, run_lightweight_migrations
 from .routers import (
@@ -92,22 +90,6 @@ def health():
     return {"status": "healthy"}
 
 
-# --- Serve Frontend Production Build ---
-import os
-FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "frontend", "dist")
-FRONTEND_ASSETS = os.path.join(FRONTEND_DIST, "assets")
-
-if os.path.isdir(FRONTEND_DIST) and os.path.isdir(FRONTEND_ASSETS):
-    app.mount("/assets", StaticFiles(directory=FRONTEND_ASSETS), name="static-assets")
-
-    @app.get("/{full_path:path}")
-    async def serve_spa(request: Request, full_path: str):
-        """Serve the React SPA — all non-API routes return index.html."""
-        file_path = os.path.join(FRONTEND_DIST, full_path)
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
-        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
-else:
-    @app.get("/")
-    def root():
-        return {"status": "ok", "service": "PRM — Project & Resource Management API"}
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "PRM — Project & Resource Management API"}

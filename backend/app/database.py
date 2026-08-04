@@ -71,7 +71,7 @@ def run_lightweight_migrations():
         # Create the user_projects association table if it doesn't exist
         if "user_projects" not in existing_tables:
             conn.execute(text(
-                "CREATE TABLE user_projects ("
+                "CREATE TABLE IF NOT EXISTS user_projects ("
                 "  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
                 "  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
                 "  PRIMARY KEY (user_id, project_id)"
@@ -79,7 +79,7 @@ def run_lightweight_migrations():
             ))
         if "developer_projects" not in existing_tables:
             conn.execute(text(
-                "CREATE TABLE developer_projects ("
+                "CREATE TABLE IF NOT EXISTS developer_projects ("
                 "  developer_id INTEGER NOT NULL REFERENCES developers(id) ON DELETE CASCADE,"
                 "  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
                 "  PRIMARY KEY (developer_id, project_id)"

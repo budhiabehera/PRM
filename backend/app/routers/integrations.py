@@ -63,10 +63,11 @@ def test_salesforce(db: Session = Depends(get_db), _user=Depends(require_roles("
     return {"success": True, "message": message}
 
 
-@public_router.post("/tasks/{task_id}/notify-teams")
+@router.post("/tasks/{task_id}/notify-teams")
 def notify_teams_for_task(
     task_id: int,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     task = db.query(models.Task).get(task_id)
     if not task:
@@ -83,7 +84,7 @@ def notify_teams_for_task(
         "SprintName": task.sprint.name if task.sprint else "—",
         "TaskName": task.description,
         "Priority": task.priority or "Medium",
-        "AssignedBy": (task.developer.reporting_to.name if (task.developer and task.developer.reporting_to) else "—"),
+        "AssignedBy": current_user.full_name or current_user.username,
         "DueDate": task.end_date.isoformat() if task.end_date else "—",
         "Tasklink": (settings.task_link_base_url or "http://localhost:5173/tasks/"),
         "CompanyLogo": (settings.company_logo_url or "https://fx1fxposprod.blob.core.windows.net/liaison/PrimaryLogo-TriColour-min.png"),

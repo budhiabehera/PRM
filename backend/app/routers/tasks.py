@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+import threading
+from fastapi import APIRouter, Depends, HTTPException, Request
+import requests as http_requests
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
+from ..database import SessionLocal
 from ..deps import get_current_user, can_edit_task, can_delete_task, restrict_fields_for_developer
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
@@ -50,6 +53,39 @@ def _generate_task_code(db: Session, sprint: models.Sprint | None) -> str:
         .count()
     )
     return f"{prefix}{existing + 1:03d}"
+
+
+def _notify_teams_async(task_id: int, assigned_by_name: str):
+    """Send Teams/Power Automate notification in a background thread after task save."""
+    def _send():
+        db = SessionLocal()
+        try:
+            task = db.query(models.Task).get(task_id)
+            if not task:
+                return
+            settings = db.query(models.IntegrationSettings).get(1)
+            if not settings or not settings.teams_webhook_url:
+                return
+
+            task_data = {
+                "ResourceName": task.developer.name if task.developer else "Unassigned",
+                "ResourceEmail": (task.developer.user_account.email if (task.developer and task.developer.user_account and task.developer.user_account.email) else "—"),
+                "ProjectName": task.project.name if task.project else "—",
+                "SprintName": task.sprint.name if task.sprint else "—",
+                "TaskName": task.description,
+                "Priority": task.priority or "Medium",
+                "AssignedBy": assigned_by_name,
+                "DueDate": task.end_date.isoformat() if task.end_date else "—",
+                "Tasklink": (settings.task_link_base_url or "http://localhost:5173/tasks/"),
+                "CompanyLogo": (settings.company_logo_url or "https://fx1fxposprod.blob.core.windows.net/liaison/PrimaryLogo-TriColour-min.png"),
+            }
+
+            http_requests.post(settings.teams_webhook_url, json=task_data, timeout=15)
+        except Exception as e:
+            print(f"[TEAMS NOTIFY] Error: {e}")
+        finally:
+            db.close()
+    threading.Thread(target=_send, daemon=True).start()
 
 
 @router.get("", response_model=list[schemas.TaskDetail])
@@ -120,6 +156,9 @@ def create_task(
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Notify Teams/Power Automate in background
+    _notify_teams_async(task.id, current_user.full_name or current_user.username)
     return _to_detail(task)
 
 
@@ -141,6 +180,9 @@ def update_task(
         setattr(task, key, value)
     db.commit()
     db.refresh(task)
+
+    # Notify Teams/Power Automate in background
+    _notify_teams_async(task.id, current_user.full_name or current_user.username)
     return _to_detail(task)
 
 

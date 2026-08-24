@@ -4,6 +4,8 @@ import useDropdowns from '../hooks/useDropdowns'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
 import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask } from '../services/api'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import StatusBadge from '../components/common/StatusBadge'
 import PriorityBadge from '../components/common/PriorityBadge'
@@ -84,6 +86,48 @@ export default function TasksPage() {
     setExpandedRow((prev) => prev === taskId ? null : taskId)
   }
 
+  const handleExportExcel = () => {
+    if (!tasks || tasks.length === 0) {
+      showToast('error', 'No tasks to export')
+      return
+    }
+
+    const exportData = tasks.map((t, idx) => {
+      const isInternal = !t.property_client || t.property_client.toLowerCase() === 'internal'
+      return {
+        'Sl No': idx + 1,
+        'Client': isInternal ? 'Internal' : t.property_client,
+        'SFDC Case#': t.case_ref || '',
+        'Module': t.main_module_name || '',
+        'Region': isInternal ? 'Global' : (t.property_client || ''),
+        'Type': t.work_type_name || '',
+        'Description': t.description || '',
+        'Deployment Status': t.status || '',
+        'Deployment Date': t.end_date ? new Date(t.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '',
+      }
+    })
+
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    // Set column widths to match the design
+    ws['!cols'] = [
+      { wch: 8 },   // Sl No
+      { wch: 38 },  // Client
+      { wch: 12 },  // SFDC Case#
+      { wch: 12 },  // Module
+      { wch: 10 },  // Region
+      { wch: 14 },  // Type
+      { wch: 45 },  // Description
+      { wch: 18 },  // Deployment Status
+      { wch: 18 },  // Deployment Date
+    ]
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Tasks')
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `Tasks_Export_${new Date().toISOString().slice(0, 10)}.xlsx`)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -136,6 +180,9 @@ export default function TasksPage() {
           options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />
         <FilterSelect label="Sprint" value={filters.sprint_id} onChange={setFilter('sprint_id')}
           options={sprints.map((s) => ({ value: s.id, label: s.name }))} />
+        <button className="btn btn-secondary ml-auto" onClick={handleExportExcel}>
+          📥 Export Excel
+        </button>
       </div>
 
       {loading ? <LoadingSpinner /> : view === 'list' ? (

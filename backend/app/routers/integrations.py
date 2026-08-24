@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+import requests
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
@@ -88,16 +89,21 @@ def notify_teams_for_task(
         "CompanyLogo": (settings.company_logo_url or "https://fx1fxposprod.blob.core.windows.net/liaison/PrimaryLogo-TriColour-min.png"),
     }
 
-    # Upload to Azure Blob Storage
-    blob_conn_str = settings.azure_blob_connection_string or ""
-    success, result = azure_blob.upload_task_json(task_data, blob_conn_str)
-    if not success:
-        raise HTTPException(400, result)
+    # Call Power Automate workflow URL
+    workflow_url = settings.teams_webhook_url
+    if not workflow_url:
+        raise HTTPException(400, "No Teams/Power Automate workflow URL configured. Set it in Admin > Settings > Integrations.")
+
+    try:
+        resp = requests.post(workflow_url, json=task_data, timeout=15)
+        if resp.status_code not in (200, 202):
+            raise HTTPException(400, f"Power Automate returned HTTP {resp.status_code}: {resp.text[:300]}")
+    except requests.RequestException as exc:
+        raise HTTPException(400, f"Could not reach Power Automate workflow: {exc}")
 
     return {
         "success": True,
-        "message": "Task JSON uploaded to Azure Blob Storage",
-        "blob_url": result,
+        "message": "Task notification sent to Power Automate workflow",
         "payload": task_data,
     }
 

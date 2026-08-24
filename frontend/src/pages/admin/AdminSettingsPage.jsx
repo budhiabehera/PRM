@@ -31,6 +31,12 @@ export default function AdminSettingsPage() {
   const handleTestTeams = async () => {
     setMessage(null)
     try {
+      // Auto-save settings before testing so the backend has the latest webhook URL
+      await updateIntegrationSettings(settings)
+      if (!settings.teams_webhook_url) {
+        setMessage({ type: 'error', text: 'Please enter a Teams webhook URL first.' })
+        return
+      }
       const res = await testTeamsIntegration()
       setMessage({ type: 'success', text: res.message })
     } catch (err) {
@@ -41,6 +47,8 @@ export default function AdminSettingsPage() {
   const handleTestSalesforce = async () => {
     setMessage(null)
     try {
+      // Auto-save settings before testing so the backend has the latest config
+      await updateIntegrationSettings(settings)
       const res = await testSalesforceIntegration()
       setMessage({ type: 'success', text: res.message })
     } catch (err) {

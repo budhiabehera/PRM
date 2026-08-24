@@ -60,7 +60,9 @@ def _notify_teams_async(task_id: int, assigned_by_name: str):
     def _send():
         db = SessionLocal()
         try:
-            task = db.query(models.Task).get(task_id)
+            from sqlalchemy.orm import joinedload
+            task = db.query(models.Task).options(
+                joinedload(models.Task.developer), joinedload(models.Task.project), joinedload(models.Task.sprint)).get(task_id)
             if not task:
                 return
             settings = db.query(models.IntegrationSettings).get(1)

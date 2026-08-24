@@ -69,7 +69,10 @@ def notify_teams_for_task(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    task = db.query(models.Task).get(task_id)
+    from sqlalchemy.orm import joinedload
+    task = db.query(models.Task).options(
+        joinedload(models.Task.developer), joinedload(models.Task.project), joinedload(models.Task.sprint)
+    ).get(task_id)
     if not task:
         raise HTTPException(404, "Task not found")
 

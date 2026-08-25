@@ -192,7 +192,7 @@ def list_tasks(
         q = q.filter(models.Task.status == status)
     if priority:
         q = q.filter(models.Task.priority == priority)
-    tasks = q.order_by(models.Task.task_code).all()
+    tasks = q.order_by(models.Task.id.desc()).all()
     return [_to_detail(t) for t in tasks]
 
 

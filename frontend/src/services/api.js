@@ -205,4 +205,23 @@ export const getUnreadCount = () => api.get('/notifications/unread-count').then(
 export const markNotificationRead = (id) => api.put(`/notifications/${id}/read`).then(r => r.data)
 export const markAllNotificationsRead = () => api.put('/notifications/read-all').then(r => r.data)
 
+// ---------- Knowledge Base ----------
+export const getKBArticles = (params) => api.get('/knowledge-base', { params }).then(r => r.data)
+export const getKBArticle = (id) => api.get(`/knowledge-base/${id}`).then(r => r.data)
+export const createKBArticle = (data) => api.post('/knowledge-base', data).then(r => r.data)
+export const updateKBArticle = (id, data) => api.put(`/knowledge-base/${id}`, data).then(r => r.data)
+export const deleteKBArticle = (id) => api.delete(`/knowledge-base/${id}`)
+export const uploadKBAttachment = (articleId, file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post(`/knowledge-base/${articleId}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+}
+export const deleteKBAttachment = (articleId, attachmentId) => api.delete(`/knowledge-base/${articleId}/attachments/${attachmentId}`)
+export const getKBCategories = () => api.get('/knowledge-base/categories').then(r => r.data)
+
+// ---------- Standup ----------
+export const getMyStandup = () => api.get('/standup/my-summary').then(r => r.data)
+export const getTeamStandup = () => api.get('/standup/team-summary').then(r => r.data)
+export const getStandupText = (developerId) => api.get('/standup/generate-text', { params: developerId ? { developer_id: developerId } : {} }).then(r => r.data)
+
 export default api

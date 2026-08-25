@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
   GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock, Timer,
-  Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight,
+  Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight, BookOpen, MessageSquare,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
@@ -23,6 +23,8 @@ const ALL_OVERVIEW_ITEMS = [
   { to: '/time-logs', label: 'Time Logs', icon: Timer },
   { to: '/resource-calendar', label: 'Resource Calendar', icon: CalendarCheck2 },
   { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
+  { to: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
+  { to: '/standup', label: 'Daily Standup', icon: MessageSquare },
 ]
 
 // Developer-only items — limited view
@@ -35,6 +37,8 @@ const DEVELOPER_ITEMS = [
   { to: '/holidays', label: 'Holidays', icon: CalendarDays },
   { to: '/time-logs', label: 'Time Logs', icon: Timer },
   { to: '/resource-calendar', label: 'Resource Calendar', icon: CalendarCheck2 },
+  { to: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
+  { to: '/standup', label: 'Daily Standup', icon: MessageSquare },
 ]
 
 // Each admin item declares which roles may see it.

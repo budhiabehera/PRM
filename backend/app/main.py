@@ -21,6 +21,7 @@ from .routers import time_logs
 from .routers import notifications
 from .routers import my_dashboard
 from .routers import standup
+from .routers import knowledge_base
 from .deps import get_current_user
 from . import seed_data
 
@@ -82,6 +83,7 @@ app.include_router(time_logs.router, dependencies=[protected])
 app.include_router(notifications.router, dependencies=[protected])
 app.include_router(my_dashboard.router, dependencies=[protected])
 app.include_router(standup.router, dependencies=[protected])
+app.include_router(knowledge_base.router, dependencies=[protected])
 
 
 

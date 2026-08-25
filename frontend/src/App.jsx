@@ -35,6 +35,8 @@ import OverdueTasksPage from './pages/reports/OverdueTasksPage'
 import CustomerSummaryPage from './pages/reports/CustomerSummaryPage'
 import TimeVariancePage from './pages/reports/TimeVariancePage'
 
+import KnowledgeBasePage from './pages/KnowledgeBasePage'
+import StandupPage from './pages/StandupPage'
 const ADMIN_MANAGER = ['Admin', 'Manager']
 const ADMIN_MANAGER_LEAD = ['Admin', 'Manager', 'Lead']
 const NON_DEVELOPER = ['Admin', 'Manager', 'Lead']
@@ -55,7 +57,9 @@ export default function App() {
           <Route path="/resource-calendar" element={<ResourceCalendarPage />} />
           <Route path="/holidays" element={<HolidaysPage />} />
           <Route path="/time-logs" element={<TimeLogPage />} />
+          <Route path="/standup" element={<StandupPage />} />
 
+          <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
 
           {/* Not available to Developer role */}
           <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>

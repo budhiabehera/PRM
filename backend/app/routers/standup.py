@@ -25,16 +25,27 @@ def _build_developer_summary(developer_id: int, db: Session, target_date: date |
 
     yesterday = target_date or _yesterday()
 
-    # --- Yesterday: task activities from yesterday (by developer_id OR created_by_id) ---
+    # --- Yesterday: task activities from yesterday ---
+    # Include activities where:
+    # 1. activity.developer_id matches this developer, OR
+    # 2. activity.created_by_id matches the developer's user account, OR
+    # 3. activity is on a task assigned to this developer (task.developer_id)
     user_id = developer.user_account.id if developer.user_account else None
+    # Get task IDs assigned to this developer
+    dev_task_ids = [t.id for t in db.query(models.Task.id).filter(models.Task.developer_id == developer_id).all()]
+
+    # Build OR conditions
+    conditions = [models.TaskActivity.developer_id == developer_id]
+    if user_id:
+        conditions.append(models.TaskActivity.created_by_id == user_id)
+    if dev_task_ids:
+        conditions.append(models.TaskActivity.task_id.in_(dev_task_ids))
+
     activities = (
         db.query(models.TaskActivity)
         .options(joinedload(models.TaskActivity.task))
         .filter(
-            or_(
-                models.TaskActivity.developer_id == developer_id,
-                models.TaskActivity.created_by_id == user_id,
-            ) if user_id else models.TaskActivity.developer_id == developer_id,
+            or_(*conditions),
             models.TaskActivity.activity_date == yesterday,
         )
         .order_by(models.TaskActivity.id.desc())

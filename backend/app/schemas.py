@@ -528,6 +528,7 @@ class KBArticleCreate(BaseModel):
     content: Optional[str] = ""
     category: Optional[str] = None
     project_id: Optional[int] = None
+    visibility: Optional[str] = "global"  # "global" or "personal"
 
 
 class KBArticleUpdate(BaseModel):
@@ -535,6 +536,7 @@ class KBArticleUpdate(BaseModel):
     content: Optional[str] = None
     category: Optional[str] = None
     project_id: Optional[int] = None
+    visibility: Optional[str] = None
 
 
 class KBArticleOut(BaseModel):
@@ -544,6 +546,7 @@ class KBArticleOut(BaseModel):
     content: Optional[str] = None
     category: Optional[str] = None
     project_id: Optional[int] = None
+    visibility: Optional[str] = "global"
     created_by_id: int
     updated_by_id: Optional[int] = None
     created_at: Optional[datetime] = None

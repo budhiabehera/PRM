@@ -392,6 +392,7 @@ class KBArticle(Base):
     content = Column(Text, nullable=True)
     category = Column(String(100), nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    visibility = Column(String(20), nullable=False, default="global")  # "global" or "personal"
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

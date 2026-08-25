@@ -4,6 +4,7 @@ Knowledge Base / Wiki router — CRUD for articles + Azure Blob file attachments
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -11,6 +12,12 @@ from ..database import get_db
 from ..deps import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/knowledge-base", tags=["Knowledge Base"])
+
+# IST timezone helper
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def _now_ist():
+    return datetime.now(IST)
 
 
 # ---------- Helpers ----------
@@ -23,6 +30,7 @@ def _enrich_article(article: models.KBArticle) -> dict:
         "content": article.content,
         "category": article.category,
         "project_id": article.project_id,
+        "visibility": article.visibility or "global",
         "created_by_id": article.created_by_id,
         "updated_by_id": article.updated_by_id,
         "created_at": article.created_at,
@@ -64,10 +72,32 @@ def list_articles(
     project_id: Optional[int] = Query(None),
     category: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    visibility: Optional[str] = Query(None, description="Filter: 'global', 'personal', or None (show all accessible)"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     q = db.query(models.KBArticle)
+    # Get user's accessible project IDs
+    from ..deps import get_user_project_ids
+    user_project_ids = get_user_project_ids(current_user)  # None = Admin (sees all)
+    from sqlalchemy import or_
+
+    # Visibility filtering:
+    # - "global" articles are visible to users who share the same project (or Admin sees all)
+    # - "personal" articles are visible only to the creator
+    if visibility == "personal":
+        q = q.filter(models.KBArticle.visibility == "personal", models.KBArticle.created_by_id == current_user.id)
+    elif visibility == "global":
+        q = q.filter(models.KBArticle.visibility == "global")
+        if user_project_ids is not None:
+            # Non-admin: only global articles linked to their projects (or unlinked articles)
+            q = q.filter(or_(models.KBArticle.project_id.in_(user_project_ids), models.KBArticle.project_id.is_(None)))
+    else:
+        # Default: show global (scoped to user's projects) + user's own personal
+        global_filter = models.KBArticle.visibility == "global"
+        if user_project_ids is not None:
+            global_filter = (models.KBArticle.visibility == "global") & or_(models.KBArticle.project_id.in_(user_project_ids), models.KBArticle.project_id.is_(None))
+        q = q.filter(or_(global_filter, models.KBArticle.created_by_id == current_user.id))
     if project_id is not None:
         q = q.filter(models.KBArticle.project_id == project_id)
     if category:
@@ -118,6 +148,8 @@ def create_article(
         content=payload.content,
         category=payload.category,
         project_id=payload.project_id,
+        visibility=payload.visibility or "global",
+        created_at=_now_ist(),
         created_by_id=current_user.id,
     )
     db.add(article)
@@ -144,6 +176,7 @@ def update_article(
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(article, field, value)
     article.updated_by_id = current_user.id
+    article.updated_at = _now_ist()
     db.commit()
     db.refresh(article)
     return _enrich_article(article)
@@ -155,11 +188,14 @@ def update_article(
 def delete_article(
     article_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(require_roles("Admin", "Manager")),
+    current_user: models.User = Depends(get_current_user),
 ):
     article = db.query(models.KBArticle).get(article_id)
     if not article:
         raise HTTPException(404, "Article not found")
+    # Allow delete if Admin/Manager OR the creator of the article
+    if current_user.role not in ("Admin", "Manager") and article.created_by_id != current_user.id:
+        raise HTTPException(403, "You can only delete articles you created.")
     # Also delete blobs from Azure
     try:
         blob_service = _get_blob_service(db)

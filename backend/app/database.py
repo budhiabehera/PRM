@@ -62,6 +62,7 @@ _NEW_COLUMNS = [
     ("main_modules", "project_id", "INTEGER REFERENCES projects(id)"),
     ("availabilities", "start_date", "DATE"),
     ("availabilities", "end_date", "DATE"),
+    ("kb_articles", "visibility", "VARCHAR(20) DEFAULT 'global'"),
 ]
 
 

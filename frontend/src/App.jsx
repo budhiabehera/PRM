@@ -59,6 +59,7 @@ export default function App() {
           <Route path="/time-logs" element={<TimeLogPage />} />
           <Route path="/standup" element={<StandupPage />} />
 
+          <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
 
           {/* Not available to Developer role */}

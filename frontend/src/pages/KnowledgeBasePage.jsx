@@ -26,6 +26,7 @@ export default function KnowledgeBasePage() {
   const [search, setSearch] = useState('')
   const [filterProject, setFilterProject] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
+  const [filterVisibility, setFilterVisibility] = useState('')
 
   // Views: 'list' | 'view' | 'create' | 'edit'
   const [view, setView] = useState('list')
@@ -41,6 +42,7 @@ export default function KnowledgeBasePage() {
       if (search) params.search = search
       if (filterProject) params.project_id = filterProject
       if (filterCategory) params.category = filterCategory
+      if (filterVisibility) params.visibility = filterVisibility
       const data = await getKBArticles(params)
       setArticles(data)
     } catch (e) {
@@ -48,7 +50,7 @@ export default function KnowledgeBasePage() {
     } finally {
       setLoading(false)
     }
-  }, [search, filterProject, filterCategory])
+  }, [search, filterProject, filterCategory, filterVisibility])
 
   useEffect(() => { fetchArticles() }, [fetchArticles])
   useEffect(() => {
@@ -109,12 +111,22 @@ export default function KnowledgeBasePage() {
     setSelectedArticle(refreshed)
   }
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString() : ''
+  const formatDate = (d) => {
+    if (!d) return ''
+    const dt = new Date(d)
+    return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+  }
 
   // Simple markdown-ish rendering (bold, headings, code, lists)
   const renderContent = (text) => {
     if (!text) return <p className="text-gray-400 italic">No content</p>
-    return <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{text}</pre>
+    // Content is now HTML from React Quill
+    return (
+      <div
+        className="prose prose-sm max-w-none text-gray-800 dark:text-gray-200"
+        dangerouslySetInnerHTML={{ __html: text }}
+      />
+    )
   }
 
   // ===================== LIST VIEW =====================
@@ -163,6 +175,15 @@ export default function KnowledgeBasePage() {
             {['Process', 'Setup Guide', 'Module Guide', 'FAQ', 'Troubleshooting', ...categories.filter(c => !['Process', 'Setup Guide', 'Module Guide', 'FAQ', 'Troubleshooting'].includes(c))].map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
+          </select>
+          <select
+            value={filterVisibility}
+            onChange={(e) => setFilterVisibility(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+          >
+            <option value="">All Articles</option>
+            <option value="global">🌐 Global</option>
+            <option value="personal">🔒 My Personal</option>
           </select>
         </div>
 
@@ -268,7 +289,7 @@ export default function KnowledgeBasePage() {
                 <button onClick={() => setView('edit')} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg">
                   <Edit2 className="w-4 h-4" />
                 </button>
-                {canManage && (
+                {canEdit && (
                   <button onClick={() => handleDelete(selectedArticle.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg">
                     <Trash2 className="w-4 h-4" />
                   </button>

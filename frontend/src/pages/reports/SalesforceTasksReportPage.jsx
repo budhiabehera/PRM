@@ -103,17 +103,17 @@ export default function SalesforceTasksReportPage() {
               <input type="date" className="form-input" style={{ minWidth: 150 }}
                 onChange={(e) => setFilter('created_to')(e.target.value)} />
             </div>
-            <FilterSelect label="Customer" allLabel="All Customers" onChange={setFilter('customer')}
+            <FilterSelect label="Customer" allLabel="All Customers" value={filters.customer} onChange={setFilter('customer')}
               options={customers.map((c) => ({ value: c, label: c }))} />
-            <FilterSelect label="Product" allLabel="All Products" onChange={setFilter('product_id')}
+            <FilterSelect label="Product" allLabel="All Products" value={filters.product_id} onChange={setFilter('product_id')}
               options={projects.map((p) => ({ value: p.id, label: p.name }))} />
-            <FilterSelect label="Resource" allLabel="All Resources" onChange={setFilter('developer_id')}
+            <FilterSelect label="Resource" allLabel="All Resources" value={filters.developer_id} onChange={setFilter('developer_id')}
               options={resources.map((d) => ({ value: d.id, label: d.name }))} />
-            <FilterSelect label="Work Type" allLabel="All Work Types" onChange={setFilter('work_type_id')}
+            <FilterSelect label="Work Type" allLabel="All Work Types" value={filters.work_type_id} onChange={setFilter('work_type_id')}
               options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />
-            <FilterSelect label="Status" allLabel="All Statuses" onChange={setFilter('status')} options={STATUS_OPTIONS} />
-            <FilterSelect label="Priority" allLabel="All Priorities" onChange={setFilter('priority')} options={PRIORITY_OPTIONS} />
-            <FilterSelect label="Salesforce" allLabel="All Tasks" onChange={setFilter('synced')} options={SYNC_OPTIONS} />
+            <FilterSelect label="Status" allLabel="All Statuses" value={filters.status} onChange={setFilter('status')} options={STATUS_OPTIONS} />
+            <FilterSelect label="Priority" allLabel="All Priorities" value={filters.priority} onChange={setFilter('priority')} options={PRIORITY_OPTIONS} />
+            <FilterSelect label="Salesforce" allLabel="All Tasks" value={filters.synced} onChange={setFilter('synced')} options={SYNC_OPTIONS} />
           </div>
 
           <div className="card overflow-x-auto">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MessageSquare, Copy, Check, ChevronDown, ChevronRight, AlertTriangle, PlayCircle, History } from 'lucide-react'
+import { MessageSquare, Copy, Check, ChevronDown, ChevronRight, AlertTriangle, PlayCircle, History, CalendarDays } from 'lucide-react'
 import useAuthStore from '../store/useAuthStore'
 import { getMyStandup, getTeamStandup, getStandupText } from '../services/api'
 
@@ -7,27 +7,35 @@ export default function StandupPage() {
   const user = useAuthStore((s) => s.user)
   const isLeadership = ['Admin', 'Manager', 'Lead'].includes(user?.role)
 
-  const [tab, setTab] = useState('my')
+  const [tab, setTab] = useState(isLeadership ? 'team' : 'my')
   const [myData, setMyData] = useState(null)
   const [teamData, setTeamData] = useState([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
   const [expandedDevs, setExpandedDevs] = useState({})
+  
+  // Date picker — defaults to yesterday
+  const getYesterday = () => {
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    return d.toISOString().slice(0, 10)
+  }
+  const [selectedDate, setSelectedDate] = useState(getYesterday())
 
   useEffect(() => {
     setLoading(true)
     if (tab === 'my') {
-      getMyStandup()
+      getMyStandup(selectedDate)
         .then(setMyData)
         .catch(() => setMyData(null))
         .finally(() => setLoading(false))
     } else {
-      getTeamStandup()
+      getTeamStandup(selectedDate)
         .then(setTeamData)
         .catch(() => setTeamData([]))
         .finally(() => setLoading(false))
     }
-  }, [tab])
+  }, [tab, selectedDate])
 
   const handleCopy = async () => {
     try {
@@ -63,7 +71,17 @@ export default function StandupPage() {
           <MessageSquare size={22} className="text-indigo-600" />
           <h1 className="text-xl font-bold text-slate-800">Daily Standup</h1>
         </div>
-        {tab === 'my' && (
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={14} className="text-slate-500" />
+            <input
+              type="date"
+              className="form-input text-xs py-1.5 px-2"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+          </div>
+          {tab === 'my' && (
           <button
             onClick={handleCopy}
             className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
@@ -71,7 +89,8 @@ export default function StandupPage() {
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? 'Copied!' : 'Copy to Clipboard'}
           </button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Tabs for leadership */}
@@ -103,6 +122,7 @@ export default function StandupPage() {
             yesterday={myData.yesterday}
             today={myData.today}
             blockers={myData.blockers}
+            selectedDate={selectedDate}
           />
         </div>
       )}
@@ -154,6 +174,7 @@ export default function StandupPage() {
                     yesterday={dev.yesterday}
                     today={dev.today}
                     blockers={dev.blockers}
+                    selectedDate={selectedDate}
                     compact
                   />
                 </div>
@@ -166,7 +187,7 @@ export default function StandupPage() {
   )
 }
 
-function StandupCard({ yesterday, today, blockers, compact = false }) {
+function StandupCard({ yesterday, today, blockers, selectedDate, compact = false }) {
   const sectionClass = compact ? 'pt-3' : 'bg-white border border-slate-200 rounded-xl p-5'
 
   return (
@@ -192,7 +213,7 @@ function StandupCard({ yesterday, today, blockers, compact = false }) {
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-slate-400 italic">No activities logged yesterday</p>
+          <p className="text-xs text-slate-400 italic">No activities logged for {new Date(selectedDate + 'T00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
         )}
       </div>
 

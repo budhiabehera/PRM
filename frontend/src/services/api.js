@@ -220,8 +220,8 @@ export const deleteKBAttachment = (articleId, attachmentId) => api.delete(`/know
 export const getKBCategories = () => api.get('/knowledge-base/categories').then(r => r.data)
 
 // ---------- Standup ----------
-export const getMyStandup = () => api.get('/standup/my-summary').then(r => r.data)
-export const getTeamStandup = () => api.get('/standup/team-summary').then(r => r.data)
+export const getMyStandup = (activityDate) => api.get('/standup/my-summary', { params: activityDate ? { activity_date: activityDate } : {} }).then(r => r.data)
+export const getTeamStandup = (activityDate) => api.get('/standup/team-summary', { params: activityDate ? { activity_date: activityDate } : {} }).then(r => r.data)
 export const getStandupText = (developerId) => api.get('/standup/generate-text', { params: developerId ? { developer_id: developerId } : {} }).then(r => r.data)
 
 export default api

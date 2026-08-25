@@ -4,13 +4,16 @@ import ProtectedRoute from './components/Layout/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 
 import DashboardPage from './pages/DashboardPage'
+import ChangePasswordPage from './pages/ChangePasswordPage'
 import SprintPage from './pages/SprintPage'
 import TasksPage from './pages/TasksPage'
+import MyDashboardPage from './pages/MyDashboardPage'
 import ResourceCalendarPage from './pages/ResourceCalendarPage'
 import TeamPage from './pages/TeamPage'
 import UtilizationPage from './pages/UtilizationPage'
 import AvailabilityPage from './pages/AvailabilityPage'
 import TimelinePage from './pages/TimelinePage'
+import TimeLogPage from './pages/TimeLogPage'
 
 import AdminProjectsPage from './pages/admin/AdminProjectsPage'
 import AdminModulesPage from './pages/admin/AdminModulesPage'
@@ -44,12 +47,15 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           {/* Available to all roles (Developer sees own data only) */}
+          <Route path="/my-dashboard" element={<MyDashboardPage />} />
           <Route path="/" element={<DashboardPage />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/utilization" element={<UtilizationPage />} />
           <Route path="/availability" element={<AvailabilityPage />} />
           <Route path="/resource-calendar" element={<ResourceCalendarPage />} />
           <Route path="/holidays" element={<HolidaysPage />} />
+          <Route path="/time-logs" element={<TimeLogPage />} />
+
 
           {/* Not available to Developer role */}
           <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>

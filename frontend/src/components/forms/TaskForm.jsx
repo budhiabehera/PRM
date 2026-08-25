@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { PRIORITY_OPTIONS } from '../../utils/constants'
 import { toDateInput } from '../../utils/formatters'
 import { validateTaskForm } from '../../utils/validators'
+import { getTaskDependencies, addTaskDependency, removeTaskDependency } from '../../services/api'
 
 export default function TaskForm({
   initial, projects = [], mainModules = [], subModules = [], resources = [], workTypes = [], sprints = [], taskStatuses = [],
@@ -28,8 +29,39 @@ export default function TaskForm({
     sprint_id: initial?.sprint_id || '',
   })
   const [errors, setErrors] = useState({})
+  const [dependencies, setDependencies] = useState([])
+  const [depInput, setDepInput] = useState('')
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+
+  // Load dependencies when editing an existing task
+  useEffect(() => {
+    if (initial?.id) {
+      getTaskDependencies(initial.id).then(setDependencies).catch(() => {})
+    }
+  }, [initial?.id])
+
+  const handleAddDep = async () => {
+    if (!depInput.trim() || !initial?.id) return
+    const depTaskId = Number(depInput.trim())
+    if (!depTaskId || isNaN(depTaskId)) return
+    try {
+      await addTaskDependency(initial.id, depTaskId)
+      const deps = await getTaskDependencies(initial.id)
+      setDependencies(deps)
+      setDepInput('')
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to add dependency')
+    }
+  }
+
+  const handleRemoveDep = async (depId) => {
+    if (!initial?.id) return
+    try {
+      await removeTaskDependency(initial.id, depId)
+      setDependencies((prev) => prev.filter((d) => d.id !== depId))
+    } catch { /* ignore */ }
+  }
 
   const filteredSubModules = useMemo(
     () => subModules.filter((s) => !form.main_module_id || s.main_module_id === Number(form.main_module_id)),
@@ -185,6 +217,46 @@ export default function TaskForm({
           </select>
         </div>
       </div>
+
+      {/* Dependencies Section (only for existing tasks) */}
+      {initial?.id && (
+        <div className="mt-5 pt-4 border-t border-slate-200">
+          <label className="form-label mb-2 block">Dependencies (Blocked By)</label>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {dependencies.length === 0 && (
+              <span className="text-[11px] text-slate-400">No dependencies yet</span>
+            )}
+            {dependencies.map((dep) => (
+              <span
+                key={dep.id}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200"
+              >
+                🔗 {dep.depends_on_task_code}
+                <span className={`text-[9px] px-1 rounded ${dep.depends_on_status === 'Completed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                  {dep.depends_on_status}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDep(dep.id)}
+                  className="ml-1 text-red-400 hover:text-red-600 text-sm leading-none"
+                  title="Remove dependency"
+                >×</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              className="form-input w-32 text-xs"
+              placeholder="Task ID"
+              value={depInput}
+              onChange={(e) => setDepInput(e.target.value)}
+            />
+            <button type="button" className="btn btn-secondary btn-sm text-[11px]" onClick={handleAddDep}>+ Add Blocker</button>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 mt-5">
         <button className="btn btn-primary" onClick={handleSubmit}>Save Task</button>
         <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>

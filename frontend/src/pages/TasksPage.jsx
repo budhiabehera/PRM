@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
-import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask } from '../services/api'
+import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency } from '../services/api'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -33,6 +33,8 @@ export default function TasksPage() {
   const [toDelete, setToDelete] = useState(null)
   const [toast, setToast] = useState(null)
   const [expandedRow, setExpandedRow] = useState(null)
+  const [dragOverCol, setDragOverCol] = useState(null)
+  const [expandedDeps, setExpandedDeps] = useState({}) // { taskId: [dep objects] }
 
   const showToast = (type, text) => {
     setToast({ type, text })
@@ -84,6 +86,45 @@ export default function TasksPage() {
 
   const toggleRow = (taskId) => {
     setExpandedRow((prev) => prev === taskId ? null : taskId)
+  }
+
+  // ---- Kanban Drag-and-Drop Handlers ----
+  const handleDragStart = useCallback((e, taskId) => {
+    e.dataTransfer.setData('text/plain', taskId.toString())
+    e.dataTransfer.effectAllowed = 'move'
+  }, [])
+
+  const handleDragOver = useCallback((e, col) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverCol(col)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverCol(null)
+  }, [])
+
+  const handleDrop = useCallback(async (e, newStatus) => {
+    e.preventDefault()
+    setDragOverCol(null)
+    const taskId = Number(e.dataTransfer.getData('text/plain'))
+    const task = tasks?.find((t) => t.id === taskId)
+    if (!task || task.status === newStatus) return
+    try {
+      await updateTask(taskId, { status: newStatus })
+      refreshAll()
+      showToast('success', `Task ${task.task_code} moved to "${newStatus}"`)
+    } catch (err) {
+      showToast('error', err.response?.data?.detail || 'Failed to update task status')
+    }
+  }, [tasks])
+
+  // ---- Dependency helpers ----
+  const loadDeps = async (taskId) => {
+    try {
+      const deps = await getTaskDependencies(taskId)
+      setExpandedDeps((prev) => ({ ...prev, [taskId]: deps }))
+    } catch { /* ignore */ }
   }
 
   const handleExportExcel = () => {
@@ -286,6 +327,38 @@ export default function TasksPage() {
                             </div>
                           )}
 
+                          {/* Task Dependencies */}
+                          <div className="mt-3 pt-3 border-t border-slate-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-semibold text-slate-500">Dependencies (Blocked By)</span>
+                              {t.blocked_by && t.blocked_by.length > 0 && (
+                                <span className="bg-red-100 text-red-600 rounded-full px-2 text-[10px] py-0.5 font-medium">
+                                  {t.blocked_by.length} blocker{t.blocked_by.length > 1 ? 's' : ''}
+                                </span>
+                              )}
+                              <button
+                                className="btn btn-secondary btn-sm ml-auto text-[10px]"
+                                onClick={() => loadDeps(t.id)}
+                              >
+                                🔄 Refresh
+                              </button>
+                            </div>
+                            {t.blocked_by && t.blocked_by.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {t.blocked_by.map((code) => (
+                                  <span
+                                    key={code}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 text-[11px] font-medium border border-amber-200"
+                                  >
+                                    🔗 {code}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-[11px] text-slate-400">No active blockers</p>
+                            )}
+                          </div>
+
                           {/* Task Activity Log */}
                           <TaskActivityPanel task={t} user={user} onUpdate={reload} />
 
@@ -303,18 +376,30 @@ export default function TasksPage() {
       ) : (
         <div className="grid grid-cols-4 gap-4">
           {KANBAN_COLUMNS.map((col) => (
-            <div key={col} className="bg-slate-50 rounded-xl p-3">
+            <div
+              key={col}
+              className={`rounded-xl p-3 transition-colors duration-150 ${
+                dragOverCol === col
+                  ? 'bg-indigo-50 border-2 border-indigo-300 border-dashed'
+                  : 'bg-slate-50 border-2 border-transparent'
+              }`}
+              onDragOver={(e) => handleDragOver(e, col)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col)}
+            >
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex justify-between">
                 {col}
                 <span className="bg-slate-200 text-slate-600 rounded-full px-2 text-[10px] py-0.5">
                   {tasks.filter((t) => t.status === col).length}
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-h-[60px]">
                 {tasks.filter((t) => t.status === col).map((t) => (
                   <div
                     key={t.id}
-                    className={`bg-white border border-slate-200 rounded-lg p-3 text-xs ${canEditTask(user, t) ? 'cursor-pointer hover:border-indigo-300' : ''}`}
+                    draggable={canEditTask(user, t) ? 'true' : 'false'}
+                    onDragStart={(e) => handleDragStart(e, t.id)}
+                    className={`bg-white border border-slate-200 rounded-lg p-3 text-xs select-none ${canEditTask(user, t) ? 'cursor-grab hover:border-indigo-300 active:cursor-grabbing' : ''}`}
                     onClick={() => canEditTask(user, t) && setEditingTask(t)}
                   >
                     <div className="font-semibold text-slate-700 mb-1">{t.task_code}</div>
@@ -323,6 +408,15 @@ export default function TasksPage() {
                       <PriorityBadge priority={t.priority} />
                       <span className="text-slate-400">{t.developer_name}</span>
                     </div>
+                    {t.blocked_by && t.blocked_by.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {t.blocked_by.map((code) => (
+                          <span key={code} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-50 text-red-600 text-[10px] font-medium border border-red-200">
+                            🚫 {code}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

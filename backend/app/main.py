@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine, SessionLocal, run_lightweight_migrations
@@ -16,6 +17,10 @@ from .routers import role_capacities
 from .routers import resource_calendar
 from .routers import task_statuses
 from .routers import page_access
+from .routers import time_logs
+from .routers import notifications
+from .routers import my_dashboard
+from .routers import standup
 from .deps import get_current_user
 from . import seed_data
 
@@ -73,6 +78,11 @@ app.include_router(role_capacities.router, dependencies=[protected])
 app.include_router(resource_calendar.router, dependencies=[protected])
 app.include_router(task_statuses.router, dependencies=[protected])
 app.include_router(page_access.router, dependencies=[protected])
+app.include_router(time_logs.router, dependencies=[protected])
+app.include_router(notifications.router, dependencies=[protected])
+app.include_router(my_dashboard.router, dependencies=[protected])
+app.include_router(standup.router, dependencies=[protected])
+
 
 
 @app.on_event("startup")

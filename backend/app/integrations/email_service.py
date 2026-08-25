@@ -167,3 +167,103 @@ def send_welcome_email(
         return True, f"Welcome email sent to {to_email}"
     except Exception as exc:
         return False, f"Failed to send email: {exc}"
+
+
+def send_task_assignment_email(
+    to_email: str,
+    developer_name: str,
+    task_code: str,
+    task_description: str,
+    project_name: str,
+    sprint_name: str,
+    priority: str,
+    due_date: str,
+    assigned_by: str,
+    login_url: str,
+    smtp_host: str,
+    smtp_port: int,
+    smtp_username: str,
+    smtp_password: str,
+    from_email: str,
+    from_name: str = "PRM System",
+    use_tls: bool = True,
+) -> tuple[bool, str]:
+    """Send task assignment notification email. Returns (success, message)."""
+    if not smtp_host or not to_email:
+        return False, "SMTP not configured or no recipient email."
+
+    html_body = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:'Segoe UI',Tahoma,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+        <tr><td style="background:linear-gradient(135deg,#1e293b,#334155);padding:25px 40px;text-align:center;">
+          <h1 style="color:#fff;margin:0;font-size:20px;">New Task Assigned</h1>
+          <p style="color:#94a3b8;margin:5px 0 0;font-size:12px;">PRM — Project & Resource Management</p>
+        </td></tr>
+        <tr><td style="padding:35px 40px;">
+          <p style="color:#334155;font-size:15px;">Hello <strong>{developer_name}</strong>,</p>
+          <p style="color:#475569;font-size:14px;line-height:1.6;">
+            A new task has been assigned to you by <strong>{assigned_by}</strong>.
+          </p>
+          <table width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:20px 0;">
+            <tr><td style="padding:18px 25px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr><td style="padding:6px 0;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;width:120px;">Task Code</td>
+                    <td style="padding:6px 0;color:#1e293b;font-size:14px;font-weight:600;">{task_code}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;">Description</td>
+                    <td style="padding:6px 0;color:#1e293b;font-size:14px;">{task_description[:150]}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;">Project</td>
+                    <td style="padding:6px 0;color:#1e293b;font-size:14px;">{project_name}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;">Sprint</td>
+                    <td style="padding:6px 0;color:#1e293b;font-size:14px;">{sprint_name}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;">Priority</td>
+                    <td style="padding:6px 0;color:#e11d48;font-size:14px;font-weight:600;">{priority}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:600;">Due Date</td>
+                    <td style="padding:6px 0;color:#1e293b;font-size:14px;">{due_date}</td></tr>
+              </table>
+            </td></tr>
+          </table>
+          <table width="100%"><tr><td align="center" style="padding:10px 0 20px;">
+            <a href="{login_url}" style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;padding:12px 35px;border-radius:8px;font-size:14px;font-weight:600;">
+              View in PRM
+            </a>
+          </td></tr></table>
+          <p style="color:#94a3b8;font-size:11px;border-top:1px solid #e2e8f0;padding-top:15px;margin:0;">
+            This is an automated notification from PRM.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Task Assigned: {task_code} — {task_description[:60]}"
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = to_email
+
+    text_body = (
+        f"Hello {developer_name},\n\n"
+        f"A new task has been assigned to you by {assigned_by}.\n\n"
+        f"Task: {task_code}\nDescription: {task_description[:150]}\n"
+        f"Project: {project_name}\nSprint: {sprint_name}\n"
+        f"Priority: {priority}\nDue Date: {due_date}\n\n"
+        f"View at: {login_url}"
+    )
+    msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    try:
+        if use_tls:
+            server = smtplib.SMTP(smtp_host, smtp_port)
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        return True, f"Task assignment email sent to {to_email}"
+    except Exception as exc:
+        return False, f"Failed to send task email: {exc}"

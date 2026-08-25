@@ -234,6 +234,7 @@ class TaskDetail(Task):
     is_cross_month: bool = False
     created_at: Optional[datetime] = None
     salesforce_case_id: Optional[str] = None
+    blocked_by: List[str] = []
 
 
 # ---------- Auth / Users ----------
@@ -464,3 +465,94 @@ class UtilizationCell(BaseModel):
     allocated_hours: float
     utilization_pct: float
     status: str  # over, healthy, under, idle
+
+
+# ---------- Time Log ----------
+class TimeLogCreate(BaseModel):
+    date: date
+    hours: float
+    notes: Optional[str] = None
+    task_id: int
+
+
+class TimeLogUpdate(BaseModel):
+    date: Optional[date] = None
+    hours: Optional[float] = None
+    notes: Optional[str] = None
+    task_id: Optional[int] = None
+
+
+class TimeLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    task_id: int
+    developer_id: int
+    date: date
+    hours: float
+    notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+    task_code: Optional[str] = None
+    task_description: Optional[str] = None
+
+
+# ---------- Task Dependency ----------
+class TaskDependencyCreate(BaseModel):
+    depends_on_id: int
+
+
+class TaskDependencyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    task_id: int
+    depends_on_id: int
+    depends_on_task_code: Optional[str] = None
+    depends_on_description: Optional[str] = None
+    depends_on_status: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+# ---------- Knowledge Base ----------
+class KBAttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    article_id: int
+    file_name: str
+    blob_url: str
+    content_type: Optional[str] = None
+    file_size: Optional[int] = None
+    uploaded_at: Optional[datetime] = None
+
+
+class KBArticleCreate(BaseModel):
+    title: str
+    content: Optional[str] = ""
+    category: Optional[str] = None
+    project_id: Optional[int] = None
+
+
+class KBArticleUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    category: Optional[str] = None
+    project_id: Optional[int] = None
+
+
+class KBArticleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    content: Optional[str] = None
+    category: Optional[str] = None
+    project_id: Optional[int] = None
+    created_by_id: int
+    updated_by_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    # Enriched fields
+    project_name: Optional[str] = None
+    created_by_name: Optional[str] = None
+    updated_by_name: Optional[str] = None
+
+
+class KBArticleDetail(KBArticleOut):
+    attachments: List[KBAttachmentOut] = []

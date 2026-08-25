@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
-  GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock,
-  Cloud, TrendingUp, AlertTriangle, Building2, Clock, ChevronsLeft, ChevronsRight,
+  GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock, Timer,
+  Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
@@ -13,12 +13,14 @@ import { getPageAccess } from '../../services/api'
 // Full overview items — visible to Admin, Manager, Lead
 const ALL_OVERVIEW_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/my-dashboard', label: 'My Dashboard', icon: Home },
   { to: '/sprint', label: 'Sprint View', icon: CalendarRange },
   { to: '/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/team', label: 'Team', icon: Users },
   { to: '/utilization', label: 'Utilization', icon: Gauge },
   { to: '/availability', label: 'Leave Tracker', icon: CalendarClock },
   { to: '/holidays', label: 'Holidays', icon: CalendarDays },
+  { to: '/time-logs', label: 'Time Logs', icon: Timer },
   { to: '/resource-calendar', label: 'Resource Calendar', icon: CalendarCheck2 },
   { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
 ]
@@ -26,10 +28,12 @@ const ALL_OVERVIEW_ITEMS = [
 // Developer-only items — limited view
 const DEVELOPER_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/my-dashboard', label: 'My Dashboard', icon: Home },
   { to: '/tasks', label: 'My Tasks', icon: ListChecks },
   { to: '/utilization', label: 'Utilization', icon: Gauge },
   { to: '/availability', label: 'Leave Tracker', icon: CalendarClock },
   { to: '/holidays', label: 'Holidays', icon: CalendarDays },
+  { to: '/time-logs', label: 'Time Logs', icon: Timer },
   { to: '/resource-calendar', label: 'Resource Calendar', icon: CalendarCheck2 },
 ]
 
@@ -224,6 +228,18 @@ export default function Sidebar() {
           </NavLink>
         </div>
       )}
+
+      {/* Account — Change Password (visible to all roles) */}
+      <div className={`${collapsed ? 'px-2' : 'px-3'} mb-5`}>
+        {!collapsed && (
+          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2 px-2">Account</div>
+        )}
+        {collapsed && <div className="border-t border-slate-200 mb-2" />}
+        <NavLink to="/change-password" className={linkClass} title={collapsed ? 'Change Password' : undefined}>
+          <Lock size={collapsed ? 18 : 15} className="flex-shrink-0" />
+          {!collapsed && 'Change Password'}
+        </NavLink>
+      </div>
     </aside>
   )
 }

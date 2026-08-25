@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime, Table
+    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime, Table, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -332,3 +332,87 @@ class PageAccess(Base):
     section = Column(String(50), default="overview")  # overview, admin, reports
     roles = Column(String(500), nullable=False)       # comma-separated: "Admin,Manager,Lead,Developer"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TimeLog(Base):
+    """Time logging entries — developers log hours against tasks per day."""
+    __tablename__ = "time_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    developer_id = Column(Integer, ForeignKey("developers.id", ondelete="CASCADE"), nullable=False)
+    date = Column(Date, nullable=False)
+    hours = Column(Float, nullable=False)
+    notes = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    task = relationship("Task", backref="time_logs")
+    developer = relationship("Developer", backref="time_logs")
+
+
+class Notification(Base):
+    """In-app notifications for users (task assignments, status changes, etc.)."""
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    type = Column(String(50), default="info")  # task_assigned, status_changed, deadline_approaching, comment_added
+    title = Column(String(200), nullable=False)
+    message = Column(String(500), nullable=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", foreign_keys=[user_id])
+    task = relationship("Task", foreign_keys=[task_id])
+
+
+class TaskDependency(Base):
+    """Task dependency: task_id is blocked by depends_on_id."""
+    __tablename__ = "task_dependencies"
+    __table_args__ = (
+        UniqueConstraint("task_id", "depends_on_id", name="uq_task_dependency"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    depends_on_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    task = relationship("Task", foreign_keys=[task_id], backref="dependencies")
+    depends_on = relationship("Task", foreign_keys=[depends_on_id])
+
+
+class KBArticle(Base):
+    """Knowledge Base article — markdown content optionally linked to a project."""
+    __tablename__ = "kb_articles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(300), nullable=False)
+    content = Column(Text, nullable=True)
+    category = Column(String(100), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
+
+    project = relationship("Project", foreign_keys=[project_id])
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+    attachments = relationship("KBAttachment", back_populates="article", cascade="all, delete-orphan")
+
+
+class KBAttachment(Base):
+    """File attachment for a KB article, stored in Azure Blob Storage."""
+    __tablename__ = "kb_attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey("kb_articles.id", ondelete="CASCADE"), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    blob_url = Column(String(500), nullable=False)
+    content_type = Column(String(100), default="application/octet-stream")
+    file_size = Column(Integer, default=0)
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    article = relationship("KBArticle", back_populates="attachments")

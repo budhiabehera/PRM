@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LogOut, PanelLeftClose, PanelLeftOpen, KeyRound, LayoutGrid } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
 import useUIStore from '../../store/useUIStore'
+import NotificationBell from '../NotificationBell'
 import { changePassword } from '../../services/api'
 
 export default function Header() {
@@ -76,6 +77,7 @@ export default function Header() {
           {formattedDate} &nbsp;|&nbsp; {formattedTime}
         </div>
         <div className="flex items-center gap-3 text-xs">
+          <NotificationBell />
           <div className="bg-white/10 px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
             👤 {user?.full_name || 'User'}
             <span className="text-[10px] bg-white/15 px-2 py-0.5 rounded-full">{user?.role}</span>

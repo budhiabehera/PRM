@@ -1,4 +1,5 @@
 import axios from 'axios'
+
 import useAuthStore from '../store/useAuthStore'
 
 const api = axios.create({
@@ -78,6 +79,11 @@ export const getTasks = (params) => api.get('/tasks', { params }).then(r => r.da
 export const createTask = (data) => api.post('/tasks', data).then(r => r.data)
 export const updateTask = (id, data) => api.put(`/tasks/${id}`, data).then(r => r.data)
 export const deleteTask = (id) => api.delete(`/tasks/${id}`)
+
+// ---------- Task Dependencies ----------
+export const getTaskDependencies = (taskId) => api.get(`/tasks/${taskId}/dependencies`).then(r => r.data)
+export const addTaskDependency = (taskId, dependsOnId) => api.post(`/tasks/${taskId}/dependencies`, { depends_on_id: dependsOnId }).then(r => r.data)
+export const removeTaskDependency = (taskId, depId) => api.delete(`/tasks/${taskId}/dependencies/${depId}`)
 
 // ---------- Availability ----------
 export const getAvailability = (params) => api.get('/availability', { params }).then(r => r.data)
@@ -160,6 +166,7 @@ export const getWorkTypeBreakdown = (params) => api.get('/dashboard/work-type-br
 export const getModuleBreakdown = (params) => api.get('/dashboard/module-breakdown', { params }).then(r => r.data)
 export const getSubModuleBreakdown = (params) => api.get('/dashboard/sub-module-breakdown', { params }).then(r => r.data)
 export const getMonthlyUtilization = (params) => api.get('/dashboard/monthly-utilization', { params }).then(r => r.data)
+export const getMyDashboardSummary = () => api.get('/dashboard/my-summary').then(r => r.data)
 
 // ---------- Utilization ----------
 export const getUtilizationGrid = (params) => api.get('/utilization/grid', { params }).then(r => r.data)
@@ -184,5 +191,18 @@ export const getProjectProgressReport = () => api.get('/reports/project-progress
 export const getOverdueTasksReport = (params) => api.get('/reports/overdue-tasks', { params }).then(r => r.data)
 export const getCustomerSummaryReport = () => api.get('/reports/customer-summary').then(r => r.data)
 export const getTimeVarianceReport = (params) => api.get('/reports/time-variance', { params }).then(r => r.data)
+
+// ---------- Time Logs ----------
+export const getTimeLogs = (params) => api.get('/time-logs', { params }).then(r => r.data)
+export const createTimeLog = (data) => api.post('/time-logs', data).then(r => r.data)
+export const updateTimeLog = (id, data) => api.put(`/time-logs/${id}`, data).then(r => r.data)
+export const deleteTimeLog = (id) => api.delete(`/time-logs/${id}`)
+export const getTimeLogSummary = (params) => api.get('/time-logs/summary', { params }).then(r => r.data)
+
+// ---------- Notifications ----------
+export const getNotifications = (params) => api.get('/notifications', { params }).then(r => r.data)
+export const getUnreadCount = () => api.get('/notifications/unread-count').then(r => r.data)
+export const markNotificationRead = (id) => api.put(`/notifications/${id}/read`).then(r => r.data)
+export const markAllNotificationsRead = () => api.put('/notifications/read-all').then(r => r.data)
 
 export default api

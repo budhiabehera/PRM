@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from .. import models, schemas
 from ..database import get_db
 from ..deps import require_roles
@@ -9,7 +10,7 @@ router = APIRouter(prefix="/api/work-types", tags=["Work Types"])
 
 @router.get("")
 def list_work_types(db: Session = Depends(get_db)):
-    types = db.query(models.WorkType).order_by(models.WorkType.name).all()
+    types = db.query(models.WorkType).order_by(func.lower(models.WorkType.name)).all()
     result = []
     for wt in types:
         tasks = wt.tasks

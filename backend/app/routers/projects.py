@@ -15,7 +15,7 @@ def list_projects(db: Session = Depends(get_db),
     allowed = get_user_project_ids(current_user)
     if allowed is not None:
         q = q.filter(models.Project.id.in_(allowed))
-    return q.order_by(models.Project.name).all()
+    return q.order_by(func.lower(models.Project.name)).all()
 
 
 @router.get("/stats")

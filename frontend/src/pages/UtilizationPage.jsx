@@ -13,7 +13,11 @@ export default function UtilizationPage() {
   const { data, loading } = useApi(() => getUtilizationGrid(devParams), [user?.developer_id])
   if (loading) return <LoadingSpinner label="Loading utilization grid..." />
 
-  const { sprints, rows } = data
+  const { sprints } = data
+  // Sort developers alphabetically by name (case-insensitive)
+  const rows = [...(data.rows || [])].sort((a, b) =>
+    (a.developer_name || '').localeCompare(b.developer_name || '', undefined, { sensitivity: 'base' })
+  )
 
   return (
     <div>

@@ -149,21 +149,21 @@ export default function TaskActivityPanel({ task, user, onUpdate }) {
       ) : (
         <div className="space-y-1.5 max-h-40 overflow-y-auto">
           {activities.map((a) => (
-            <div key={a.id} className="flex items-center justify-between bg-white border border-slate-100 rounded-lg px-3 py-2 text-xs">
-              <div className="flex items-center gap-3">
-                <span className="text-slate-400 font-medium w-16">{formatShortDate(a.activity_date)}</span>
-                <span className="text-slate-700">{a.description}</span>
+            <div key={a.id} className="flex items-start justify-between gap-3 bg-white border border-slate-100 rounded-lg px-3 py-2 text-xs">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <span className="text-slate-400 font-medium w-16 shrink-0">{formatShortDate(a.activity_date)}</span>
+                <span className="text-slate-700 break-words whitespace-normal min-w-0">{a.description}</span>
                 {a.created_by_name && (
-                  <span className="text-slate-400">— by {a.created_by_name}</span>
+                  <span className="text-slate-400 shrink-0">— by {a.created_by_name}</span>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 {a.created_at && (
                   <span className="text-slate-400 text-[10px]">{formatDateTime(a.created_at)}</span>
                 )}
                 {a.hours_spent > 0 && <span className="text-slate-500">{a.hours_spent}h</span>}
                 {a.percentage > 0 && (
-                  <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium">
+                  <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap">
                     {a.percentage}%
                   </span>
                 )}

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from .. import models, schemas
 from ..database import get_db
 from ..deps import require_roles
@@ -9,14 +10,14 @@ router = APIRouter(prefix="/api/modules", tags=["Modules"])
 
 @router.get("", response_model=list[schemas.MainModule])
 def list_main_modules(db: Session = Depends(get_db)):
-    return db.query(models.MainModule).order_by(models.MainModule.name).all()
+    return db.query(models.MainModule).order_by(func.lower(models.MainModule.name)).all()
 
 
 @router.get("/tree")
 def module_tree(db: Session = Depends(get_db)):
     """Project → Modules → Sub-Modules hierarchy."""
-    modules = db.query(models.MainModule).order_by(models.MainModule.name).all()
-    projects = db.query(models.Project).order_by(models.Project.name).all()
+    modules = db.query(models.MainModule).order_by(func.lower(models.MainModule.name)).all()
+    projects = db.query(models.Project).order_by(func.lower(models.Project.name)).all()
 
     # Build module data
     def _build_module(m):
@@ -116,7 +117,7 @@ def list_sub_modules(main_module_id: int | None = None, db: Session = Depends(ge
     q = db.query(models.SubModule)
     if main_module_id:
         q = q.filter(models.SubModule.main_module_id == main_module_id)
-    return q.order_by(models.SubModule.name).all()
+    return q.order_by(func.lower(models.SubModule.name)).all()
 
 
 @sub_router.post("", response_model=schemas.SubModule, status_code=201)

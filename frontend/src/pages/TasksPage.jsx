@@ -209,7 +209,7 @@ export default function TasksPage() {
             options={
               filters.project_id
                 ? resources
-                    .filter((d) => (d.project_ids || []).includes(Number(filters.project_id)))
+                    .filter((d) => (d.project_ids || []).includes(Number(filters.project_id))).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
                     .map((d) => ({ value: d.id, label: d.name }))
                 : resources.map((d) => ({ value: d.id, label: d.name }))
             }

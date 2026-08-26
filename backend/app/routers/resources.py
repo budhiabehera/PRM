@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
@@ -52,7 +53,7 @@ def list_resources(
         q = q.filter(models.Developer.role == role)
     if skill:
         q = q.filter(models.Developer.skill == skill)
-    devs = q.order_by(models.Developer.name).all()
+    devs = q.order_by(func.lower(models.Developer.name)).all()
     return [_dev_with_stats(d, db) for d in devs]
 
 

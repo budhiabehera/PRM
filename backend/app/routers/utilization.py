@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
@@ -22,7 +23,7 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
         ))
-    devs = dev_q.all()
+    devs = dev_q.order_by(func.lower(models.Developer.name)).all()
     sprints = db.query(models.Sprint).order_by(models.Sprint.start_date).all()
 
     rows = []

@@ -64,14 +64,14 @@ export default function TaskForm({
   }
 
   const filteredSubModules = useMemo(
-    () => subModules.filter((s) => !form.main_module_id || s.main_module_id === Number(form.main_module_id)),
+    () => subModules.filter((s) => !form.main_module_id || s.main_module_id === Number(form.main_module_id)).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })),
     [subModules, form.main_module_id]
   )
 
   // Filter developers by selected project
   const filteredResources = useMemo(
     () => form.project_id
-      ? resources.filter((d) => (d.project_ids || []).includes(Number(form.project_id)))
+      ? resources.filter((d) => (d.project_ids || []).includes(Number(form.project_id))).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
       : resources,
     [resources, form.project_id]
   )

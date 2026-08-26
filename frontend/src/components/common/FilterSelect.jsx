@@ -1,6 +1,18 @@
-export default function FilterSelect({ label, value, onChange, options, allLabel = 'All' }) {
+import { useMemo } from 'react'
+
+export default function FilterSelect({ label, value, onChange, options, allLabel = 'All', sorted = true }) {
   // Normalize value to string for <select> comparison (option values are always strings in DOM)
   const normalizedValue = value != null ? String(value) : ''
+
+  // Sort options alphabetically by label (case-insensitive) unless sorted=false
+  const sortedOptions = useMemo(() => {
+    if (!sorted) return options
+    return [...options].sort((a, b) => {
+      const labelA = (a.label ?? a ?? '').toString().toLowerCase()
+      const labelB = (b.label ?? b ?? '').toString().toLowerCase()
+      return labelA.localeCompare(labelB)
+    })
+  }, [options, sorted])
 
   return (
     <div className="flex flex-col gap-1">
@@ -11,7 +23,7 @@ export default function FilterSelect({ label, value, onChange, options, allLabel
         onChange={(e) => onChange(e.target.value || '')}
       >
         <option value="">{allLabel}</option>
-        {options.map((opt) => {
+        {sortedOptions.map((opt) => {
           const optValue = opt.value != null ? String(opt.value) : String(opt)
           const optLabel = opt.label ?? opt
           return (

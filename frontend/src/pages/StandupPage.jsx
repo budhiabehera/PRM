@@ -15,12 +15,10 @@ export default function StandupPage() {
   const [expandedDevs, setExpandedDevs] = useState({})
   
   // Date picker — defaults to yesterday
-  const getYesterday = () => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return d.toISOString().slice(0, 10)
+  const getToday = () => {
+    return new Date().toISOString().slice(0, 10)
   }
-  const [selectedDate, setSelectedDate] = useState(getYesterday())
+  const [selectedDate, setSelectedDate] = useState(getToday())
 
   useEffect(() => {
     setLoading(true)

@@ -22,7 +22,7 @@ export default function AvailabilityForm({
   const [form, setForm] = useState({
     developer_id: defaultDeveloperId ? String(defaultDeveloperId) : '',
     sprint_id: '',
-    start_date: '',
+    start_date: new Date().toISOString().slice(0, 10),
     end_date: '',
     notes: '',
   })

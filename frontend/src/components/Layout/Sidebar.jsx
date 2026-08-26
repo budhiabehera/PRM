@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
   GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock, Timer,
-  Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight, BookOpen, MessageSquare,
+  Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight, BookOpen, MessageSquare, FileText,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
 import useAuthStore from '../../store/useAuthStore'
@@ -29,7 +29,6 @@ const ALL_OVERVIEW_ITEMS = [
 
 // Developer-only items — limited view
 const DEVELOPER_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/my-dashboard', label: 'My Dashboard', icon: Home },
   { to: '/tasks', label: 'My Tasks', icon: ListChecks },
   { to: '/utilization', label: 'Utilization', icon: Gauge },
@@ -53,6 +52,7 @@ const ADMIN_ITEMS = [
   { to: '/admin/task-statuses', label: 'Task Status', icon: CircleDot, roles: ['Admin', 'Manager'] },
   { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/admin/page-access', label: 'Page Access', icon: Lock, roles: ['Admin'] },
+  { to: '/admin/audit-log', label: 'Audit Log', icon: FileText, roles: ['Admin', 'Manager'] },
 ]
 
 // Integration section
@@ -91,7 +91,7 @@ export default function Sidebar() {
 
   // When page access rules exist, use them exclusively (ignore hardcoded role arrays)
   // When no rules exist, fall back to the old hardcoded behavior
-  const isDeveloper = !hasRules && role === 'Developer'
+  const isDeveloper = role === 'Developer'
   const baseOverviewItems = isDeveloper ? DEVELOPER_ITEMS : ALL_OVERVIEW_ITEMS
   const overviewItems = baseOverviewItems.filter((item) => hasAccess(item.to))
   const visibleAdminItems = hasRules

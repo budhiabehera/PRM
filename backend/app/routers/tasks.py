@@ -7,6 +7,7 @@ from ..database import get_db
 from ..database import SessionLocal
 from ..services.notification_service import create_notification
 from ..deps import get_current_user, can_edit_task, can_delete_task, restrict_fields_for_developer
+from ..services.audit_service import log_audit
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 
@@ -228,6 +229,9 @@ def create_task(
     db.commit()
     db.refresh(task)
 
+    # Audit log
+    log_audit(db, current_user, "CREATE", "Task", task.id, task.task_code)
+
     # Notify Teams/Power Automate in background
     _notify_teams_async(task.id, current_user.full_name or current_user.username)
     _send_task_email_async(task.id, current_user.full_name or current_user.username)
@@ -263,14 +267,20 @@ def update_task(
     update_data = payload.model_dump(exclude_unset=True)
     update_data = restrict_fields_for_developer(current_user, update_data)
 
-    # Track old values for notification logic
-    old_status = task.status
-    old_developer_id = task.developer_id
+    # Track old values for notification logic and audit
+    old_values = {key: getattr(task, key) for key in update_data}
+    old_status = old_values.get("status", task.status)
+    old_developer_id = old_values.get("developer_id", task.developer_id)
 
     for key, value in update_data.items():
         setattr(task, key, value)
     db.commit()
     db.refresh(task)
+
+    # Audit log — build changes dict
+    changed_fields = {k: {"old": str(old_values[k]) if old_values[k] is not None else None, "new": str(v) if v is not None else None} for k, v in update_data.items() if old_values.get(k) != v}
+    if changed_fields:
+        log_audit(db, current_user, "UPDATE", "Task", task.id, task.task_code, changes=changed_fields)
 
     # Notify Teams/Power Automate in background
     _notify_teams_async(task.id, current_user.full_name or current_user.username)
@@ -318,8 +328,10 @@ def delete_task(
         raise HTTPException(404, "Task not found")
     if not can_delete_task(current_user):
         raise HTTPException(403, "You don't have permission to delete tasks.")
+    task_code = task.task_code
     db.delete(task)
     db.commit()
+    log_audit(db, current_user, "DELETE", "Task", task_id, task_code)
 
 
 # ===========================

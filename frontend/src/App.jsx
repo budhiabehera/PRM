@@ -1,4 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
+import useAuthStore from './store/useAuthStore'
 import Layout from './components/Layout/Layout'
 import ProtectedRoute from './components/Layout/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
@@ -27,6 +29,7 @@ import TaskStatusPage from './pages/admin/TaskStatusPage'
 import PageAccessPage from './pages/admin/PageAccessPage'
 import AdminAvailabilityPage from './pages/admin/AdminAvailabilityPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
+import AuditLogPage from './pages/admin/AuditLogPage'
 
 import HolidaysPage from './pages/HolidaysPage'
 import SalesforceTasksReportPage from './pages/reports/SalesforceTasksReportPage'
@@ -41,6 +44,15 @@ const ADMIN_MANAGER = ['Admin', 'Manager']
 const ADMIN_MANAGER_LEAD = ['Admin', 'Manager', 'Lead']
 const NON_DEVELOPER = ['Admin', 'Manager', 'Lead']
 
+// Dashboard: hide from Developer role — redirect to My Dashboard
+function DashboardOrRedirect() {
+  const user = useAuthStore((s) => s.user)
+  if (user?.role === 'Developer') {
+    return <Navigate to="/my-dashboard" replace />
+  }
+  return <DashboardPage />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -50,7 +62,7 @@ export default function App() {
         <Route element={<Layout />}>
           {/* Available to all roles (Developer sees own data only) */}
           <Route path="/my-dashboard" element={<MyDashboardPage />} />
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/" element={<DashboardOrRedirect />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/utilization" element={<UtilizationPage />} />
           <Route path="/availability" element={<AvailabilityPage />} />
@@ -79,6 +91,7 @@ export default function App() {
             <Route path="/admin/role-capacity" element={<RoleCapacityPage />} />
             <Route path="/admin/task-statuses" element={<TaskStatusPage />} />
             <Route path="/admin/page-access" element={<PageAccessPage />} />
+            <Route path="/admin/audit-log" element={<AuditLogPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER_LEAD} />}>

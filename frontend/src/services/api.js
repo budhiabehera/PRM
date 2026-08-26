@@ -224,4 +224,8 @@ export const getMyStandup = (activityDate) => api.get('/standup/my-summary', { p
 export const getTeamStandup = (activityDate) => api.get('/standup/team-summary', { params: activityDate ? { activity_date: activityDate } : {} }).then(r => r.data)
 export const getStandupText = (developerId) => api.get('/standup/generate-text', { params: developerId ? { developer_id: developerId } : {} }).then(r => r.data)
 
+// ---------- Audit Log ----------
+export const getAuditLogs = (params) => api.get('/audit-logs', { params }).then(r => r.data)
+export const getAuditEntityTypes = () => api.get('/audit-logs/entity-types').then(r => r.data)
+
 export default api

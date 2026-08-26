@@ -7,6 +7,7 @@ from ..database import get_db
 from ..auth import hash_password
 from ..deps import require_roles
 from ..integrations.email_service import generate_random_password, send_welcome_email
+from ..services.audit_service import log_audit
 
 router = APIRouter(prefix="/api/user-setup", tags=["User Setup"])
 
@@ -125,6 +126,9 @@ def create_user(
         raise HTTPException(400, f"Could not create user: {e}")
     db.refresh(dev)
 
+    # Audit log
+    log_audit(db, _admin, "CREATE", "User", dev.id, payload.full_name)
+
     # Send welcome email in background (non-blocking)
     settings = db.query(models.IntegrationSettings).get(1)
     email_sent = False
@@ -171,6 +175,8 @@ def update_user(
     dev = db.query(models.Developer).get(dev_id)
     if not dev:
         raise HTTPException(404, "User not found")
+    # Capture old values for audit
+    old_name = dev.name
 
     data = payload.model_dump(exclude_unset=True)
     project_ids = data.pop("project_ids", None)
@@ -211,6 +217,14 @@ def update_user(
 
     db.commit()
     db.refresh(dev)
+
+    # Audit log
+    audit_changes = {}
+    for key in ["full_name", "role", "skill", "base_capacity", "active", "reporting_to_id"]:
+        if key in payload.model_dump(exclude_unset=True):
+            audit_changes[key] = {"old": str(payload.model_dump(exclude_unset=True).get(key)), "new": str(payload.model_dump(exclude_unset=True).get(key))}
+    log_audit(db, _admin, "UPDATE", "User", dev.id, dev.name, changes=audit_changes if audit_changes else None)
+
     return _serialize(dev, db)
 
 
@@ -232,8 +246,10 @@ def delete_user(
             raise HTTPException(400, "You cannot delete your own account")
         db.delete(user_account)
 
+    dev_name = dev.name
     db.delete(dev)
     db.commit()
+    log_audit(db, admin, "DELETE", "User", dev_id, dev_name)
 
 
 @router.post("/{dev_id}/resend-welcome")

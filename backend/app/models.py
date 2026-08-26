@@ -1,9 +1,15 @@
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime, Table, UniqueConstraint
 )
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
+
+# IST timezone helper — use as default= in Column definitions
+IST = timezone(timedelta(hours=5, minutes=30))
+def _now_ist():
+    return datetime.now(IST)
 
 
 # Many-to-many: Users <-> Projects
@@ -68,7 +74,7 @@ class User(Base):
     role = Column(String(20), nullable=False, default="Developer")  # Admin, Manager, Lead, Developer
     developer_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     developer = relationship("Developer", back_populates="user_account")
     projects = relationship("Project", secondary=user_projects, backref="users")
@@ -201,7 +207,7 @@ class Task(Base):
     # When this task record was actually created in PRM (distinct from start_date,
     # which is the planned work date and can be set in the future/past). Powers
     # the "tasks created every day" Salesforce Tasks report.
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
     # Set once a task has been pushed to Salesforce as a Case (see
     # app/integrations/salesforce.py). Kept separate from `case_ref` so an
     # internal case number a user typed in isn't overwritten by the sync.
@@ -257,7 +263,7 @@ class TaskActivity(Base):
     description = Column(Text, nullable=False)
     hours_spent = Column(Float, default=0)
     percentage = Column(Float, default=0)  # task % completion at this point
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     task = relationship("Task", backref="activities")
@@ -276,8 +282,8 @@ class TaskAttachment(Base):
     file_size = Column(Integer, default=0)  # bytes
     content_type = Column(String(100), default="application/octet-stream")
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    last_modified = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
+    last_modified = Column(DateTime(timezone=True), default=_now_ist)
 
     task = relationship("Task", backref="attachments")
     created_by = relationship("User", foreign_keys=[created_by_id])
@@ -294,7 +300,7 @@ class Holiday(Base):
     month = Column(Integer, nullable=False)  # 1-12, derived from date for fast filtering
     year = Column(Integer, nullable=False)   # e.g. 2026
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     created_by = relationship("User", foreign_keys=[created_by_id])
 
@@ -308,7 +314,7 @@ class RoleCapacity(Base):
     role = Column(String(50), unique=True, nullable=False)  # e.g. Admin, Manager, Lead, Developer
     capacity_hours = Column(Float, nullable=False, default=192)  # hrs/month
     description = Column(String(255), default="")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
 
 class TaskStatus(Base):
@@ -319,7 +325,7 @@ class TaskStatus(Base):
     name = Column(String(100), unique=True, nullable=False)
     color = Column(String(20), default="#4f46e5")
     sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
 
 class PageAccess(Base):
@@ -331,7 +337,7 @@ class PageAccess(Base):
     page_label = Column(String(100), nullable=False)  # e.g. 'Tasks', 'Projects'
     section = Column(String(50), default="overview")  # overview, admin, reports
     roles = Column(String(500), nullable=False)       # comma-separated: "Admin,Manager,Lead,Developer"
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
 
 class TimeLog(Base):
@@ -344,7 +350,7 @@ class TimeLog(Base):
     date = Column(Date, nullable=False)
     hours = Column(Float, nullable=False)
     notes = Column(String(500), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     task = relationship("Task", backref="time_logs")
     developer = relationship("Developer", backref="time_logs")
@@ -361,7 +367,7 @@ class Notification(Base):
     message = Column(String(500), nullable=True)
     task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     user = relationship("User", foreign_keys=[user_id])
     task = relationship("Task", foreign_keys=[task_id])
@@ -377,7 +383,7 @@ class TaskDependency(Base):
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
     depends_on_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     task = relationship("Task", foreign_keys=[task_id], backref="dependencies")
     depends_on = relationship("Task", foreign_keys=[depends_on_id])
@@ -395,8 +401,8 @@ class KBArticle(Base):
     visibility = Column(String(20), nullable=False, default="global")  # "global" or "personal"
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
+    updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=_now_ist)
 
     project = relationship("Project", foreign_keys=[project_id])
     created_by = relationship("User", foreign_keys=[created_by_id])
@@ -414,6 +420,24 @@ class KBAttachment(Base):
     blob_url = Column(String(500), nullable=False)
     content_type = Column(String(100), default="application/octet-stream")
     file_size = Column(Integer, default=0)
-    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    uploaded_at = Column(DateTime(timezone=True), default=_now_ist)
 
     article = relationship("KBArticle", back_populates="attachments")
+
+
+class AuditLog(Base):
+    """Audit trail — logs every create, update, and delete action in the system."""
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_name = Column(String(200))
+    action = Column(String(20))  # CREATE, UPDATE, DELETE
+    entity_type = Column(String(50))  # Task, Project, Developer, User, KBArticle, Sprint, etc.
+    entity_id = Column(Integer)
+    entity_label = Column(String(300))  # human-readable label
+    changes = Column(Text, nullable=True)  # JSON string of changes
+    ip_address = Column(String(50), nullable=True)
+    created_at = Column(DateTime(timezone=True))
+
+    user = relationship("User", foreign_keys=[user_id])

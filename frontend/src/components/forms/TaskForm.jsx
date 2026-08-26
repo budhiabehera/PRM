@@ -22,7 +22,7 @@ export default function TaskForm({
     priority: initial?.priority || '',
     status: initial?.status || 'Not Started',
     customer_committed: initial?.customer_committed ?? false,
-    start_date: toDateInput(initial?.start_date) || '',
+    start_date: toDateInput(initial?.start_date) || new Date().toISOString().slice(0, 10),
     end_date: toDateInput(initial?.end_date) || '',
     estimated_hours: initial?.estimated_hours ?? '',
     actual_hours: initial?.actual_hours ?? 0,

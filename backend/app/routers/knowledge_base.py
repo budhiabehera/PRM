@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user, require_roles
+from ..services.audit_service import log_audit
 
 router = APIRouter(prefix="/api/knowledge-base", tags=["Knowledge Base"])
 
@@ -155,6 +156,7 @@ def create_article(
     db.add(article)
     db.commit()
     db.refresh(article)
+    log_audit(db, current_user, "CREATE", "KBArticle", article.id, article.title)
     return _enrich_article(article)
 
 
@@ -179,6 +181,7 @@ def update_article(
     article.updated_at = _now_ist()
     db.commit()
     db.refresh(article)
+    log_audit(db, current_user, "UPDATE", "KBArticle", article.id, article.title)
     return _enrich_article(article)
 
 
@@ -208,8 +211,10 @@ def delete_article(
                 pass
     except Exception:
         pass  # Don't block delete if blob cleanup fails
+    article_title = article.title
     db.delete(article)
     db.commit()
+    log_audit(db, current_user, "DELETE", "KBArticle", article_id, article_title)
 
 
 # ---------- Upload Attachment ----------

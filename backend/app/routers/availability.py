@@ -74,13 +74,13 @@ def upsert_availability(
     current_user: models.User = Depends(get_current_user),
 ):
     # Developers can only set leave for themselves
-    if current_user.role == "Developer":
+    is_admin_or_lead = current_user.role in ("Admin", "Manager", "Lead")
+    if not is_admin_or_lead:
+        # Non-admin users can only set leave for themselves
         if not current_user.developer_id:
             raise HTTPException(403, "Your account is not linked to a developer record.")
         if payload.developer_id != current_user.developer_id:
             raise HTTPException(403, "You can only set leave for yourself.")
-    elif current_user.role not in ("Admin", "Manager", "Lead"):
-        raise HTTPException(403, "You don't have permission to do that.")
 
     # Auto-calculate leave_days from start_date and end_date
     leave_days = payload.leave_days or 0
@@ -127,10 +127,9 @@ def delete_availability(availability_id: int, db: Session = Depends(get_db),
     if not record:
         raise HTTPException(404, "Leave record not found")
     # Developers can only delete their own leave records
-    if current_user.role == "Developer":
+    is_admin_or_lead = current_user.role in ("Admin", "Manager", "Lead")
+    if not is_admin_or_lead:
         if not current_user.developer_id or record.developer_id != current_user.developer_id:
             raise HTTPException(403, "You can only remove your own leave records.")
-    elif current_user.role not in ("Admin", "Manager", "Lead"):
-        raise HTTPException(403, "You don't have permission to do that.")
     db.delete(record)
     db.commit()

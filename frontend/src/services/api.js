@@ -93,6 +93,7 @@ export const deleteAvailability = (id) => api.delete(`/availability/${id}`)
 // ---------- Task Activities ----------
 export const getTaskActivities = (taskId) => api.get(`/task-activities/${taskId}`).then(r => r.data)
 export const createTaskActivity = (data) => api.post('/task-activities', data).then(r => r.data)
+export const updateTaskActivity = (id, data) => api.put(`/task-activities/${id}`, data).then(r => r.data)
 export const deleteTaskActivity = (id) => api.delete(`/task-activities/${id}`)
 
 // ---------- Task Attachments ----------

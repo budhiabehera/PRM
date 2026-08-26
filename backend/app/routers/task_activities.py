@@ -96,6 +96,39 @@ def create_activity(
     return _serialize_activity(activity)
 
 
+@router.put("/{activity_id}")
+def update_activity(
+    activity_id: int,
+    payload: schemas.TaskActivityUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Update an existing activity entry."""
+    activity = db.query(models.TaskActivity).get(activity_id)
+    if not activity:
+        raise HTTPException(404, "Activity not found")
+
+    task = db.query(models.Task).get(activity.task_id)
+
+    if payload.activity_date is not None:
+        activity.activity_date = payload.activity_date
+    if payload.description is not None:
+        activity.description = payload.description
+    if payload.hours_spent is not None:
+        activity.hours_spent = payload.hours_spent
+    if payload.percentage is not None:
+        activity.percentage = payload.percentage
+
+    db.flush()
+
+    if task:
+        _recalculate_task_stats(task, db)
+
+    db.commit()
+    db.refresh(activity)
+    return _serialize_activity(activity)
+
+
 @router.delete("/{activity_id}", status_code=204)
 def delete_activity(
     activity_id: int,

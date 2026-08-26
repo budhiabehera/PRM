@@ -296,6 +296,13 @@ class TaskActivityCreate(BaseModel):
     percentage: float = 0
 
 
+class TaskActivityUpdate(BaseModel):
+    activity_date: Optional[date] = None
+    description: Optional[str] = None
+    hours_spent: Optional[float] = None
+    percentage: Optional[float] = None
+
+
 class TaskActivityOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

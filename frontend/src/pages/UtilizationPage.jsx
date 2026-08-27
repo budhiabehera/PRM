@@ -233,7 +233,7 @@ export default function UtilizationPage() {
             <tr>
               <th className="sticky left-0 bg-white">Developer</th>
               <th>Role</th>
-              {filteredSprints.map((m) => <th key={m} className="text-center">{m}</th>)}
+              {filteredSprints.map((m) => <th key={m} className="text-center" title="Utilization % = (Allocated Hours ÷ Net Capacity) × 100. Hours allocated / capacity shown below.">{m}</th>)}
             </tr>
           </thead>
           <tbody>

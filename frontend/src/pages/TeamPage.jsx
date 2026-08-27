@@ -51,10 +51,10 @@ export default function TeamPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-3.5 mb-6">
-        <KPICard label="Active Resources" value={stats.active_developers} />
-        <KPICard label="Team Capacity" value={stats.team_capacity} />
-        <KPICard label="Monthly Hrs" value={stats.monthly_hours} />
-        <KPICard label="Avg Utilization" value={formatPercent(stats.avg_utilization)} />
+        <KPICard label="Active Resources" value={stats.active_developers} tooltip="Total number of active developers assigned to the selected project" />
+        <KPICard label="Team Capacity" value={stats.team_capacity} tooltip="Sum of all developers' base monthly capacity (hrs/month). Each developer has a configured base capacity (e.g., 96h or 192h)" />
+        <KPICard label="Monthly Hrs" value={stats.monthly_hours} tooltip="Total estimated hours from all active (non-completed) tasks assigned to team members" />
+        <KPICard label="Avg Utilization" value={formatPercent(stats.avg_utilization)} tooltip="(Total Assigned Hours ÷ Team Capacity) × 100%&#10;&#10;Red (>100%) = Over-allocated&#10;Green (60-100%) = Healthy&#10;Orange (1-59%) = Under-utilized" />
       </div>
 
       <div className="grid grid-cols-3 gap-3.5">
@@ -75,13 +75,13 @@ export default function TeamPage() {
             <div className="flex items-center gap-2 mb-1">
               <RoleBadge role={dev.role} />
               <span className={`text-[11px] ${UTIL_STATUS_COLORS[dev.utilization_status]}`}>
-                {formatPercent(dev.utilization_pct)}
+                <span title={`Utilization = Assigned Hours (${dev.assigned_hours}) ÷ Base Capacity (${dev.base_capacity}) × 100`}>{formatPercent(dev.utilization_pct)}</span>
               </span>
             </div>
             <UtilizationBar pct={dev.utilization_pct} status={dev.utilization_status} width="100%" />
             <div className="flex justify-between mt-2 text-[11px] text-slate-500">
-              <span>{dev.active_tasks} active tasks</span>
-              <span>{dev.assigned_hours} / {dev.base_capacity} hrs</span>
+              <span title="Number of tasks not in 'Completed' status">{dev.active_tasks} active tasks</span>
+              <span title={`Assigned Hours (sum of estimated_hours for all tasks) / Base Monthly Capacity`}>{dev.assigned_hours} / {dev.base_capacity} hrs</span>
             </div>
           </div>
         ))}

@@ -52,7 +52,7 @@ export default function SprintPage() {
         </div>
         <div className="flex items-center gap-2">
           <select
-            className="form-select max-w-[160px]"
+            className="form-select min-w-[140px]"
             value={selectedProject}
             onChange={(e) => { setSelectedProject(e.target.value); setSelectedId(null) }}
           >
@@ -60,7 +60,7 @@ export default function SprintPage() {
             {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <select
-            className="form-select max-w-[160px]"
+            className="form-select min-w-[200px]"
             value={activeSprintId || ''}
             onChange={(e) => setSelectedId(Number(e.target.value))}
           >
@@ -74,13 +74,13 @@ export default function SprintPage() {
           <div>
             <h3 className="text-lg font-bold mb-1">Sprint: {activeSprint.name}</h3>
             <p className="text-xs opacity-85">
-              {formatShortDate(activeSprint.start_date)} – {formatShortDate(activeSprint.end_date)} ·
-              {' '}{activeSprint.task_count} tasks · {formatNumber(activeSprint.allocated_hours)} hrs allocated
+              {formatShortDate(activeSprint.start_date)} – {formatShortDate(activeSprint.end_date)} ·{' '}
+              <span title="Total tasks assigned to this sprint">{activeSprint.task_count} tasks</span> · <span title="Sum of estimated_hours for all tasks in this sprint">{formatNumber(activeSprint.allocated_hours)} hrs allocated</span>
             </p>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-bold font-mono">{formatPercent(activeSprint.utilization_pct)}</div>
-            <div className="text-[11px] opacity-80">Team Utilization</div>
+            <div className="text-3xl font-bold font-mono" title="(Allocated Hours ÷ Net Capacity) × 100%">{formatPercent(activeSprint.utilization_pct)}</div>
+            <div className="text-[11px] opacity-80" title="(Allocated Hours ÷ Net Capacity) × 100%">Team Utilization ⓘ</div>
           </div>
         </div>
       )}
@@ -88,15 +88,15 @@ export default function SprintPage() {
       <div className="grid grid-cols-3 gap-3.5 mb-6">
         <div className="card text-center !mb-0">
           <div className="text-2xl font-bold font-mono">{committed}</div>
-          <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-1">Customer Committed</div>
+          <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-1" title="Tasks marked as delivery-committed to customers">Customer Committed ⓘ</div>
         </div>
         <div className="card text-center !mb-0">
           <div className="text-2xl font-bold font-mono">{internal}</div>
-          <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-1">Internal / Non-Committed</div>
+          <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-1" title="Tasks not committed to external customers">Internal / Non-Committed ⓘ</div>
         </div>
         <div className="card text-center !mb-0">
           <div className="text-2xl font-bold font-mono">{activeSprint?.net_capacity ? formatNumber(activeSprint.net_capacity) : '—'}</div>
-          <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-1">Net Capacity (hrs)</div>
+          <div className="text-[10px] uppercase tracking-wide text-slate-400 mt-1" title="Team capacity adjusted for leave. Formula: Σ(base_capacity - (base_capacity/22 × leave_days)) for all project developers">Net Capacity (hrs) ⓘ</div>
         </div>
       </div>
 
@@ -106,8 +106,8 @@ export default function SprintPage() {
           <table className="data-table">
             <thead>
               <tr>
-                <th>ID</th><th>Task</th><th>Sub Module</th><th>Resource</th><th>Work Type</th>
-                <th>Priority</th><th>Status</th><th>Est</th><th>Actual</th><th>%</th>
+                <th>ID</th><th>Task</th><th>Sub Module</th><th>Resource</th><th>Work Type</th><th>Priority</th><th>Status</th>
+                <th title="Estimated hours for the task">Est</th><th title="Hours logged via activity entries">Actual</th><th title="Task completion percentage (from latest activity log)">%</th>
               </tr>
             </thead>
             <tbody>

@@ -304,11 +304,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-5 gap-3.5 mb-6">
-        <KPICard label="Total Resources" value={kpis.total_developers} />
-        <KPICard label="Total Tasks" value={kpis.total_tasks} />
-        <KPICard label="Total Est. Hours" value={formatNumber(kpis.total_estimated_hours)} />
-        <KPICard label="Customer Committed" value={kpis.customer_committed_tasks} />
-        <KPICard label="Cross-Month Tasks" value={kpis.cross_month_tasks} />
+        <KPICard label="Total Resources" value={kpis.total_developers} tooltip="Number of active developers assigned to the selected project" />
+        <KPICard label="Total Tasks" value={kpis.total_tasks} tooltip="Total tasks matching current project and sprint filters" />
+        <KPICard label="Total Est. Hours" value={formatNumber(kpis.total_estimated_hours)} tooltip="Sum of estimated_hours from all filtered tasks" />
+        <KPICard label="Customer Committed" value={kpis.customer_committed_tasks} tooltip="Tasks marked as customer-committed (delivery promised to client)" />
+        <KPICard label="Cross-Month Tasks" value={kpis.cross_month_tasks} tooltip="Tasks that span across multiple calendar months (start and end date in different months)" />
       </div>
 
       <div className="grid grid-cols-[1.4fr_1fr] gap-5">

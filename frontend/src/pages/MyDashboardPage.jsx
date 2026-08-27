@@ -29,13 +29,14 @@ export default function MyDashboardPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-3.5 mb-6">
-        <KPICard label="Total Assigned" value={summary.total} />
-        <KPICard label="In Progress" value={summary.in_progress} />
-        <KPICard label="Completed" value={summary.completed} />
+        <KPICard label="Total Assigned" value={summary.total} tooltip="All tasks assigned to you (regardless of status)" />
+        <KPICard label="In Progress" value={summary.in_progress} tooltip="Tasks currently with status 'Inprogress'" />
+        <KPICard label="Completed" value={summary.completed} tooltip="Tasks with status 'Completed'" />
         <KPICard
           label="Overdue"
           value={summary.overdue}
           sub={summary.overdue > 0 ? 'Needs attention' : null}
+          tooltip="Tasks past their end date that are not yet completed"
         />
       </div>
 

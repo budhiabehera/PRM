@@ -69,8 +69,12 @@ export default function AdminSprintsPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Sprint</th><th>Project</th><th>Start</th><th>End</th><th>Duration</th><th>Tasks</th>
-              <th>Alloc Hrs</th><th>Net Capacity</th><th>Utilization</th><th>Status</th><th>Actions</th>
+              <th>Sprint</th><th>Project</th><th>Start</th><th>End</th><th>Duration</th>
+              <th title="Number of tasks assigned to this sprint">Tasks</th>
+              <th title="Sum of estimated hours for all sprint tasks">Alloc Hrs</th>
+              <th title="Sum of project developers' monthly capacity minus leave deductions. Formula: Σ(base_capacity - (base_capacity/22 × leave_days))">Net Capacity</th>
+              <th title="(Allocated Hours ÷ Net Capacity) × 100%">Utilization</th>
+              <th>Status</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>

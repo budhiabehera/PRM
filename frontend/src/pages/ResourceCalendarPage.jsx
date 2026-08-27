@@ -167,7 +167,7 @@ export default function ResourceCalendarPage() {
         <div>
           <h2 className="text-xl font-bold text-slate-900">Resource Calendar</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Daily time spent per resource — 8 hrs/day capacity. Click a cell to see task details.
+            <span title="Hours are from task activity logs. Each cell shows hours logged for that day. Default capacity = 8 hrs/day. Red = exceeded capacity, Green = 50-100%, Grey = under 50%.">Daily time spent per resource — 8 hrs/day capacity. Click a cell to see task details. ⓘ</span>
           </p>
         </div>
       </div>

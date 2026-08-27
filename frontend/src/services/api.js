@@ -96,6 +96,15 @@ export const createTaskActivity = (data) => api.post('/task-activities', data).t
 export const updateTaskActivity = (id, data) => api.put(`/task-activities/${id}`, data).then(r => r.data)
 export const deleteTaskActivity = (id) => api.delete(`/task-activities/${id}`)
 
+// ---------- User Settings & Filter Presets ----------
+export const getUserSettings = () => api.get('/user-settings').then(r => r.data)
+export const updateUserSetting = (key, value) => api.put(`/user-settings/${key}`, { value }).then(r => r.data)
+export const getFilterPresets = (page) => api.get('/filter-presets', { params: page ? { page } : {} }).then(r => r.data)
+export const createFilterPreset = (data) => api.post('/filter-presets', data).then(r => r.data)
+export const updateFilterPreset = (id, data) => api.put(`/filter-presets/${id}`, data).then(r => r.data)
+export const deleteFilterPreset = (id) => api.delete(`/filter-presets/${id}`)
+export const setDefaultPreset = (id) => api.put(`/filter-presets/${id}/set-default`).then(r => r.data)
+
 // ---------- Task Attachments ----------
 export const getTaskAttachments = (taskId) => api.get(`/task-attachments/${taskId}`).then(r => r.data)
 export const uploadTaskAttachment = (taskId, file) => {

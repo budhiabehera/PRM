@@ -80,6 +80,38 @@ class User(Base):
     projects = relationship("Project", secondary=user_projects, backref="users")
 
 
+class UserPreference(Base):
+    """Key-value preferences per user (e.g., default_project, default_sprint, theme)."""
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    key = Column(String(100), nullable=False)
+    value = Column(Text, nullable=True)  # JSON-encoded value
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
+    updated_at = Column(DateTime(timezone=True), default=_now_ist, onupdate=_now_ist)
+
+    user = relationship("User", backref="preferences")
+
+    __table_args__ = (UniqueConstraint("user_id", "key", name="uq_user_pref_key"),)
+
+
+class FilterPreset(Base):
+    """Named saved filter views per user per page."""
+    __tablename__ = "filter_presets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)
+    page = Column(String(50), nullable=False)  # 'dashboard', 'tasks', 'utilization'
+    filters = Column(Text, nullable=False)  # JSON-encoded filter state
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
+    updated_at = Column(DateTime(timezone=True), default=_now_ist, onupdate=_now_ist)
+
+    user = relationship("User", backref="filter_presets")
+
+
 class MainModule(Base):
     __tablename__ = "main_modules"
 

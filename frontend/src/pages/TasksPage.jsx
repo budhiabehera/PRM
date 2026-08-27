@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
 import useAppStore from '../store/useAppStore'
@@ -18,6 +18,8 @@ import { PRIORITY_OPTIONS } from '../utils/constants'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import TaskActivityPanel from '../components/TaskActivityPanel'
 import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
+import PresetBar from '../components/common/PresetBar'
+import useFilterPresets from '../hooks/useFilterPresets'
 
 const KANBAN_COLUMNS = ['Not Started', 'In Progress', 'On Hold', 'Completed']
 
@@ -28,6 +30,16 @@ export default function TasksPage() {
   const isDeveloper = user?.role === 'Developer'
   const [filters, setFilters] = useState({})
   const [view, setView] = useState('list')
+
+  // Filter presets
+  const { presets, defaultFilters, savePreset } = useFilterPresets('tasks')
+
+  // Auto-apply default preset on first load
+  useEffect(() => {
+    if (!defaultFilters) return
+    setFilters(defaultFilters)
+  }, [defaultFilters])
+
   const [editingTask, setEditingTask] = useState(null)
   const [creatingTask, setCreatingTask] = useState(false)
   const [toDelete, setToDelete] = useState(null)
@@ -221,9 +233,16 @@ export default function TasksPage() {
           options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />
         <FilterSelect label="Sprint" value={filters.sprint_id} onChange={setFilter('sprint_id')}
           options={sprints.map((s) => ({ value: s.id, label: s.name }))} />
-        <button className="btn btn-secondary ml-auto" onClick={handleExportExcel}>
+        <div className="flex items-center gap-2 ml-auto">
+          <PresetBar
+            presets={presets}
+            onLoad={(f) => setFilters(f)}
+            onSave={(name, isDefault) => savePreset(name, filters, isDefault)}
+          />
+          <button className="btn btn-secondary" onClick={handleExportExcel}>
           📥 Export Excel
-        </button>
+          </button>
+        </div>
       </div>
 
       {loading ? <LoadingSpinner /> : view === 'list' ? (

@@ -40,6 +40,7 @@ import TimeVariancePage from './pages/reports/TimeVariancePage'
 
 import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import StandupPage from './pages/StandupPage'
+import UserSettingsPage from './pages/UserSettingsPage'
 const ADMIN_MANAGER = ['Admin', 'Manager']
 const ADMIN_MANAGER_LEAD = ['Admin', 'Manager', 'Lead']
 const NON_DEVELOPER = ['Admin', 'Manager', 'Lead']
@@ -73,6 +74,7 @@ export default function App() {
 
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+          <Route path="/settings" element={<UserSettingsPage />} />
 
           {/* Not available to Developer role */}
           <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>

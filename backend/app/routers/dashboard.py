@@ -9,11 +9,13 @@ router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
 def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int | None = None,
-                  project_ids: list[int] | None = None):
+                  project_ids: list[int] | None = None, project_id: int | None = None):
     """Base task query filtered by optional developer, sprint, and project access."""
     q = db.query(models.Task)
     if project_ids is not None:
         q = q.filter(models.Task.project_id.in_(project_ids))
+    if project_id:
+        q = q.filter(models.Task.project_id == project_id)
     if developer_id:
         q = q.filter(models.Task.developer_id == developer_id)
     if sprint_id:
@@ -22,11 +24,11 @@ def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int |
 
 
 @router.get("/kpis")
-def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None,
+def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
          current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    total_devs = db.query(models.Developer).filter(models.Developer.active == True).count()  # noqa: E712
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed)
+    total_devs = db.query(models.Developer).filter(models.Developer.active == True).count()
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
     total_hours = sum(t.estimated_hours for t in tasks)
     committed = sum(1 for t in tasks if t.customer_committed)
     cross_month = sum(1 for t in tasks if t.is_cross_month)
@@ -40,10 +42,10 @@ def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_
 
 
 @router.get("/status-breakdown")
-def status_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None,
+def status_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                      current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
     buckets: dict[str, dict] = {}
     for t in tasks:
         b = buckets.setdefault(t.status, {"status": t.status, "count": 0, "estimated_hours": 0})
@@ -53,10 +55,10 @@ def status_breakdown(db: Session = Depends(get_db), developer_id: int | None = N
 
 
 @router.get("/project-breakdown")
-def project_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None,
+def project_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                       current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
     buckets: dict[str, dict] = {}
     for t in tasks:
         pname = t.project.name if t.project else "Unassigned"
@@ -68,10 +70,10 @@ def project_breakdown(db: Session = Depends(get_db), developer_id: int | None = 
 
 
 @router.get("/work-type-breakdown")
-def work_type_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None,
+def work_type_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                         current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
     buckets: dict[str, dict] = {}
     for t in tasks:
         wt = t.work_type
@@ -89,10 +91,10 @@ def work_type_breakdown(db: Session = Depends(get_db), developer_id: int | None 
 
 
 @router.get("/module-breakdown")
-def module_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None,
+def module_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                      current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
     buckets: dict[str, dict] = {}
     for t in tasks:
         mname = t.main_module.name if t.main_module else "Unassigned"
@@ -108,10 +110,10 @@ def module_breakdown(db: Session = Depends(get_db), developer_id: int | None = N
 
 
 @router.get("/sub-module-breakdown")
-def sub_module_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None,
+def sub_module_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                          current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
     buckets: dict[str, dict] = {}
     for t in tasks:
         sname = t.sub_module.name if t.sub_module else "Unassigned"
@@ -123,7 +125,7 @@ def sub_module_breakdown(db: Session = Depends(get_db), developer_id: int | None
 
 
 @router.get("/monthly-utilization")
-def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None,
+def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                         current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
     sprint_q = db.query(models.Sprint).order_by(models.Sprint.start_date)
@@ -151,6 +153,8 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
             # Apply project access filter
             if allowed is not None:
                 task_filter = [t for t in task_filter if t.project_id in allowed]
+            if project_id:
+                task_filter = [t for t in task_filter if t.project_id == project_id]
             assigned = sum(t.estimated_hours for t in task_filter)
             total_allocated += assigned
             total_capacity += d.base_capacity

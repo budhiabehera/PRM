@@ -315,6 +315,43 @@ class TaskActivityOut(BaseModel):
     created_at: Optional[datetime] = None
 
 
+# ---------- User Preferences ----------
+class UserPreferenceUpsert(BaseModel):
+    value: str  # JSON-encoded value
+
+
+class UserPreferenceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    key: str
+    value: Optional[str] = None
+
+
+# ---------- Filter Presets ----------
+class FilterPresetCreate(BaseModel):
+    name: str
+    page: str
+    filters: str  # JSON-encoded filter state
+    is_default: bool = False
+
+
+class FilterPresetUpdate(BaseModel):
+    name: Optional[str] = None
+    filters: Optional[str] = None
+    is_default: Optional[bool] = None
+
+
+class FilterPresetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    page: str
+    filters: str
+    is_default: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
 # ---------- Task Attachment ----------
 class TaskAttachmentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

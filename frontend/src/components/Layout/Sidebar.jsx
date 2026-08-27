@@ -25,6 +25,7 @@ const ALL_OVERVIEW_ITEMS = [
   { to: '/timeline', label: 'Timeline', icon: GanttChartSquare },
   { to: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
   { to: '/standup', label: 'Daily Standup', icon: MessageSquare },
+  { to: '/settings', label: 'My Settings', icon: Settings },
 ]
 
 // Developer-only items — limited view
@@ -38,6 +39,7 @@ const DEVELOPER_ITEMS = [
   { to: '/resource-calendar', label: 'Resource Calendar', icon: CalendarCheck2 },
   { to: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
   { to: '/standup', label: 'Daily Standup', icon: MessageSquare },
+  { to: '/settings', label: 'My Settings', icon: Settings },
 ]
 
 // Each admin item declares which roles may see it.

@@ -12,7 +12,14 @@ def _sprint_with_stats(sprint: models.Sprint, db: Session):
     tasks = sprint.tasks
     alloc_hrs = sum(t.estimated_hours for t in tasks)
 
-    devs = db.query(models.Developer).filter(models.Developer.active == True).all()  # noqa: E712
+    # Only count developers assigned to the sprint's project (if sprint has a project)
+    dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
+    if sprint.project_id:
+        from ..models import developer_projects
+        dev_q = dev_q.filter(models.Developer.id.in_(
+            db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id == sprint.project_id)
+        ))
+    devs = dev_q.all()
     total_capacity = 0
     for d in devs:
         leave = (

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import useApi from '../../hooks/useApi'
 import useDropdowns from '../../hooks/useDropdowns'
+import useProjectDefault from '../../hooks/useProjectDefault'
 import useAppStore from '../../store/useAppStore'
 import { getSprints, createSprint, updateSprint } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
@@ -11,11 +12,12 @@ import { formatDate, formatNumber, formatPercent } from '../../utils/formatters'
 
 export default function AdminSprintsPage() {
   const { projects } = useDropdowns()
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
   const { data: sprints, loading, reload } = useApi(getSprints, [])
   const [editing, setEditing] = useState(null)
   const [showForm, setShowForm] = useState(false)
-  const [projectFilter, setProjectFilter] = useState('')
+  const [projectFilter, setProjectFilter] = useState(defaultProjectId)
 
   const refreshAll = () => { reload(); bumpRefresh() }
 
@@ -29,8 +31,8 @@ export default function AdminSprintsPage() {
 
   // Project options for filter
   const projectOptions = useMemo(() =>
-    projects.map((p) => ({ value: String(p.id), label: p.name })),
-    [projects]
+    restrictedProjects.map((p) => ({ value: String(p.id), label: p.name })),
+    [restrictedProjects]
   )
 
   if (loading) return <LoadingSpinner label="Loading sprints..." />
@@ -48,7 +50,8 @@ export default function AdminSprintsPage() {
             options={projectOptions}
             value={projectFilter}
             onChange={setProjectFilter}
-            placeholder="All Projects"
+            showAll={showAllOption}
+            allLabel="All"
           />
           <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true) }}>+ Add Sprint</button>
         </div>
@@ -71,7 +74,9 @@ export default function AdminSprintsPage() {
             </tr>
           </thead>
           <tbody>
-            {sprints.map((s) => {
+            {sprints
+            .filter((s) => !projectFilter || !s.project_id || String(s.project_id) === projectFilter)
+            .map((s) => {
               // If project filter is set, recalculate task/hour counts for that project
               const filteredTasks = projectFilter
                 ? (s.tasks_by_project?.[projectFilter] || { count: 0, hours: 0 })

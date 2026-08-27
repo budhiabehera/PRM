@@ -27,7 +27,18 @@ def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int |
 def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
          current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    total_devs = db.query(models.Developer).filter(models.Developer.active == True).count()
+    dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
+    if allowed is not None:
+        from ..models import developer_projects as dp1
+        dev_q = dev_q.filter(models.Developer.id.in_(
+            db.query(dp1.c.developer_id).filter(dp1.c.project_id.in_(allowed))
+        ))
+    if project_id:
+        from ..models import developer_projects as dp2
+        dev_q = dev_q.filter(models.Developer.id.in_(
+            db.query(dp2.c.developer_id).filter(dp2.c.project_id == project_id)
+        ))
+    total_devs = dev_q.count()
     tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
     total_hours = sum(t.estimated_hours for t in tasks)
     committed = sum(1 for t in tasks if t.customer_committed)
@@ -131,6 +142,8 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
     sprint_q = db.query(models.Sprint).order_by(models.Sprint.start_date)
     if sprint_id:
         sprint_q = sprint_q.filter(models.Sprint.id == sprint_id)
+    if project_id:
+        sprint_q = sprint_q.filter((models.Sprint.project_id == project_id) | (models.Sprint.project_id.is_(None)))
     sprints = sprint_q.all()
     result = []
     dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
@@ -141,6 +154,12 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
         from ..models import developer_projects
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
+        ))
+    # Filter developers to selected project
+    if project_id:
+        from ..models import developer_projects as dp
+        dev_q = dev_q.filter(models.Developer.id.in_(
+            db.query(dp.c.developer_id).filter(dp.c.project_id == project_id)
         ))
     devs = dev_q.all()
     for s in sprints:

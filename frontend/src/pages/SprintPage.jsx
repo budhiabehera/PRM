@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
+import useProjectDefault from '../hooks/useProjectDefault'
 import { getSprints, getTasks } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import StatusBadge from '../components/common/StatusBadge'
@@ -10,7 +11,8 @@ import { formatNumber, formatPercent, formatShortDate } from '../utils/formatter
 export default function SprintPage() {
   const { projects } = useDropdowns()
   const { data: sprints, loading: sprintsLoading } = useApi(getSprints, [])
-  const [selectedProject, setSelectedProject] = useState('')
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [selectedProject, setSelectedProject] = useState(defaultProjectId)
   const [selectedId, setSelectedId] = useState(null)
 
   // Filter sprints by project if selected
@@ -54,8 +56,8 @@ export default function SprintPage() {
             value={selectedProject}
             onChange={(e) => { setSelectedProject(e.target.value); setSelectedId(null) }}
           >
-            <option value="">All Projects</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {showAllOption && <option value="">All Projects</option>}
+            {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <select
             className="form-select max-w-[160px]"

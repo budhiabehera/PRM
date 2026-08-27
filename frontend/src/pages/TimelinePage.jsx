@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
+import useProjectDefault from '../hooks/useProjectDefault'
 import { getGanttData, getMonthlyAllocation } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import GanttChart from '../components/charts/GanttChart'
@@ -9,7 +10,8 @@ import { formatNumber } from '../utils/formatters'
 
 export default function TimelinePage() {
   const { projects, resources } = useDropdowns()
-  const [filters, setFilters] = useState({})
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [filters, setFilters] = useState({ project_id: defaultProjectId })
 
   const { data: gantt, loading: l1 } = useApi(() => getGanttData(filters), [JSON.stringify(filters)])
   const { data: allocation, loading: l2 } = useApi(getMonthlyAllocation, [])
@@ -27,7 +29,7 @@ export default function TimelinePage() {
 
       <div className="flex gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl">
         <FilterSelect label="Project" onChange={setFilter('project_id')}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+          options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
         <FilterSelect label="Resource" onChange={setFilter('developer_id')}
           options={resources.map((d) => ({ value: d.id, label: d.name }))} />
       </div>

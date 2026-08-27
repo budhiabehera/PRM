@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BookOpen, Plus, ArrowLeft, Edit2, Trash2, Paperclip, Upload, X, Search } from 'lucide-react'
 import useAuthStore from '../store/useAuthStore'
+import useProjectDefault from '../hooks/useProjectDefault'
 import {
   getKBArticles, getKBArticle, createKBArticle, updateKBArticle,
   deleteKBArticle, uploadKBAttachment, deleteKBAttachment, getKBCategories, getProjects,
@@ -17,6 +18,7 @@ const CATEGORY_COLORS = {
 
 export default function KnowledgeBasePage() {
   const user = useAuthStore((s) => s.user)
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
   const [articles, setArticles] = useState([])
   const [projects, setProjects] = useState([])
   const [categories, setCategories] = useState([])
@@ -24,7 +26,7 @@ export default function KnowledgeBasePage() {
 
   // Filters
   const [search, setSearch] = useState('')
-  const [filterProject, setFilterProject] = useState('')
+  const [filterProject, setFilterProject] = useState(defaultProjectId)
   const [filterCategory, setFilterCategory] = useState('')
   const [filterVisibility, setFilterVisibility] = useState('')
 
@@ -163,8 +165,8 @@ export default function KnowledgeBasePage() {
             onChange={(e) => setFilterProject(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
           >
-            <option value="">All Projects</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {showAllOption && <option value="">All Projects</option>}
+            {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <select
             value={filterCategory}

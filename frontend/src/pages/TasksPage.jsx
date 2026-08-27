@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from 'react'
 import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
+import useProjectDefault from '../hooks/useProjectDefault'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
 import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency } from '../services/api'
@@ -28,7 +29,8 @@ export default function TasksPage() {
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
   const user = useAuthStore((s) => s.user)
   const isDeveloper = user?.role === 'Developer'
-  const [filters, setFilters] = useState({})
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [filters, setFilters] = useState({ project_id: defaultProjectId })
   const [view, setView] = useState('list')
 
   // Filter presets
@@ -211,7 +213,7 @@ export default function TasksPage() {
 
       <div className="flex flex-wrap gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl items-end">
         <FilterSelect label="Project" value={filters.project_id} onChange={setFilter('project_id')}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))} />
+          options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
         <FilterSelect label="Main Module" value={filters.main_module_id} onChange={setFilter('main_module_id')}
           options={mainModules.map((m) => ({ value: m.id, label: m.name }))} />
         <FilterSelect label="Sub Module" value={filters.sub_module_id} onChange={setFilter('sub_module_id')}

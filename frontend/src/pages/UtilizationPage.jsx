@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import useApi from '../hooks/useApi'
 import useAuthStore from '../store/useAuthStore'
 import useDropdowns from '../hooks/useDropdowns'
+import useProjectDefault from '../hooks/useProjectDefault'
 import { getUtilizationGrid } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import FilterSelect from '../components/common/FilterSelect'
@@ -30,7 +31,8 @@ export default function UtilizationPage() {
   const devParams = isDeveloper && user?.developer_id ? { developer_id: user.developer_id } : undefined
   const { resources, sprints: allSprints, projects } = useDropdowns()
 
-  const [projectFilter, setProjectFilter] = useState('')
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [projectFilter, setProjectFilter] = useState(defaultProjectId)
   const [selectedResources, setSelectedResources] = useState([])
   const [sprintFilter, setSprintFilter] = useState('')
 
@@ -206,7 +208,8 @@ export default function UtilizationPage() {
             label="Project"
             value={projectFilter}
             onChange={setProjectFilter}
-            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))}
+            showAll={showAllOption}
           />
           <MultiSelect
             label="Resource"

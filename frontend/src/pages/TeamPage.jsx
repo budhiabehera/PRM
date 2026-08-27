@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
+import useProjectDefault from '../hooks/useProjectDefault'
 import { getResources, getResourceStats } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import KPICard from '../components/common/KPICard'
@@ -20,7 +21,8 @@ export default function TeamPage() {
   const { data: stats, loading: l1 } = useApi(getResourceStats, [])
   const { data: resources, loading: l2 } = useApi(() => getResources({}), [])
   const { skills, projects } = useDropdowns()
-  const [projectFilter, setProjectFilter] = useState('')
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [projectFilter, setProjectFilter] = useState(defaultProjectId)
   const [skillFilter, setSkillFilter] = useState('')
 
   if (l1 || l2) return <LoadingSpinner label="Loading team..." />
@@ -38,8 +40,8 @@ export default function TeamPage() {
         </div>
         <div className="flex items-center gap-2">
           <select className="form-select max-w-[160px]" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-            <option value="">All Projects</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            {showAllOption && <option value="">All Projects</option>}
+            {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <select className="form-select max-w-[140px]" value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)}>
             <option value="">All Skills</option>

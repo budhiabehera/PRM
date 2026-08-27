@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 
-export default function FilterSelect({ label, value, onChange, options, allLabel = 'All', sorted = true }) {
+export default function FilterSelect({ label, value, onChange, options, allLabel = 'All', sorted = true, showAll = true }) {
   // Normalize value to string for <select> comparison (option values are always strings in DOM)
   const normalizedValue = value != null ? String(value) : ''
 
@@ -22,7 +22,7 @@ export default function FilterSelect({ label, value, onChange, options, allLabel
         value={normalizedValue}
         onChange={(e) => onChange(e.target.value || '')}
       >
-        <option value="">{allLabel}</option>
+        {showAll && <option value="">{allLabel}</option>}
         {sortedOptions.map((opt) => {
           const optValue = opt.value != null ? String(opt.value) : String(opt)
           const optLabel = opt.label ?? opt

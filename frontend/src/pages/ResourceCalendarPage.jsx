@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getResourceCalendar, getProjects } from '../services/api'
 import useDropdowns from '../hooks/useDropdowns'
+import useProjectDefault from '../hooks/useProjectDefault'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import FilterSelect from '../components/common/FilterSelect'
@@ -36,7 +37,8 @@ export default function ResourceCalendarPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [projects, setProjects] = useState([])
-  const [projectFilter, setProjectFilter] = useState('')
+  const { defaultProjectId, showAllOption, restrictedProjects: rpProjects } = useProjectDefault()
+  const [projectFilter, setProjectFilter] = useState(defaultProjectId)
   const [resourceFilter, setResourceFilter] = useState('')
   const [viewMode, setViewMode] = useState('month') // 'day', 'week', 'month'
   const [selectedDay, setSelectedDay] = useState(today.getDate())
@@ -211,7 +213,8 @@ export default function ResourceCalendarPage() {
             label="Project"
             value={projectFilter}
             onChange={setProjectFilter}
-            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            options={rpProjects.map((p) => ({ value: p.id, label: p.name }))}
+            showAll={showAllOption}
           />
         </div>
       </div>

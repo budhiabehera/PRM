@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import useApi from '../hooks/useApi'
 import useAuthStore from '../store/useAuthStore'
 import useDropdowns from '../hooks/useDropdowns'
+import useProjectDefault from '../hooks/useProjectDefault'
 import {
   getKpis, getStatusBreakdown, getProjectBreakdown, getWorkTypeBreakdown,
   getModuleBreakdown, getSubModuleBreakdown, getMonthlyUtilization,
@@ -19,7 +20,8 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user)
   const { sprints, projects } = useDropdowns()
   const isDeveloper = user?.role === 'Developer'
-  const [selectedProject, setSelectedProject] = useState('')
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [selectedProject, setSelectedProject] = useState(defaultProjectId)
   const [selectedSprint, setSelectedSprint] = useState('')
 
   // Filter presets
@@ -280,8 +282,8 @@ export default function DashboardPage() {
             value={selectedProject}
             onChange={(e) => setSelectedProject(e.target.value)}
           >
-            <option value="">All Projects</option>
-            {projects.map((p) => (
+            {showAllOption && <option value="">All Projects</option>}
+            {restrictedProjects.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>

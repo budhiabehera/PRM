@@ -234,7 +234,7 @@ export default function TasksPage() {
         <FilterSelect label="Work Type" value={filters.work_type_id} onChange={setFilter('work_type_id')}
           options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />
         <FilterSelect label="Sprint" value={filters.sprint_id} onChange={setFilter('sprint_id')}
-          options={sprints.map((s) => ({ value: s.id, label: s.name }))} />
+          options={sprints.filter((s) => !filters.project_id || !s.project_id || String(s.project_id) === String(filters.project_id)).map((s) => ({ value: s.id, label: s.name }))} />
         <div className="flex items-center gap-2 ml-auto">
           <PresetBar
             presets={presets}

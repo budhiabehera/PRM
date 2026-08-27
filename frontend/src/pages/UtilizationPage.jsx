@@ -221,7 +221,7 @@ export default function UtilizationPage() {
             label="Sprint"
             value={sprintFilter}
             onChange={setSprintFilter}
-            options={allSprints.map((s) => ({ value: s.id, label: s.name }))}
+            options={allSprints.filter((s) => !projectFilter || !s.project_id || String(s.project_id) === projectFilter).map((s) => ({ value: s.id, label: s.name }))}
             sorted={false}
           />
         </div>

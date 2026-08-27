@@ -19,12 +19,15 @@ const avatarColor = (name) => {
 export default function TeamPage() {
   const { data: stats, loading: l1 } = useApi(getResourceStats, [])
   const { data: resources, loading: l2 } = useApi(() => getResources({}), [])
-  const { skills } = useDropdowns()
+  const { skills, projects } = useDropdowns()
+  const [projectFilter, setProjectFilter] = useState('')
   const [skillFilter, setSkillFilter] = useState('')
 
   if (l1 || l2) return <LoadingSpinner label="Loading team..." />
 
-  const filtered = skillFilter ? resources.filter((r) => r.skill === skillFilter) : resources
+  let filtered = resources
+  if (projectFilter) filtered = filtered.filter((r) => (r.project_ids || []).includes(Number(projectFilter)))
+  if (skillFilter) filtered = filtered.filter((r) => r.skill === skillFilter)
 
   return (
     <div>
@@ -33,10 +36,16 @@ export default function TeamPage() {
           <h2 className="text-xl font-bold text-slate-900">Team</h2>
           <p className="text-xs text-slate-500 mt-0.5">Team overview and current workload</p>
         </div>
-        <select className="form-select max-w-[140px]" value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)}>
-          <option value="">All Skills</option>
-          {(skills || []).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <select className="form-select max-w-[160px]" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
+            <option value="">All Projects</option>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select className="form-select max-w-[140px]" value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)}>
+            <option value="">All Skills</option>
+            {(skills || []).map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3.5 mb-6">

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import useApi from '../hooks/useApi'
+import useDropdowns from '../hooks/useDropdowns'
 import { getSprints, getTasks } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import StatusBadge from '../components/common/StatusBadge'
@@ -7,15 +8,32 @@ import PriorityBadge from '../components/common/PriorityBadge'
 import { formatNumber, formatPercent, formatShortDate } from '../utils/formatters'
 
 export default function SprintPage() {
+  const { projects } = useDropdowns()
   const { data: sprints, loading: sprintsLoading } = useApi(getSprints, [])
+  const [selectedProject, setSelectedProject] = useState('')
   const [selectedId, setSelectedId] = useState(null)
 
-  const activeSprintId = selectedId || sprints?.find((s) => s.status === 'Active')?.id || sprints?.[0]?.id
-  const activeSprint = sprints?.find((s) => s.id === activeSprintId)
+  // Filter sprints by project if selected
+  const filteredSprints = useMemo(() => {
+    if (!sprints) return []
+    if (!selectedProject) return sprints
+    return sprints.filter((s) => !s.project_id || s.project_id === Number(selectedProject))
+  }, [sprints, selectedProject])
+
+  const activeSprintId = selectedId || filteredSprints?.find((s) => s.status === 'Active')?.id || filteredSprints?.[0]?.id
+  const activeSprint = filteredSprints?.find((s) => s.id === activeSprintId)
+
+  // Pass project_id to task query
+  const taskParams = useMemo(() => {
+    const p = {}
+    if (activeSprintId) p.sprint_id = activeSprintId
+    if (selectedProject) p.project_id = selectedProject
+    return p
+  }, [activeSprintId, selectedProject])
 
   const { data: tasks, loading: tasksLoading } = useApi(
-    () => (activeSprintId ? getTasks({ sprint_id: activeSprintId }) : Promise.resolve([])),
-    [activeSprintId]
+    () => (activeSprintId ? getTasks(taskParams) : Promise.resolve([])),
+    [JSON.stringify(taskParams)]
   )
 
   const committed = useMemo(() => tasks?.filter((t) => t.customer_committed).length || 0, [tasks])
@@ -30,13 +48,23 @@ export default function SprintPage() {
           <h2 className="text-xl font-bold text-slate-900">Sprint View</h2>
           <p className="text-xs text-slate-500 mt-0.5">Monthly sprint drill-down with task detail</p>
         </div>
-        <select
-          className="form-select max-w-[160px]"
-          value={activeSprintId || ''}
-          onChange={(e) => setSelectedId(Number(e.target.value))}
-        >
-          {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            className="form-select max-w-[160px]"
+            value={selectedProject}
+            onChange={(e) => { setSelectedProject(e.target.value); setSelectedId(null) }}
+          >
+            <option value="">All Projects</option>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select
+            className="form-select max-w-[160px]"
+            value={activeSprintId || ''}
+            onChange={(e) => setSelectedId(Number(e.target.value))}
+          >
+            {filteredSprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
       </div>
 
       {activeSprint && (

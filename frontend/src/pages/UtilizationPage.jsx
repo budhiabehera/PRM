@@ -28,8 +28,9 @@ export default function UtilizationPage() {
   const user = useAuthStore((s) => s.user)
   const isDeveloper = user?.role === 'Developer'
   const devParams = isDeveloper && user?.developer_id ? { developer_id: user.developer_id } : undefined
-  const { resources, sprints: allSprints } = useDropdowns()
+  const { resources, sprints: allSprints, projects } = useDropdowns()
 
+  const [projectFilter, setProjectFilter] = useState('')
   const [selectedResources, setSelectedResources] = useState([])
   const [sprintFilter, setSprintFilter] = useState('')
 
@@ -54,6 +55,12 @@ export default function UtilizationPage() {
     rows = rows.filter((r) => selectedResources.includes(String(r.developer_id)))
   } else if (selectedResources[0] === '__none__') {
     rows = []
+  }
+
+  // Filter by project (show only resources that belong to the selected project)
+  if (projectFilter) {
+    const projectResIds = resources.filter((r) => (r.project_ids || []).includes(Number(projectFilter))).map((r) => r.id)
+    rows = rows.filter((r) => projectResIds.includes(r.developer_id))
   }
 
   // Filter sprint columns
@@ -195,6 +202,12 @@ export default function UtilizationPage() {
       {/* Filters */}
       {!isDeveloper && (
         <div className="flex flex-wrap gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl items-end">
+          <FilterSelect
+            label="Project"
+            value={projectFilter}
+            onChange={setProjectFilter}
+            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          />
           <MultiSelect
             label="Resource"
             options={resources.map((d) => ({ value: d.id, label: d.name }))}

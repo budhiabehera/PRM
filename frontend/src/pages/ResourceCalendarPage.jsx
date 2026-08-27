@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { getResourceCalendar, getProjects } from '../services/api'
 import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
+import useAuthStore from '../store/useAuthStore'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import FilterSelect from '../components/common/FilterSelect'
@@ -32,6 +33,8 @@ function getWeekNumber(d) {
 
 export default function ResourceCalendarPage() {
   const today = new Date()
+  const user = useAuthStore((s) => s.user)
+  const isDeveloper = user?.role === 'Developer'
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth() + 1)
   const [data, setData] = useState(null)
@@ -39,7 +42,7 @@ export default function ResourceCalendarPage() {
   const [projects, setProjects] = useState([])
   const { defaultProjectId, showAllOption, restrictedProjects: rpProjects } = useProjectDefault()
   const [projectFilter, setProjectFilter] = useState(defaultProjectId)
-  const [resourceFilter, setResourceFilter] = useState('')
+  const [resourceFilter, setResourceFilter] = useState(isDeveloper && user?.developer_id ? String(user.developer_id) : '')
   const [viewMode, setViewMode] = useState('month') // 'day', 'week', 'month'
   const [selectedDay, setSelectedDay] = useState(today.getDate())
   const [selectedWeekStart, setSelectedWeekStart] = useState(null)
@@ -203,12 +206,14 @@ export default function ResourceCalendarPage() {
 
         {/* Filters */}
         <div className="ml-auto flex items-center gap-3">
-          <FilterSelect
-            label="Resource"
-            value={resourceFilter}
-            onChange={setResourceFilter}
-            options={(allResources || []).map((r) => ({ value: r.id, label: r.name }))}
-          />
+          {!isDeveloper && (
+            <FilterSelect
+              label="Resource"
+              value={resourceFilter}
+              onChange={setResourceFilter}
+              options={(allResources || []).map((r) => ({ value: r.id, label: r.name }))}
+            />
+          )}
           <FilterSelect
             label="Project"
             value={projectFilter}

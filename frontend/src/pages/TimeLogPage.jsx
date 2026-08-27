@@ -33,7 +33,7 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export default function TimeLogPage() {
   const user = useAuthStore((s) => s.user)
-  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()))
+  const [weekStart, setWeekStart] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })
   const [timeLogs, setTimeLogs] = useState([])
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)

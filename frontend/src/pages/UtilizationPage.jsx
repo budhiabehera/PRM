@@ -5,6 +5,19 @@ import LoadingSpinner from '../components/common/LoadingSpinner'
 import { UTIL_STATUS_COLORS } from '../utils/constants'
 import { formatPercent } from '../utils/formatters'
 
+function sortRowsByName(rows) {
+  if (!rows || !Array.isArray(rows)) return []
+  const sorted = rows.slice().sort(function(a, b) {
+    var nameA = (a.developer_name || '').trim().toLowerCase()
+    var nameB = (b.developer_name || '').trim().toLowerCase()
+    if (nameA < nameB) return -1
+    if (nameA > nameB) return 1
+    return 0
+  })
+  console.log('[Utilization] Sorted rows:', sorted.map(r => r.developer_name))
+  return sorted
+}
+
 export default function UtilizationPage() {
   const user = useAuthStore((s) => s.user)
   const isDeveloper = user?.role === 'Developer'
@@ -13,11 +26,8 @@ export default function UtilizationPage() {
   const { data, loading } = useApi(() => getUtilizationGrid(devParams), [user?.developer_id])
   if (loading) return <LoadingSpinner label="Loading utilization grid..." />
 
-  const { sprints } = data
-  // Sort developers alphabetically by name (case-insensitive)
-  const rows = [...(data.rows || [])].sort((a, b) =>
-    (a.developer_name || '').localeCompare(b.developer_name || '', undefined, { sensitivity: 'base' })
-  )
+  const sprints = data.sprints
+  const rows = sortRowsByName(data.rows)
 
   return (
     <div>

@@ -170,7 +170,13 @@ export const getMonthlyUtilization = (params) => api.get('/dashboard/monthly-uti
 export const getMyDashboardSummary = () => api.get('/dashboard/my-summary').then(r => r.data)
 
 // ---------- Utilization ----------
-export const getUtilizationGrid = (params) => api.get('/utilization/grid', { params }).then(r => r.data)
+export const getUtilizationGrid = (params) => api.get('/utilization/grid', { params }).then(r => {
+  const data = r.data
+  if (data && data.rows) {
+    data.rows.sort((a, b) => (a.developer_name || '').localeCompare(b.developer_name || '', undefined, { sensitivity: 'base' }))
+  }
+  return data
+})
 
 // ---------- Timeline ----------
 export const getGanttData = (params) => api.get('/timeline/gantt', { params }).then(r => r.data)

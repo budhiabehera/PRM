@@ -8,8 +8,8 @@ export default function FilterSelect({ label, value, onChange, options, allLabel
   const sortedOptions = useMemo(() => {
     if (!sorted) return options
     return [...options].sort((a, b) => {
-      const labelA = (a.label ?? a ?? '').toString().toLowerCase()
-      const labelB = (b.label ?? b ?? '').toString().toLowerCase()
+      const labelA = (a.label ?? a ?? '').toString().trim().toLowerCase()
+      const labelB = (b.label ?? b ?? '').toString().trim().toLowerCase()
       return labelA.localeCompare(labelB)
     })
   }, [options, sorted])

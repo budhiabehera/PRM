@@ -3,7 +3,7 @@ import useAppStore from '../store/useAppStore'
 import useAuthStore from '../store/useAuthStore'
 
 /** Helper: sort an array of objects alphabetically by the `name` property (case-insensitive). */
-const sortByName = (arr) => [...arr].sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
+const sortByName = (arr) => [...arr].sort((a, b) => (a.name || '').trim().toLowerCase().localeCompare((b.name || '').trim().toLowerCase()))
 
 /** Ensures shared dropdown/reference data is loaded once, on first use.
  *  Filters projects, modules, sub-modules, and developers by user's project access (Admin sees all).

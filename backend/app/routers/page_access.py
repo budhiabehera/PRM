@@ -104,7 +104,7 @@ def delete_page_access(
     db: Session = Depends(get_db),
     _admin=Depends(require_roles("Admin")),
 ):
-    record = db.query(models.PageAccess).get(page_id)
+    record = db.get(models.PageAccess, page_id)
     if not record:
         raise HTTPException(404, "Page access rule not found")
     db.delete(record)

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from .. import models
 from ..database import get_db
@@ -14,7 +14,10 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
                      current_user: models.User = Depends(get_current_user)):
     """Developer x Sprint(month) utilization grid."""
     allowed = get_user_project_ids(current_user)
-    dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
+    dev_q = db.query(models.Developer).options(
+        joinedload(models.Developer.home_module),
+        joinedload(models.Developer.tasks),
+    ).filter(models.Developer.active == True)  # noqa: E712
     if developer_id:
         dev_q = dev_q.filter(models.Developer.id == developer_id)
     # Filter developers to only those in user's projects
@@ -26,16 +29,23 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
     devs = dev_q.order_by(func.lower(models.Developer.name)).all()
     sprints = db.query(models.Sprint).order_by(models.Sprint.start_date).all()
 
+    # Pre-fetch all availability records in one query (avoid N*M individual queries)
+    dev_ids = [d.id for d in devs]
+    sprint_ids = [s.id for s in sprints]
+    all_avail = {}
+    if dev_ids and sprint_ids:
+        avail_rows = db.query(models.Availability).filter(
+            models.Availability.developer_id.in_(dev_ids),
+            models.Availability.sprint_id.in_(sprint_ids),
+        ).all()
+        for av in avail_rows:
+            all_avail[(av.developer_id, av.sprint_id)] = av.leave_days or 0
+
     rows = []
     for d in devs:
         cells = []
         for s in sprints:
-            leave = (
-                db.query(models.Availability)
-                .filter(models.Availability.developer_id == d.id, models.Availability.sprint_id == s.id)
-                .first()
-            )
-            leave_days = leave.leave_days if leave else 0
+            leave_days = all_avail.get((d.id, s.id), 0)
             cap = net_capacity(d.base_capacity, leave_days)
             sprint_tasks = [t for t in d.tasks if t.sprint_id == s.id]
             if allowed is not None:

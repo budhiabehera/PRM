@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..deps import require_roles, get_current_user, get_user_project_ids
@@ -39,7 +39,11 @@ def list_resources(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    q = db.query(models.Developer)
+    q = db.query(models.Developer).options(
+        joinedload(models.Developer.home_module),
+        joinedload(models.Developer.tasks),
+        joinedload(models.Developer.projects),
+    )
     # Filter developers by user's project access
     allowed = get_user_project_ids(current_user)
     if allowed is not None:
@@ -61,7 +65,9 @@ def list_resources(
 def resource_stats(db: Session = Depends(get_db),
                    current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
+    dev_q = db.query(models.Developer).options(
+        joinedload(models.Developer.tasks),
+    ).filter(models.Developer.active == True)  # noqa: E712
     if allowed is not None:
         from ..models import developer_projects
         dev_q = dev_q.filter(models.Developer.id.in_(
@@ -81,7 +87,7 @@ def resource_stats(db: Session = Depends(get_db),
 
 @router.get("/{dev_id}")
 def get_resource(dev_id: int, db: Session = Depends(get_db)):
-    dev = db.query(models.Developer).get(dev_id)
+    dev = db.get(models.Developer, dev_id)
     if not dev:
         raise HTTPException(404, "Developer not found")
     return _dev_with_stats(dev, db)
@@ -109,7 +115,7 @@ def create_resource(payload: schemas.DeveloperCreate, db: Session = Depends(get_
 @router.put("/{dev_id}")
 def update_resource(dev_id: int, payload: schemas.DeveloperUpdate, db: Session = Depends(get_db),
                      _user=Depends(require_roles("Admin", "Manager"))):
-    dev = db.query(models.Developer).get(dev_id)
+    dev = db.get(models.Developer, dev_id)
     if not dev:
         raise HTTPException(404, "Developer not found")
     data = payload.model_dump(exclude_unset=True)
@@ -128,7 +134,7 @@ def update_resource(dev_id: int, payload: schemas.DeveloperUpdate, db: Session =
 @router.delete("/{dev_id}", status_code=204)
 def delete_resource(dev_id: int, db: Session = Depends(get_db),
                      _user=Depends(require_roles("Admin", "Manager"))):
-    dev = db.query(models.Developer).get(dev_id)
+    dev = db.get(models.Developer, dev_id)
     if not dev:
         raise HTTPException(404, "Developer not found")
     db.delete(dev)

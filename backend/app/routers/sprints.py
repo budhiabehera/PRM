@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..deps import require_roles, get_current_user, get_user_project_ids
@@ -20,14 +20,18 @@ def _sprint_with_stats(sprint: models.Sprint, db: Session):
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id == sprint.project_id)
         ))
     devs = dev_q.all()
+    # Batch-fetch all availability for this sprint (avoid per-developer queries)
+    dev_ids = [d.id for d in devs]
+    avail_map = {}
+    if dev_ids:
+        avail_rows = db.query(models.Availability).filter(
+            models.Availability.developer_id.in_(dev_ids),
+            models.Availability.sprint_id == sprint.id,
+        ).all()
+        avail_map = {a.developer_id: a.leave_days or 0 for a in avail_rows}
     total_capacity = 0
     for d in devs:
-        leave = (
-            db.query(models.Availability)
-            .filter(models.Availability.developer_id == d.id, models.Availability.sprint_id == sprint.id)
-            .first()
-        )
-        leave_days = leave.leave_days if leave else 0
+        leave_days = avail_map.get(d.id, 0)
         total_capacity += net_capacity(d.base_capacity, leave_days)
 
     duration = (sprint.end_date - sprint.start_date).days + 1
@@ -66,7 +70,10 @@ def _tasks_by_project(tasks):
 def list_sprints(db: Session = Depends(get_db),
                  current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    sq = db.query(models.Sprint)
+    sq = db.query(models.Sprint).options(
+        joinedload(models.Sprint.project),
+        joinedload(models.Sprint.tasks),
+    )
     # Filter sprints: show only sprints for user's projects or global sprints (no project)
     if allowed is not None:
         sq = sq.filter((models.Sprint.project_id.in_(allowed)) | (models.Sprint.project_id.is_(None)))
@@ -87,7 +94,7 @@ def list_sprints(db: Session = Depends(get_db),
 
 @router.get("/{sprint_id}")
 def get_sprint(sprint_id: int, db: Session = Depends(get_db)):
-    sprint = db.query(models.Sprint).get(sprint_id)
+    sprint = db.get(models.Sprint, sprint_id)
     if not sprint:
         raise HTTPException(404, "Sprint not found")
     return _sprint_with_stats(sprint, db)
@@ -108,7 +115,7 @@ def create_sprint(payload: schemas.SprintCreate, db: Session = Depends(get_db),
 @router.put("/{sprint_id}", response_model=schemas.Sprint)
 def update_sprint(sprint_id: int, payload: schemas.SprintUpdate, db: Session = Depends(get_db),
                    _user=Depends(require_roles("Admin", "Manager"))):
-    sprint = db.query(models.Sprint).get(sprint_id)
+    sprint = db.get(models.Sprint, sprint_id)
     if not sprint:
         raise HTTPException(404, "Sprint not found")
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -121,7 +128,7 @@ def update_sprint(sprint_id: int, payload: schemas.SprintUpdate, db: Session = D
 @router.delete("/{sprint_id}", status_code=204)
 def delete_sprint(sprint_id: int, db: Session = Depends(get_db),
                    _user=Depends(require_roles("Admin", "Manager"))):
-    sprint = db.query(models.Sprint).get(sprint_id)
+    sprint = db.get(models.Sprint, sprint_id)
     if not sprint:
         raise HTTPException(404, "Sprint not found")
     db.delete(sprint)

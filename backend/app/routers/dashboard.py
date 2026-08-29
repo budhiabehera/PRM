@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
@@ -10,8 +10,15 @@ router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int | None = None,
                   project_ids: list[int] | None = None, project_id: int | None = None):
-    """Base task query filtered by optional developer, sprint, and project access."""
-    q = db.query(models.Task)
+    """Base task query filtered by optional developer, sprint, and project access.
+    Eagerly loads related objects to avoid N+1 queries over the network."""
+    q = db.query(models.Task).options(
+        joinedload(models.Task.project),
+        joinedload(models.Task.work_type),
+        joinedload(models.Task.main_module),
+        joinedload(models.Task.sub_module),
+        joinedload(models.Task.developer),
+    )
     if project_ids is not None:
         q = q.filter(models.Task.project_id.in_(project_ids))
     if project_id:
@@ -21,7 +28,6 @@ def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int |
     if sprint_id:
         q = q.filter(models.Task.sprint_id == sprint_id)
     return q.all()
-
 
 @router.get("/kpis")
 def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
@@ -112,11 +118,20 @@ def module_breakdown(db: Session = Depends(get_db), developer_id: int | None = N
         b = buckets.setdefault(mname, {"module": mname, "developers": 0, "tasks": 0, "estimated_hours": 0})
         b["tasks"] += 1
         b["estimated_hours"] += t.estimated_hours
-    # Fill developer counts
-    for key in buckets:
-        mod = db.query(models.MainModule).filter(models.MainModule.name == key).first()
-        if mod:
-            buckets[key]["developers"] = db.query(models.Developer).filter(models.Developer.home_module_id == mod.id).count()
+    # Fill developer counts (batch query instead of per-module)
+    all_modules = {m.name: m.id for m in db.query(models.MainModule).all()}
+    if all_modules:
+        from sqlalchemy import func
+        dev_counts = dict(
+            db.query(models.Developer.home_module_id, func.count(models.Developer.id))
+            .filter(models.Developer.home_module_id.isnot(None))
+            .group_by(models.Developer.home_module_id)
+            .all()
+        )
+        for key in buckets:
+            mod_id = all_modules.get(key)
+            if mod_id:
+                buckets[key]["developers"] = dev_counts.get(mod_id, 0)
     return list(buckets.values())
 
 
@@ -146,7 +161,9 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
         sprint_q = sprint_q.filter((models.Sprint.project_id == project_id) | (models.Sprint.project_id.is_(None)))
     sprints = sprint_q.all()
     result = []
-    dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
+    dev_q = db.query(models.Developer).options(
+        joinedload(models.Developer.tasks),
+    ).filter(models.Developer.active == True)  # noqa: E712
     if developer_id:
         dev_q = dev_q.filter(models.Developer.id == developer_id)
     # Filter developers to user's projects

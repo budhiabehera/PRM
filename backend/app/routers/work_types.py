@@ -44,7 +44,7 @@ def create_work_type(payload: schemas.WorkTypeCreate, db: Session = Depends(get_
 @router.put("/{wt_id}", response_model=schemas.WorkType)
 def update_work_type(wt_id: int, payload: schemas.WorkTypeCreate, db: Session = Depends(get_db),
                       _user=Depends(require_roles("Admin", "Manager"))):
-    wt = db.query(models.WorkType).get(wt_id)
+    wt = db.get(models.WorkType, wt_id)
     if not wt:
         raise HTTPException(404, "Work type not found")
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -57,7 +57,7 @@ def update_work_type(wt_id: int, payload: schemas.WorkTypeCreate, db: Session = 
 @router.delete("/{wt_id}", status_code=204)
 def delete_work_type(wt_id: int, db: Session = Depends(get_db),
                       _user=Depends(require_roles("Admin", "Manager"))):
-    wt = db.query(models.WorkType).get(wt_id)
+    wt = db.get(models.WorkType, wt_id)
     if not wt:
         raise HTTPException(404, "Work type not found")
     db.delete(wt)

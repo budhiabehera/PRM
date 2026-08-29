@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
@@ -59,7 +59,13 @@ def salesforce_tasks_report(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    q = db.query(models.Task)
+    q = db.query(models.Task).options(
+        joinedload(models.Task.project),
+        joinedload(models.Task.main_module),
+        joinedload(models.Task.sub_module),
+        joinedload(models.Task.developer),
+        joinedload(models.Task.work_type),
+    )
     q, _ = _apply_project_access(q, current_user, db)
 
     if created_date:

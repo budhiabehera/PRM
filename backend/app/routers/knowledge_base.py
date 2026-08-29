@@ -5,7 +5,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
@@ -44,7 +44,7 @@ def _enrich_article(article: models.KBArticle) -> dict:
 
 def _get_blob_service(db: Session):
     """Return BlobServiceClient using connection string from IntegrationSettings."""
-    settings = db.query(models.IntegrationSettings).get(1)
+    settings = db.get(models.IntegrationSettings, 1)
     if not settings or not settings.azure_blob_connection_string:
         raise HTTPException(400, "Azure Blob connection string is not configured. Set it in Admin > Settings.")
     from azure.storage.blob import BlobServiceClient
@@ -77,7 +77,11 @@ def list_articles(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    q = db.query(models.KBArticle)
+    q = db.query(models.KBArticle).options(
+        joinedload(models.KBArticle.project),
+        joinedload(models.KBArticle.created_by),
+        joinedload(models.KBArticle.updated_by),
+    )
     # Get user's accessible project IDs
     from ..deps import get_user_project_ids
     user_project_ids = get_user_project_ids(current_user)  # None = Admin (sees all)
@@ -117,7 +121,7 @@ def get_article(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    article = db.query(models.KBArticle).get(article_id)
+    article = db.get(models.KBArticle, article_id)
     if not article:
         raise HTTPException(404, "Article not found")
     data = _enrich_article(article)
@@ -169,7 +173,7 @@ def update_article(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    article = db.query(models.KBArticle).get(article_id)
+    article = db.get(models.KBArticle, article_id)
     if not article:
         raise HTTPException(404, "Article not found")
     # Permission: creator or Admin/Manager
@@ -193,7 +197,7 @@ def delete_article(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    article = db.query(models.KBArticle).get(article_id)
+    article = db.get(models.KBArticle, article_id)
     if not article:
         raise HTTPException(404, "Article not found")
     # Allow delete if Admin/Manager OR the creator of the article
@@ -226,7 +230,7 @@ def upload_attachment(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    article = db.query(models.KBArticle).get(article_id)
+    article = db.get(models.KBArticle, article_id)
     if not article:
         raise HTTPException(404, "Article not found")
 

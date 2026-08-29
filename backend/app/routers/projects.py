@@ -34,7 +34,7 @@ def project_stats(db: Session = Depends(get_db)):
 
 @router.get("/{project_id}", response_model=schemas.Project)
 def get_project(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(models.Project).get(project_id)
+    project = db.get(models.Project, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
     return project
@@ -55,7 +55,7 @@ def create_project(payload: schemas.ProjectCreate, db: Session = Depends(get_db)
 @router.put("/{project_id}", response_model=schemas.Project)
 def update_project(project_id: int, payload: schemas.ProjectUpdate, db: Session = Depends(get_db),
                     _user=Depends(require_roles("Admin", "Manager"))):
-    project = db.query(models.Project).get(project_id)
+    project = db.get(models.Project, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -68,7 +68,7 @@ def update_project(project_id: int, payload: schemas.ProjectUpdate, db: Session 
 @router.delete("/{project_id}", status_code=204)
 def delete_project(project_id: int, db: Session = Depends(get_db),
                     _user=Depends(require_roles("Admin", "Manager"))):
-    project = db.query(models.Project).get(project_id)
+    project = db.get(models.Project, project_id)
     if not project:
         raise HTTPException(404, "Project not found")
     db.delete(project)

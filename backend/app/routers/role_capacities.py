@@ -68,7 +68,7 @@ def update_role_capacity(
     current_user: models.User = Depends(get_current_user),
 ):
     """Update a role-capacity mapping."""
-    rc = db.query(models.RoleCapacity).get(rc_id)
+    rc = db.get(models.RoleCapacity, rc_id)
     if not rc:
         raise HTTPException(404, "Role capacity not found")
 
@@ -102,7 +102,7 @@ def delete_role_capacity(
     current_user: models.User = Depends(get_current_user),
 ):
     """Delete a role-capacity mapping."""
-    rc = db.query(models.RoleCapacity).get(rc_id)
+    rc = db.get(models.RoleCapacity, rc_id)
     if not rc:
         raise HTTPException(404, "Role capacity not found")
     db.delete(rc)

@@ -13,7 +13,7 @@ export default function useDropdowns() {
   const user = useAuthStore((s) => s.user)
 
   useEffect(() => {
-    loadDropdowns()
+    loadDropdowns(refreshToken > 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken])
 

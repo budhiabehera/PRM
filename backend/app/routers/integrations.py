@@ -13,7 +13,7 @@ public_router = APIRouter(prefix="/api/integrations", tags=["Integrations (Publi
 
 
 def _get_or_create_settings(db: Session) -> models.IntegrationSettings:
-    settings = db.query(models.IntegrationSettings).get(1)
+    settings = db.get(models.IntegrationSettings, 1)
     if not settings:
         settings = models.IntegrationSettings(id=1)
         db.add(settings)
@@ -72,7 +72,7 @@ def notify_teams_for_task(
     from sqlalchemy.orm import joinedload
     task = db.query(models.Task).options(
         joinedload(models.Task.developer), joinedload(models.Task.project), joinedload(models.Task.sprint)
-    ).get(task_id)
+    ).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(404, "Task not found")
 
@@ -118,7 +118,7 @@ def sync_task_to_salesforce(
     db: Session = Depends(get_db),
     _user=Depends(require_roles("Admin", "Manager", "Lead")),
 ):
-    task = db.query(models.Task).get(task_id)
+    task = db.get(models.Task, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
     settings = _get_or_create_settings(db)

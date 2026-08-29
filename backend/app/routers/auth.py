@@ -95,7 +95,7 @@ def update_user(
     db: Session = Depends(get_db),
     _admin: models.User = Depends(require_roles("Admin")),
 ):
-    user = db.query(models.User).get(user_id)
+    user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
 
@@ -131,7 +131,7 @@ def delete_user(
 ):
     if user_id == admin.id:
         raise HTTPException(400, "You can't delete your own account")
-    user = db.query(models.User).get(user_id)
+    user = db.get(models.User, user_id)
     if not user:
         raise HTTPException(404, "User not found")
     db.delete(user)

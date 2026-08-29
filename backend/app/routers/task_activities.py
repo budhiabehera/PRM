@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import datetime, timezone, timedelta
 from .. import models, schemas
@@ -55,7 +55,10 @@ def _serialize_activity(a):
 def list_activities(task_id: int, db: Session = Depends(get_db)):
     """Get all activity entries for a task, ordered by date descending."""
     activities = (
-        db.query(models.TaskActivity)
+        db.query(models.TaskActivity).options(
+            joinedload(models.TaskActivity.developer),
+            joinedload(models.TaskActivity.created_by),
+        )
         .filter(models.TaskActivity.task_id == task_id)
         .order_by(models.TaskActivity.activity_date.desc(), models.TaskActivity.id.desc())
         .all()
@@ -70,7 +73,7 @@ def create_activity(
     current_user: models.User = Depends(get_current_user),
 ):
     """Add a daily activity entry for a task."""
-    task = db.query(models.Task).get(payload.task_id)
+    task = db.get(models.Task, payload.task_id)
     if not task:
         raise HTTPException(404, "Task not found")
 
@@ -104,11 +107,11 @@ def update_activity(
     current_user: models.User = Depends(get_current_user),
 ):
     """Update an existing activity entry."""
-    activity = db.query(models.TaskActivity).get(activity_id)
+    activity = db.get(models.TaskActivity, activity_id)
     if not activity:
         raise HTTPException(404, "Activity not found")
 
-    task = db.query(models.Task).get(activity.task_id)
+    task = db.get(models.Task, activity.task_id)
 
     if payload.activity_date is not None:
         activity.activity_date = payload.activity_date
@@ -135,10 +138,10 @@ def delete_activity(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    activity = db.query(models.TaskActivity).get(activity_id)
+    activity = db.get(models.TaskActivity, activity_id)
     if not activity:
         raise HTTPException(404, "Activity not found")
-    task = db.query(models.Task).get(activity.task_id)
+    task = db.get(models.Task, activity.task_id)
     db.delete(activity)
     db.flush()
 

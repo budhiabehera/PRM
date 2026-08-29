@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import date, timedelta
 from .. import models, schemas
 from ..database import get_db
@@ -52,7 +52,10 @@ def list_availability(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    q = db.query(models.Availability)
+    q = db.query(models.Availability).options(
+        joinedload(models.Availability.developer),
+        joinedload(models.Availability.sprint),
+    )
     # Filter to developers within user's project access
     allowed = get_user_project_ids(current_user)
     if allowed is not None:
@@ -123,7 +126,7 @@ def upsert_availability(
 @router.delete("/{availability_id}", status_code=204)
 def delete_availability(availability_id: int, db: Session = Depends(get_db),
                          current_user: models.User = Depends(get_current_user)):
-    record = db.query(models.Availability).get(availability_id)
+    record = db.get(models.Availability, availability_id)
     if not record:
         raise HTTPException(404, "Leave record not found")
     # Developers can only delete their own leave records

@@ -79,7 +79,7 @@ def _notify_teams_async(task_id: int, assigned_by_name: str):
             if not task:
                 print(f"[TEAMS NOTIFY] Task {task_id} not found, skipping.")
                 return
-            settings = db.query(models.IntegrationSettings).get(1)
+            settings = db.get(models.IntegrationSettings, 1)
             webhook_url = (settings.teams_webhook_url if settings else None)
             if not webhook_url:
                 print(f"[TEAMS NOTIFY] No teams_webhook_url configured in IntegrationSettings. Skipping.")
@@ -124,7 +124,7 @@ def _send_task_email_async(task_id: int, assigned_by_name: str):
                 return
             recipient_email = developer.user_account.email
 
-            settings = db.query(models.IntegrationSettings).get(1)
+            settings = db.get(models.IntegrationSettings, 1)
             if not settings or not settings.smtp_enabled or not settings.smtp_host:
                 return
 
@@ -170,7 +170,13 @@ def list_tasks(
     current_user: models.User = Depends(get_current_user),
 ):
     q = db.query(models.Task).options(
-        joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on)
+        joinedload(models.Task.project),
+        joinedload(models.Task.main_module),
+        joinedload(models.Task.sub_module),
+        joinedload(models.Task.developer),
+        joinedload(models.Task.work_type),
+        joinedload(models.Task.sprint),
+        joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on),
     )
     # Enforce project-based access
     from ..deps import get_user_project_ids
@@ -200,7 +206,13 @@ def list_tasks(
 @router.get("/{task_id}", response_model=schemas.TaskDetail)
 def get_task(task_id: int, db: Session = Depends(get_db)):
     t = db.query(models.Task).filter(models.Task.id == task_id).options(
-        joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on)
+        joinedload(models.Task.project),
+        joinedload(models.Task.main_module),
+        joinedload(models.Task.sub_module),
+        joinedload(models.Task.developer),
+        joinedload(models.Task.work_type),
+        joinedload(models.Task.sprint),
+        joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on),
     ).first()
     if not t:
         raise HTTPException(404, "Task not found")
@@ -221,7 +233,7 @@ def create_task(
         payload.developer_id = current_user.developer_id
     data = payload.model_dump()
     task_code = data.pop("task_code", None)
-    sprint = db.query(models.Sprint).get(data["sprint_id"]) if data.get("sprint_id") else None
+    sprint = db.get(models.Sprint, data["sprint_id"]) if data.get("sprint_id") else None
     if not task_code:
         task_code = _generate_task_code(db, sprint)
     task = models.Task(task_code=task_code, **data)
@@ -238,7 +250,7 @@ def create_task(
 
     # In-app notification: notify assigned developer
     if task.developer_id:
-        developer = db.query(models.Developer).get(task.developer_id)
+        developer = db.get(models.Developer, task.developer_id)
         if developer and developer.user_account:
             create_notification(
                 db=db,
@@ -259,7 +271,7 @@ def update_task(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    task = db.query(models.Task).get(task_id)
+    task = db.get(models.Task, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
     if not can_edit_task(current_user, task):
@@ -290,7 +302,7 @@ def update_task(
     new_status = task.status
     if "status" in update_data and old_status != new_status:
         if task.developer_id:
-            developer = db.query(models.Developer).get(task.developer_id)
+            developer = db.get(models.Developer, task.developer_id)
             if developer and developer.user_account:
                 create_notification(
                     db=db,
@@ -303,7 +315,7 @@ def update_task(
 
     # In-app notification: reassignment
     if "developer_id" in update_data and old_developer_id != task.developer_id and task.developer_id:
-        new_developer = db.query(models.Developer).get(task.developer_id)
+        new_developer = db.get(models.Developer, task.developer_id)
         if new_developer and new_developer.user_account:
             create_notification(
                 db=db,
@@ -323,7 +335,7 @@ def delete_task(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    task = db.query(models.Task).get(task_id)
+    task = db.get(models.Task, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
     if not can_delete_task(current_user):
@@ -344,7 +356,7 @@ def list_task_dependencies(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    task = db.query(models.Task).get(task_id)
+    task = db.get(models.Task, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
     deps = (
@@ -374,12 +386,12 @@ def add_task_dependency(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    task = db.query(models.Task).get(task_id)
+    task = db.get(models.Task, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
     if payload.depends_on_id == task_id:
         raise HTTPException(400, "A task cannot depend on itself")
-    blocking = db.query(models.Task).get(payload.depends_on_id)
+    blocking = db.get(models.Task, payload.depends_on_id)
     if not blocking:
         raise HTTPException(404, "Depends-on task not found")
     # Check duplicate

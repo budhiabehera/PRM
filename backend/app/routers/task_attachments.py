@@ -73,7 +73,7 @@ async def upload_attachment(
     current_user: models.User = Depends(get_current_user),
 ):
     """Upload a file attachment for a task to Azure Blob Storage."""
-    task = db.query(models.Task).get(task_id)
+    task = db.get(models.Task, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
 
@@ -117,7 +117,7 @@ def download_attachment(
     current_user: models.User = Depends(get_current_user),
 ):
     """Download (view) a file attachment from Azure Blob Storage."""
-    attachment = db.query(models.TaskAttachment).get(attachment_id)
+    attachment = db.get(models.TaskAttachment, attachment_id)
     if not attachment:
         raise HTTPException(404, "Attachment not found")
 
@@ -149,7 +149,7 @@ async def update_attachment(
     current_user: models.User = Depends(get_current_user),
 ):
     """Edit an attachment — rename or replace the file."""
-    attachment = db.query(models.TaskAttachment).get(attachment_id)
+    attachment = db.get(models.TaskAttachment, attachment_id)
     if not attachment:
         raise HTTPException(404, "Attachment not found")
 
@@ -196,7 +196,7 @@ def delete_attachment(
     current_user: models.User = Depends(get_current_user),
 ):
     """Delete an attachment from Azure Blob Storage and the database."""
-    attachment = db.query(models.TaskAttachment).get(attachment_id)
+    attachment = db.get(models.TaskAttachment, attachment_id)
     if not attachment:
         raise HTTPException(404, "Attachment not found")
 

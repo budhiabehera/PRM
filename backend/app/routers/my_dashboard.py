@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import date, timedelta
 
 from .. import models
@@ -28,7 +28,9 @@ def my_summary(db: Session = Depends(get_db), current_user: models.User = Depend
     seven_days = today + timedelta(days=7)
 
     # All tasks assigned to this developer
-    tasks = db.query(models.Task).filter(models.Task.developer_id == developer_id).all()
+    tasks = db.query(models.Task).options(
+        joinedload(models.Task.project),
+    ).filter(models.Task.developer_id == developer_id).all()
 
     # --- Summary Cards ---
     total = len(tasks)
@@ -73,7 +75,11 @@ def my_summary(db: Session = Depends(get_db), current_user: models.User = Depend
     # --- Recent Activity (last 5 activity entries for user's tasks) ---
     task_ids = [t.id for t in tasks]
     recent_activities = (
-        db.query(models.TaskActivity)
+        db.query(models.TaskActivity).options(
+            joinedload(models.TaskActivity.task),
+            joinedload(models.TaskActivity.developer),
+            joinedload(models.TaskActivity.created_by),
+        )
         .filter(models.TaskActivity.task_id.in_(task_ids))
         .order_by(models.TaskActivity.activity_date.desc(), models.TaskActivity.id.desc())
         .limit(5)

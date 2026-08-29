@@ -10,6 +10,12 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) config.headers.Authorization = `Bearer ${token}`
+  // Strip empty/null/undefined params to avoid 422 errors on typed endpoints
+  if (config.params) {
+    config.params = Object.fromEntries(
+      Object.entries(config.params).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    )
+  }
   return config
 })
 

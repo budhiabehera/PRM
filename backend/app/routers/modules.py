@@ -86,7 +86,7 @@ def update_main_module(module_id: int, payload: schemas.MainModuleCreate,
                         project_id: int | None = None,
                         db: Session = Depends(get_db),
                         _user=Depends(require_roles("Admin", "Manager"))):
-    module = db.query(models.MainModule).get(module_id)
+    module = db.get(models.MainModule, module_id)
     if not module:
         raise HTTPException(404, "Main module not found")
     module.name = payload.name
@@ -101,7 +101,7 @@ def update_main_module(module_id: int, payload: schemas.MainModuleCreate,
 @router.delete("/{module_id}", status_code=204)
 def delete_main_module(module_id: int, db: Session = Depends(get_db),
                         _user=Depends(require_roles("Admin", "Manager"))):
-    module = db.query(models.MainModule).get(module_id)
+    module = db.get(models.MainModule, module_id)
     if not module:
         raise HTTPException(404, "Main module not found")
     db.delete(module)
@@ -133,7 +133,7 @@ def create_sub_module(payload: schemas.SubModuleCreate, db: Session = Depends(ge
 @sub_router.put("/{sub_id}", response_model=schemas.SubModule)
 def update_sub_module(sub_id: int, payload: schemas.SubModuleCreate, db: Session = Depends(get_db),
                        _user=Depends(require_roles("Admin", "Manager"))):
-    sub = db.query(models.SubModule).get(sub_id)
+    sub = db.get(models.SubModule, sub_id)
     if not sub:
         raise HTTPException(404, "Sub module not found")
     for key, value in payload.model_dump(exclude_unset=True).items():
@@ -146,7 +146,7 @@ def update_sub_module(sub_id: int, payload: schemas.SubModuleCreate, db: Session
 @sub_router.delete("/{sub_id}", status_code=204)
 def delete_sub_module(sub_id: int, db: Session = Depends(get_db),
                        _user=Depends(require_roles("Admin", "Manager"))):
-    sub = db.query(models.SubModule).get(sub_id)
+    sub = db.get(models.SubModule, sub_id)
     if not sub:
         raise HTTPException(404, "Sub module not found")
     db.delete(sub)

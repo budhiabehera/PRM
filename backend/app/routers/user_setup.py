@@ -61,7 +61,7 @@ def get_next_code(db: Session = Depends(get_db)):
 
 @router.get("/{dev_id}")
 def get_user(dev_id: int, db: Session = Depends(get_db)):
-    dev = db.query(models.Developer).get(dev_id)
+    dev = db.get(models.Developer, dev_id)
     if not dev:
         raise HTTPException(404, "User not found")
     return _serialize(dev, db)
@@ -130,30 +130,34 @@ def create_user(
     log_audit(db, _admin, "CREATE", "User", dev.id, payload.full_name)
 
     # Send welcome email in background (non-blocking)
-    settings = db.query(models.IntegrationSettings).get(1)
+    settings = db.get(models.IntegrationSettings, 1)
     email_sent = False
     print(f"[EMAIL DEBUG] settings={settings is not None}, smtp_enabled={getattr(settings, 'smtp_enabled', None)}, smtp_host={getattr(settings, 'smtp_host', None)}, email={payload.email}")
     if settings and settings.smtp_enabled and settings.smtp_host and payload.email:
+        # Extract all settings before thread (session closes after response)
+        _email_kwargs = {
+            "to_email": payload.email,
+            "full_name": payload.full_name,
+            "username": payload.username,
+            "role": payload.role,
+            "smtp_host": settings.smtp_host,
+            "smtp_port": settings.smtp_port or 587,
+            "smtp_username": settings.smtp_username,
+            "from_email": settings.smtp_from_email or settings.smtp_username,
+            "from_name": settings.smtp_from_name or "PRM System",
+            "use_tls": settings.smtp_use_tls if settings.smtp_use_tls is not None else True,
+            "login_url": settings.task_link_base_url.rstrip("/") if settings.task_link_base_url else "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
+            "company_logo": settings.company_logo_url or "",
+        }
+        _smtp_pw = settings.smtp_password or ""
+        _raw_pw = raw_pw
+
         def _send():
             pw_field = "pass" + "word"
             smtp_pw_field = "smtp_" + pw_field
-            kwargs = {
-                "to_email": payload.email,
-                "full_name": payload.full_name,
-                "username": payload.username,
-                pw_field: raw_pw,
-                "role": payload.role,
-                "smtp_host": settings.smtp_host,
-                "smtp_port": settings.smtp_port or 587,
-                "smtp_username": settings.smtp_username,
-                smtp_pw_field: getattr(settings, smtp_pw_field, ""),
-                "from_email": settings.smtp_from_email or settings.smtp_username,
-                "from_name": settings.smtp_from_name or "PRM System",
-                "use_tls": settings.smtp_use_tls if settings.smtp_use_tls is not None else True,
-                "login_url": settings.task_link_base_url.rstrip("/") if settings.task_link_base_url else "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
-                "company_logo": settings.company_logo_url or "",
-            }
-            result = send_welcome_email(**kwargs)
+            _email_kwargs[pw_field] = _raw_pw
+            _email_kwargs[smtp_pw_field] = _smtp_pw
+            result = send_welcome_email(**_email_kwargs)
             print(f"[EMAIL RESULT] {result}")
         threading.Thread(target=_send, daemon=True).start()
         email_sent = True
@@ -172,7 +176,7 @@ def update_user(
     _admin=Depends(require_roles("Admin", "Manager")),
 ):
     """Update both Developer and linked User records."""
-    dev = db.query(models.Developer).get(dev_id)
+    dev = db.get(models.Developer, dev_id)
     if not dev:
         raise HTTPException(404, "User not found")
     # Capture old values for audit
@@ -235,7 +239,7 @@ def delete_user(
     admin=Depends(require_roles("Admin", "Manager")),
 ):
     """Delete both Developer record and linked User account."""
-    dev = db.query(models.Developer).get(dev_id)
+    dev = db.get(models.Developer, dev_id)
     if not dev:
         raise HTTPException(404, "User not found")
 
@@ -259,7 +263,7 @@ def resend_welcome_email(
     _admin=Depends(require_roles("Admin", "Manager")),
 ):
     """Resend welcome email to a user with a new random password."""
-    dev = db.query(models.Developer).get(dev_id)
+    dev = db.get(models.Developer, dev_id)
     if not dev:
         raise HTTPException(404, "User not found")
 
@@ -276,30 +280,34 @@ def resend_welcome_email(
     db.commit()
 
     # Send welcome email
-    settings = db.query(models.IntegrationSettings).get(1)
+    settings = db.get(models.IntegrationSettings, 1)
     if not settings or not settings.smtp_enabled or not settings.smtp_host:
         raise HTTPException(400, "SMTP is not configured. Go to Admin > Settings to set up email.")
+
+    # Extract all values BEFORE the thread starts (session will be closed after response)
+    email_kwargs = {
+        "to_email": user_account.email,
+        "full_name": user_account.full_name,
+        "username": user_account.username,
+        "role": dev.role,
+        "smtp_host": settings.smtp_host,
+        "smtp_port": settings.smtp_port or 587,
+        "smtp_username": settings.smtp_username,
+        "from_email": settings.smtp_from_email or settings.smtp_username,
+        "from_name": settings.smtp_from_name or "PRM System",
+        "use_tls": settings.smtp_use_tls if settings.smtp_use_tls is not None else True,
+        "login_url": settings.task_link_base_url.rstrip("/") if settings.task_link_base_url else "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
+        "company_logo": settings.company_logo_url or "",
+    }
+    _smtp_pw = settings.smtp_password or ""
+    _new_pw = new_pw
 
     def _send():
         pw_field = "pass" + "word"
         smtp_pw_field = "smtp_" + pw_field
-        kwargs = {
-            "to_email": user_account.email,
-            "full_name": user_account.full_name,
-            "username": user_account.username,
-            pw_field: new_pw,
-            "role": dev.role,
-            "smtp_host": settings.smtp_host,
-            "smtp_port": settings.smtp_port or 587,
-            "smtp_username": settings.smtp_username,
-            smtp_pw_field: getattr(settings, smtp_pw_field, ""),
-            "from_email": settings.smtp_from_email or settings.smtp_username,
-            "from_name": settings.smtp_from_name or "PRM System",
-            "use_tls": settings.smtp_use_tls if settings.smtp_use_tls is not None else True,
-            "login_url": settings.task_link_base_url.rstrip("/") if settings.task_link_base_url else "https://prm-h9cye9gda4g0fher.southeastasia-01.azurewebsites.net",
-            "company_logo": settings.company_logo_url or "",
-        }
-        result = send_welcome_email(**kwargs)
+        email_kwargs[pw_field] = _new_pw
+        email_kwargs[smtp_pw_field] = _smtp_pw
+        result = send_welcome_email(**email_kwargs)
         print(f"[RESEND EMAIL RESULT] {result}")
     threading.Thread(target=_send, daemon=True).start()
 

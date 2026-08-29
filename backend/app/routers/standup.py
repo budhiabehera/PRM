@@ -261,23 +261,22 @@ def get_team_standup(
     db: Session = Depends(get_db),
 ):
     """Return standup summaries for all developers in the user's projects.
-    Admins see all developers. Manager/Lead see developers in their assigned projects."""
+    Admins see all developers. Manager/Lead see developers in their assigned projects.
+    OPTIMIZED: batch queries instead of per-developer to avoid N+1 over network."""
     target_date = datetime.strptime(activity_date, "%Y-%m-%d").date() if activity_date else None
+    yesterday = target_date or _yesterday()
 
+    # 1. Get developers list
     if current_user.role == "Admin":
         developers = db.query(models.Developer).filter(models.Developer.active == True).all()
     else:
-        # Get projects the user has access to
         project_ids = [p.id for p in current_user.projects]
         if not project_ids and current_user.developer_id:
             dev = current_user.developer
             if dev:
                 project_ids = [p.id for p in dev.projects]
-
         if not project_ids:
             return []
-
-        # Get developers assigned to those projects
         developers = (
             db.query(models.Developer)
             .join(models.developer_projects)
@@ -289,9 +288,138 @@ def get_team_standup(
             .all()
         )
 
+    dev_ids = [d.id for d in developers]
+    if not dev_ids:
+        return []
+
+    # Build dev_id -> user_id mapping
+    dev_user_map = {}
+    users = db.query(models.User).filter(models.User.developer_id.in_(dev_ids)).all()
+    for u in users:
+        dev_user_map[u.developer_id] = u.id
+
+    # 2. BATCH: all activities for yesterday for ALL developers at once
+    activity_conditions = [models.TaskActivity.developer_id.in_(dev_ids)]
+    user_ids = list(dev_user_map.values())
+    if user_ids:
+        activity_conditions.append(models.TaskActivity.created_by_id.in_(user_ids))
+    # Also include activities on tasks assigned to these developers
+    dev_task_subq = db.query(models.Task.id).filter(models.Task.developer_id.in_(dev_ids)).subquery()
+    activity_conditions.append(models.TaskActivity.task_id.in_(db.query(dev_task_subq.c.id)))
+
+    all_activities = (
+        db.query(models.TaskActivity)
+        .options(joinedload(models.TaskActivity.task))
+        .filter(
+            or_(*activity_conditions),
+            models.TaskActivity.activity_date == yesterday,
+        )
+        .order_by(models.TaskActivity.id.desc())
+        .all()
+    )
+
+    # 3. BATCH: all in-progress tasks for ALL developers
+    all_in_progress = (
+        db.query(models.Task)
+        .filter(
+            models.Task.developer_id.in_(dev_ids),
+            models.Task.status.in_(["In Progress", "Inprogress"]),
+        )
+        .order_by(models.Task.priority.desc(), models.Task.end_date.asc())
+        .all()
+    )
+
+    # 4. BATCH: all on-hold tasks for ALL developers
+    all_on_hold = (
+        db.query(models.Task)
+        .filter(
+            models.Task.developer_id.in_(dev_ids),
+            models.Task.status.in_(["On Hold", "OnHold"]),
+        )
+        .all()
+    )
+
+    # Build task_id -> developer_id mapping for activities
+    all_dev_tasks = db.query(models.Task.id, models.Task.developer_id).filter(
+        models.Task.developer_id.in_(dev_ids)
+    ).all()
+    task_to_dev = {t.id: t.developer_id for t in all_dev_tasks}
+
+    # Build user_id -> dev_id reverse mapping
+    user_to_dev = {v: k for k, v in dev_user_map.items()}
+
+    # Group activities by developer
+    from collections import defaultdict
+    activities_by_dev = defaultdict(list)
+    for a in all_activities:
+        # Determine which developer this activity belongs to
+        assigned_dev = None
+        if a.developer_id and a.developer_id in dev_ids:
+            assigned_dev = a.developer_id
+        elif a.task_id and a.task_id in task_to_dev:
+            assigned_dev = task_to_dev[a.task_id]
+        elif a.created_by_id and a.created_by_id in user_to_dev:
+            assigned_dev = user_to_dev[a.created_by_id]
+        if assigned_dev:
+            activities_by_dev[assigned_dev].append(a)
+
+    # Group in-progress tasks by developer
+    in_progress_by_dev = defaultdict(list)
+    for t in all_in_progress:
+        in_progress_by_dev[t.developer_id].append(t)
+
+    # Group on-hold tasks by developer
+    on_hold_by_dev = defaultdict(list)
+    for t in all_on_hold:
+        on_hold_by_dev[t.developer_id].append(t)
+
+    # 5. Assemble summaries
     summaries = []
     for dev in developers:
-        summaries.append(_build_developer_summary(dev.id, db, target_date))
+        yesterday_items = []
+        for a in activities_by_dev.get(dev.id, []):
+            task = a.task
+            yesterday_items.append({
+                "activity_id": a.id,
+                "task_id": a.task_id,
+                "task_code": task.task_code if task else None,
+                "task_description": task.description if task else None,
+                "subject": task.subject if task else None,
+                "notes": a.description,
+                "hours_spent": a.hours_spent,
+                "percentage": a.percentage,
+            })
+
+        today_items = []
+        for t in in_progress_by_dev.get(dev.id, []):
+            today_items.append({
+                "task_id": t.id,
+                "task_code": t.task_code,
+                "description": t.description,
+                "subject": t.subject,
+                "priority": t.priority,
+                "end_date": str(t.end_date) if t.end_date else None,
+                "percentage": t.percentage,
+            })
+
+        blockers = []
+        for t in on_hold_by_dev.get(dev.id, []):
+            blockers.append({
+                "task_id": t.id,
+                "task_code": t.task_code,
+                "description": t.description,
+                "subject": t.subject,
+                "status": t.status,
+                "reason": "On Hold",
+            })
+
+        summaries.append({
+            "developer_id": dev.id,
+            "developer_name": dev.name,
+            "yesterday": yesterday_items,
+            "today": today_items,
+            "blockers": blockers,
+        })
 
     return summaries
 

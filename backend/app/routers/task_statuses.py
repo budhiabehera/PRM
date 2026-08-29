@@ -52,7 +52,7 @@ def update_task_status(
     current_user: models.User = Depends(get_current_user),
 ):
     """Update a task status."""
-    status = db.query(models.TaskStatus).get(status_id)
+    status = db.get(models.TaskStatus, status_id)
     if not status:
         raise HTTPException(404, "Status not found")
     # Check duplicate name
@@ -77,7 +77,7 @@ def delete_task_status(
     current_user: models.User = Depends(get_current_user),
 ):
     """Delete a task status."""
-    status = db.query(models.TaskStatus).get(status_id)
+    status = db.get(models.TaskStatus, status_id)
     if not status:
         raise HTTPException(404, "Status not found")
     db.delete(status)

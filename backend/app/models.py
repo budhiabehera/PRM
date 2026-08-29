@@ -14,23 +14,23 @@ def _now_ist():
 
 # Many-to-many: Users <-> Projects
 user_projects = Table(
-    "user_projects", Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
-    Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+    "PRM_user_projects", Base.metadata,
+    Column("user_id", Integer, ForeignKey("PRM_users.id", ondelete="CASCADE"), primary_key=True),
+    Column("project_id", Integer, ForeignKey("PRM_projects.id", ondelete="CASCADE"), primary_key=True),
 )
 
 # Many-to-many: Developers <-> Projects
 developer_projects = Table(
-    "developer_projects", Base.metadata,
-    Column("developer_id", Integer, ForeignKey("developers.id", ondelete="CASCADE"), primary_key=True),
-    Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+    "PRM_developer_projects", Base.metadata,
+    Column("developer_id", Integer, ForeignKey("PRM_developers.id", ondelete="CASCADE"), primary_key=True),
+    Column("project_id", Integer, ForeignKey("PRM_projects.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
 class IntegrationSettings(Base):
     """Singleton row (id=1) holding external integration configuration.
     Editable only by Admins via Admin > Settings."""
-    __tablename__ = "integration_settings"
+    __tablename__ = "PRM_integration_settings"
 
     id = Column(Integer, primary_key=True, index=True)
 
@@ -64,7 +64,7 @@ class User(Base):
     """Login account. Roles: Admin, Manager, Lead, Developer.
     Optionally linked to a Developer record (so a Lead/Developer's task
     permissions can be scoped to "their own" tasks/module)."""
-    __tablename__ = "users"
+    __tablename__ = "PRM_users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
@@ -72,8 +72,8 @@ class User(Base):
     full_name = Column(String(150), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="Developer")  # Admin, Manager, Lead, Developer
-    developer_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
-    active = Column(Boolean, default=True)
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
+    active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     developer = relationship("Developer", back_populates="user_account")
@@ -82,10 +82,10 @@ class User(Base):
 
 class UserPreference(Base):
     """Key-value preferences per user (e.g., default_project, default_sprint, theme)."""
-    __tablename__ = "user_preferences"
+    __tablename__ = "PRM_user_preferences"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=False)
     key = Column(String(100), nullable=False)
     value = Column(Text, nullable=True)  # JSON-encoded value
     created_at = Column(DateTime(timezone=True), default=_now_ist)
@@ -98,10 +98,10 @@ class UserPreference(Base):
 
 class FilterPreset(Base):
     """Named saved filter views per user per page."""
-    __tablename__ = "filter_presets"
+    __tablename__ = "PRM_filter_presets"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=False)
     name = Column(String(100), nullable=False)
     page = Column(String(50), nullable=False)  # 'dashboard', 'tasks', 'utilization'
     filters = Column(Text, nullable=False)  # JSON-encoded filter state
@@ -113,12 +113,12 @@ class FilterPreset(Base):
 
 
 class MainModule(Base):
-    __tablename__ = "main_modules"
+    __tablename__ = "PRM_main_modules"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(String(255), default="")
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True, index=True)
 
     sub_modules = relationship("SubModule", back_populates="main_module", cascade="all, delete-orphan")
     project = relationship("Project", back_populates="modules", foreign_keys=[project_id])
@@ -127,23 +127,23 @@ class MainModule(Base):
 
 
 class SubModule(Base):
-    __tablename__ = "sub_modules"
+    __tablename__ = "PRM_sub_modules"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
-    main_module_id = Column(Integer, ForeignKey("main_modules.id"), nullable=False)
+    main_module_id = Column(Integer, ForeignKey("PRM_main_modules.id"), nullable=False)
 
     main_module = relationship("MainModule", back_populates="sub_modules")
     tasks = relationship("Task", back_populates="sub_module")
 
 
 class Project(Base):
-    __tablename__ = "projects"
+    __tablename__ = "PRM_projects"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     code = Column(String(50), unique=True, nullable=False)
-    main_module_id = Column(Integer, ForeignKey("main_modules.id"), nullable=True)
+    main_module_id = Column(Integer, ForeignKey("PRM_main_modules.id"), nullable=True)
     status = Column(String(30), default="Active")  # Active, Inactive, Planning, Completed
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -154,17 +154,17 @@ class Project(Base):
 
 
 class Developer(Base):
-    __tablename__ = "developers"
+    __tablename__ = "PRM_developers"
 
     id = Column(Integer, primary_key=True, index=True)
     dev_code = Column(String(20), unique=True, nullable=False)  # e.g. DEV001
     name = Column(String(150), nullable=False)
     role = Column(String(50), default="Developer")  # Manager, Lead - Manager, Lead, Developer
-    home_module_id = Column(Integer, ForeignKey("main_modules.id"), nullable=True)
+    home_module_id = Column(Integer, ForeignKey("PRM_main_modules.id"), nullable=True, index=True)
     skill = Column(String(50), default="Backend")  # Backend, Frontend, Mobile
     base_capacity = Column(Float, default=192)  # hrs/month
     active = Column(Boolean, default=True)
-    reporting_to_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
+    reporting_to_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True)
 
     home_module = relationship("MainModule", back_populates="developers")
     projects = relationship("Project", secondary=developer_projects, backref="assigned_developers")
@@ -175,7 +175,7 @@ class Developer(Base):
 
 
 class Skill(Base):
-    __tablename__ = "skills"
+    __tablename__ = "PRM_skills"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
@@ -183,7 +183,7 @@ class Skill(Base):
 
 
 class WorkType(Base):
-    __tablename__ = "work_types"
+    __tablename__ = "PRM_work_types"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
@@ -194,21 +194,21 @@ class WorkType(Base):
 
 
 class Sprint(Base):
-    __tablename__ = "sprints"
+    __tablename__ = "PRM_sprints"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(30), unique=True, nullable=False)  # e.g. Jul-2026
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     status = Column(String(30), default="Not Started")  # Not Started, Planned, Active, Completed
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True)
 
     project = relationship("Project")
     tasks = relationship("Task", back_populates="sprint")
 
 
 class Task(Base):
-    __tablename__ = "tasks"
+    __tablename__ = "PRM_tasks"
 
     id = Column(Integer, primary_key=True, index=True)
     task_code = Column(String(20), unique=True, nullable=False)  # e.g. T09001
@@ -218,12 +218,12 @@ class Task(Base):
     property_client = Column(String(150), default="")
     description = Column(Text, nullable=False)
 
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
-    main_module_id = Column(Integer, ForeignKey("main_modules.id"), nullable=True)
-    sub_module_id = Column(Integer, ForeignKey("sub_modules.id"), nullable=True)
-    developer_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
-    work_type_id = Column(Integer, ForeignKey("work_types.id"), nullable=True)
-    sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True, index=True)
+    main_module_id = Column(Integer, ForeignKey("PRM_main_modules.id"), nullable=True)
+    sub_module_id = Column(Integer, ForeignKey("PRM_sub_modules.id"), nullable=True)
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
+    work_type_id = Column(Integer, ForeignKey("PRM_work_types.id"), nullable=True)
+    sprint_id = Column(Integer, ForeignKey("PRM_sprints.id"), nullable=True, index=True)
 
     priority = Column(String(20), default="Medium")  # Critical, High, Medium, Low
     status = Column(String(30), default="Not Started")
@@ -270,11 +270,11 @@ class Task(Base):
 
 class Availability(Base):
     """Leave / reduced-capacity records for a developer in a given sprint/month."""
-    __tablename__ = "availabilities"
+    __tablename__ = "PRM_availabilities"
 
     id = Column(Integer, primary_key=True, index=True)
-    developer_id = Column(Integer, ForeignKey("developers.id"), nullable=False)
-    sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=False)
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=False)
+    sprint_id = Column(Integer, ForeignKey("PRM_sprints.id"), nullable=False)
     leave_days = Column(Float, default=0)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -286,17 +286,17 @@ class Availability(Base):
 
 class TaskActivity(Base):
     """Daily activity log entries for a task — captures what was done each day."""
-    __tablename__ = "task_activities"
+    __tablename__ = "PRM_task_activities"
 
     id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
-    developer_id = Column(Integer, ForeignKey("developers.id"), nullable=True)
+    task_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=False, index=True)
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True)
     activity_date = Column(Date, nullable=False)
     description = Column(Text, nullable=False)
     hours_spent = Column(Float, default=0)
     percentage = Column(Float, default=0)  # task % completion at this point
     created_at = Column(DateTime(timezone=True), default=_now_ist)
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=True)
 
     task = relationship("Task", backref="activities")
     developer = relationship("Developer")
@@ -305,15 +305,15 @@ class TaskActivity(Base):
 
 class TaskAttachment(Base):
     """File attachments stored in Azure Blob Storage for a task."""
-    __tablename__ = "task_attachments"
+    __tablename__ = "PRM_task_attachments"
 
     id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=False)
     file_name = Column(String(255), nullable=False)
     blob_name = Column(String(500), nullable=False)  # full blob path in container
     file_size = Column(Integer, default=0)  # bytes
     content_type = Column(String(100), default="application/octet-stream")
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_ist)
     last_modified = Column(DateTime(timezone=True), default=_now_ist)
 
@@ -324,14 +324,14 @@ class TaskAttachment(Base):
 class Holiday(Base):
     """Company holidays. Weekends (Sat/Sun) are implicit; this stores
     additional declared holidays (e.g. national holidays, company days off)."""
-    __tablename__ = "holidays"
+    __tablename__ = "PRM_holidays"
 
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, unique=True, nullable=False, index=True)
     name = Column(String(150), nullable=False)
     month = Column(Integer, nullable=False)  # 1-12, derived from date for fast filtering
     year = Column(Integer, nullable=False)   # e.g. 2026
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     created_by = relationship("User", foreign_keys=[created_by_id])
@@ -340,7 +340,7 @@ class Holiday(Base):
 class RoleCapacity(Base):
     """Defines default capacity (hours/month) per role.
     Used to auto-fill base_capacity in User Setup when a role is selected."""
-    __tablename__ = "role_capacities"
+    __tablename__ = "PRM_role_capacities"
 
     id = Column(Integer, primary_key=True, index=True)
     role = Column(String(50), unique=True, nullable=False)  # e.g. Admin, Manager, Lead, Developer
@@ -351,7 +351,7 @@ class RoleCapacity(Base):
 
 class TaskStatus(Base):
     """User-defined task statuses (e.g., Not Started, In Progress, etc.)."""
-    __tablename__ = "task_statuses"
+    __tablename__ = "PRM_task_statuses"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
@@ -362,7 +362,7 @@ class TaskStatus(Base):
 
 class PageAccess(Base):
     """Controls which roles can see which pages/menu items."""
-    __tablename__ = "page_access"
+    __tablename__ = "PRM_page_access"
 
     id = Column(Integer, primary_key=True, index=True)
     page_key = Column(String(100), nullable=False)   # e.g. '/tasks', '/admin/projects'
@@ -374,11 +374,11 @@ class PageAccess(Base):
 
 class TimeLog(Base):
     """Time logging entries — developers log hours against tasks per day."""
-    __tablename__ = "time_logs"
+    __tablename__ = "PRM_time_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
-    developer_id = Column(Integer, ForeignKey("developers.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=False)
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=False)
     date = Column(Date, nullable=False)
     hours = Column(Float, nullable=False)
     notes = Column(String(500), nullable=True)
@@ -390,14 +390,14 @@ class TimeLog(Base):
 
 class Notification(Base):
     """In-app notifications for users (task assignments, status changes, etc.)."""
-    __tablename__ = "notifications"
+    __tablename__ = "PRM_notifications"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=False)
     type = Column(String(50), default="info")  # task_assigned, status_changed, deadline_approaching, comment_added
     title = Column(String(200), nullable=False)
     message = Column(String(500), nullable=True)
-    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    task_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=True)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=_now_ist)
 
@@ -407,14 +407,14 @@ class Notification(Base):
 
 class TaskDependency(Base):
     """Task dependency: task_id is blocked by depends_on_id."""
-    __tablename__ = "task_dependencies"
+    __tablename__ = "PRM_task_dependencies"
     __table_args__ = (
         UniqueConstraint("task_id", "depends_on_id", name="uq_task_dependency"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
-    depends_on_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=False)
+    depends_on_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), default=_now_ist)
 
     task = relationship("Task", foreign_keys=[task_id], backref="dependencies")
@@ -423,16 +423,16 @@ class TaskDependency(Base):
 
 class KBArticle(Base):
     """Knowledge Base article — markdown content optionally linked to a project."""
-    __tablename__ = "kb_articles"
+    __tablename__ = "PRM_kb_articles"
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(300), nullable=False)
     content = Column(Text, nullable=True)
     category = Column(String(100), nullable=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True)
     visibility = Column(String(20), nullable=False, default="global")  # "global" or "personal"
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=False)
+    updated_by_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=_now_ist)
     updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=_now_ist)
 
@@ -444,10 +444,10 @@ class KBArticle(Base):
 
 class KBAttachment(Base):
     """File attachment for a KB article, stored in Azure Blob Storage."""
-    __tablename__ = "kb_attachments"
+    __tablename__ = "PRM_kb_attachments"
 
     id = Column(Integer, primary_key=True, index=True)
-    article_id = Column(Integer, ForeignKey("kb_articles.id", ondelete="CASCADE"), nullable=False)
+    article_id = Column(Integer, ForeignKey("PRM_kb_articles.id"), nullable=False)
     file_name = Column(String(255), nullable=False)
     blob_url = Column(String(500), nullable=False)
     content_type = Column(String(100), default="application/octet-stream")
@@ -459,10 +459,10 @@ class KBAttachment(Base):
 
 class AuditLog(Base):
     """Audit trail — logs every create, update, and delete action in the system."""
-    __tablename__ = "audit_logs"
+    __tablename__ = "PRM_audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("PRM_users.id"), nullable=True)
     user_name = Column(String(200))
     action = Column(String(20))  # CREATE, UPDATE, DELETE
     entity_type = Column(String(50))  # Task, Project, Developer, User, KBArticle, Sprint, etc.

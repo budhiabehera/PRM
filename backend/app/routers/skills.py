@@ -27,7 +27,7 @@ def create_skill(payload: schemas.SkillCreate, db: Session = Depends(get_db),
 @router.put("/{skill_id}", response_model=schemas.Skill)
 def update_skill(skill_id: int, payload: schemas.SkillCreate, db: Session = Depends(get_db),
                  _user=Depends(require_roles("Admin", "Manager"))):
-    skill = db.query(models.Skill).get(skill_id)
+    skill = db.get(models.Skill, skill_id)
     if not skill:
         raise HTTPException(404, "Skill not found")
     skill.name = payload.name
@@ -40,7 +40,7 @@ def update_skill(skill_id: int, payload: schemas.SkillCreate, db: Session = Depe
 @router.delete("/{skill_id}", status_code=204)
 def delete_skill(skill_id: int, db: Session = Depends(get_db),
                  _user=Depends(require_roles("Admin", "Manager"))):
-    skill = db.query(models.Skill).get(skill_id)
+    skill = db.get(models.Skill, skill_id)
     if not skill:
         raise HTTPException(404, "Skill not found")
     db.delete(skill)

@@ -168,7 +168,7 @@ def set_default_preset(
 # ==================== Helpers ====================
 
 def _get_user_preset(db, preset_id, user_id):
-    preset = db.query(models.FilterPreset).get(preset_id)
+    preset = db.get(models.FilterPreset, preset_id)
     if not preset or preset.user_id != user_id:
         raise HTTPException(404, "Preset not found")
     return preset

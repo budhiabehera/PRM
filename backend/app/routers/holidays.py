@@ -69,7 +69,7 @@ def update_holiday(
     current_user: models.User = Depends(get_current_user),
 ):
     """Update a holiday's name or date."""
-    holiday = db.query(models.Holiday).get(holiday_id)
+    holiday = db.get(models.Holiday, holiday_id)
     if not holiday:
         raise HTTPException(404, "Holiday not found")
 
@@ -98,7 +98,7 @@ def delete_holiday(
     current_user: models.User = Depends(get_current_user),
 ):
     """Delete a holiday."""
-    holiday = db.query(models.Holiday).get(holiday_id)
+    holiday = db.get(models.Holiday, holiday_id)
     if not holiday:
         raise HTTPException(404, "Holiday not found")
     db.delete(holiday)

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
@@ -15,7 +15,11 @@ def gantt_data(
     current_user: models.User = Depends(get_current_user),
 ):
     allowed = get_user_project_ids(current_user)
-    q = db.query(models.Task).filter(models.Task.start_date.isnot(None), models.Task.end_date.isnot(None))
+    q = db.query(models.Task).options(
+        joinedload(models.Task.developer),
+        joinedload(models.Task.project),
+        joinedload(models.Task.sub_module),
+    ).filter(models.Task.start_date.isnot(None), models.Task.end_date.isnot(None))
     if allowed is not None:
         q = q.filter(models.Task.project_id.in_(allowed))
     if project_id:
@@ -48,7 +52,9 @@ def monthly_allocation(db: Session = Depends(get_db),
                        current_user: models.User = Depends(get_current_user)):
     """Total allocated hours per sprint/month, split by project."""
     allowed = get_user_project_ids(current_user)
-    sprints = db.query(models.Sprint).order_by(models.Sprint.start_date).all()
+    sprints = db.query(models.Sprint).options(
+        joinedload(models.Sprint.tasks).joinedload(models.Task.project),
+    ).order_by(models.Sprint.start_date).all()
     result = []
     for s in sprints:
         by_project: dict[str, float] = {}

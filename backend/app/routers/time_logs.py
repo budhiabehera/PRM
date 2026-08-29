@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import date
 from typing import Optional
@@ -66,7 +66,9 @@ def list_time_logs(
         return []
 
     query = (
-        db.query(models.TimeLog)
+        db.query(models.TimeLog).options(
+            joinedload(models.TimeLog.task),
+        )
         .filter(models.TimeLog.developer_id == current_user.developer_id)
     )
 
@@ -91,7 +93,7 @@ def create_time_log(
     if not current_user.developer_id:
         raise HTTPException(400, "Your account is not linked to a developer profile.")
 
-    task = db.query(models.Task).get(payload.task_id)
+    task = db.get(models.Task, payload.task_id)
     if not task:
         raise HTTPException(404, "Task not found")
 
@@ -116,7 +118,7 @@ def update_time_log(
     current_user: models.User = Depends(get_current_user),
 ):
     """Update a time log entry (only own entries)."""
-    time_log = db.query(models.TimeLog).get(time_log_id)
+    time_log = db.get(models.TimeLog, time_log_id)
     if not time_log:
         raise HTTPException(404, "Time log not found")
     if time_log.developer_id != current_user.developer_id:
@@ -129,7 +131,7 @@ def update_time_log(
     if payload.notes is not None:
         time_log.notes = payload.notes
     if payload.task_id is not None:
-        task = db.query(models.Task).get(payload.task_id)
+        task = db.get(models.Task, payload.task_id)
         if not task:
             raise HTTPException(404, "Task not found")
         time_log.task_id = payload.task_id
@@ -146,7 +148,7 @@ def delete_time_log(
     current_user: models.User = Depends(get_current_user),
 ):
     """Delete a time log entry (only own entries)."""
-    time_log = db.query(models.TimeLog).get(time_log_id)
+    time_log = db.get(models.TimeLog, time_log_id)
     if not time_log:
         raise HTTPException(404, "Time log not found")
     if time_log.developer_id != current_user.developer_id:

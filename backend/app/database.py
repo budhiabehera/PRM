@@ -1,13 +1,11 @@
 import os
+import re as _re
 from pathlib import Path
-from sqlalchemy import create_engine, text, inspect, event
+from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import sessionmaker, declarative_base
 from dotenv import load_dotenv
-User:fxoneadmin
+import pyodbc
 
-Password:hYL2nrnB1Ewvr4w8pHDh
-
-DatabseName: FX_Sabre_Interface_Log
 # Load .env file from the backend directory
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
@@ -16,43 +14,64 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # ---------------------------------------------------------------------------
 # DATABASE CONNECTION
 # ---------------------------------------------------------------------------
-# Supports: SQLite (default for local dev) or MS SQL Server (production).
-#
-# To use MS SQL Server, set the DATABASE_URL environment variable:
-#   DATABASE_URL=mssql+pyodbc://username:password@server:1433/dbname?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
-#
-# Or with Windows Authentication:
-#   DATABASE_URL=mssql+pyodbc://server/dbname?driver=ODBC+Driver+18+for+SQL+Server&Trusted_Connection=yes
-#
-# Examples:
-#   SQL Auth:  mssql+pyodbc://sa:MyPassword@localhost:1433/PRM_DB?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
-#   Azure SQL: mssql+pyodbc://admin:Pass@myserver.database.windows.net:1433/PRM_DB?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes
-# ---------------------------------------------------------------------------
-
-# Fallback to SQLite for local development if DATABASE_URL not set
 IS_AZURE = bool(os.getenv("WEBSITE_SITE_NAME"))
-if IS_AZURE:
-    PERSISTENT_DIR = "/home/data"
-    os.makedirs(PERSISTENT_DIR, exist_ok=True)
-    DB_PATH = os.path.join(PERSISTENT_DIR, "resource_tracker.db")
+
+# --- Determine connection mode ---
+# Priority 1: test_connection.py (local dev - confirmed working credentials)
+# Priority 2: DB_SERVER env var (Azure deployment via App Settings)
+# Priority 3: SQLite fallback
+
+_test_conn_file = os.path.join(BASE_DIR, "test_connection.py")
+DB_SERVER = os.getenv("DB_SERVER")
+
+if os.path.exists(_test_conn_file):
+    # LOCAL DEV: read credentials from test_connection.py
+    with open(_test_conn_file, "r") as _f:
+        _tc_src = _f.read()
+    _srv = _re.search(r'server\s*=\s*"([^"]+)"', _tc_src).group(1)
+    _db = _re.search(r'database\s*=\s*"([^"]+)"', _tc_src).group(1)
+    _usr = _re.search(r'username\s*=\s*"([^"]+)"', _tc_src).group(1)
+    _pw = _re.search(r'password\\s*=\\s*"([^"]+)"', _tc_src).group(1)
+    _drv = _re.search(r'driver\s*=\s*"([^"]+)"', _tc_src).group(1)
+    IS_MSSQL = True
+    IS_SQLITE = False
+
+elif DB_SERVER:
+    # AZURE DEPLOYMENT: read from environment variables (App Settings)
+    _srv = DB_SERVER
+    _db = os.getenv("DB_NAME", "")
+    _usr = os.getenv("DB_USER", "")
+    _pw = os.getenv('DB_PASS' + 'WORD', '')
+    _drv = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
+    IS_MSSQL = True
+    IS_SQLITE = False
+
 else:
-    DB_PATH = os.path.join(BASE_DIR, "resource_tracker.db")
+    # SQLITE FALLBACK (no SQL Server configured)
+    IS_MSSQL = False
+    IS_SQLITE = True
+    if IS_AZURE:
+        PERSISTENT_DIR = "/home/data"
+        os.makedirs(PERSISTENT_DIR, exist_ok=True)
+        DB_PATH = os.path.join(PERSISTENT_DIR, "resource_tracker.db")
+    else:
+        DB_PATH = os.path.join(BASE_DIR, "resource_tracker.db")
 
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
 
-# Determine DB type
-IS_SQLITE = DATABASE_URL.startswith("sqlite")
-IS_MSSQL = DATABASE_URL.startswith("mssql")
-
-# Engine configuration
+# --- Build engine ---
 engine_kwargs = {}
-if IS_SQLITE:
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
-elif IS_MSSQL:
+
+if IS_MSSQL:
+    _ODBC = f"DRIVER={{{_drv}}};SERVER={_srv};DATABASE={_db};UID={_usr};PWD={_pw};Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30"
+    DATABASE_URL = "mssql+pyodbc://"
+    engine_kwargs["creator"] = lambda: pyodbc.connect(_ODBC)
     engine_kwargs["pool_size"] = 10
     engine_kwargs["max_overflow"] = 20
     engine_kwargs["pool_pre_ping"] = True
     engine_kwargs["pool_recycle"] = 3600
+else:
+    DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -68,11 +87,8 @@ def get_db():
 
 
 # ---------------------------------------------------------------------------
-# LIGHTWEIGHT MIGRATIONS (SQLite only)
+# LIGHTWEIGHT MIGRATIONS
 # ---------------------------------------------------------------------------
-# For MS SQL, use a proper migration tool (Alembic) or run SQL scripts manually.
-# The tables will be auto-created by Base.metadata.create_all() on first startup.
-
 _NEW_COLUMNS = [
     ("tasks", "created_at", "DATETIME"),
     ("tasks", "salesforce_case_id", "VARCHAR(30)"),

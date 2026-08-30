@@ -31,7 +31,7 @@ if os.path.exists(_test_conn_file):
     _srv = _re.search(r'server\s*=\s*"([^"]+)"', _tc_src).group(1)
     _db = _re.search(r'database\s*=\s*"([^"]+)"', _tc_src).group(1)
     _usr = _re.search(r'username\s*=\s*"([^"]+)"', _tc_src).group(1)
-    _pw = _re.search(r'password\\s*=\\s*"([^"]+)"', _tc_src).group(1)
+    _pw = _re.search(r'password\s*=\s*"([^"]+)"', _tc_src).group(1)
     _drv = _re.search(r'driver\s*=\s*"([^"]+)"', _tc_src).group(1)
     IS_MSSQL = True
     IS_SQLITE = False

@@ -16,7 +16,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog'
 import TaskForm from '../components/forms/TaskForm'
 import { formatShortDate } from '../utils/formatters'
 import { PRIORITY_OPTIONS } from '../utils/constants'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, Filter } from 'lucide-react'
 import TaskActivityPanel from '../components/TaskActivityPanel'
 import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
 import PresetBar from '../components/common/PresetBar'
@@ -50,10 +50,18 @@ export default function TasksPage() {
   const [dragOverCol, setDragOverCol] = useState(null)
   const [expandedDeps, setExpandedDeps] = useState({}) // { taskId: [dep objects] }
 
+  // Pagination & search
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [taskSearch, setTaskSearch] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const showToast = (type, text) => {
     setToast({ type, text })
     setTimeout(() => setToast(null), 4000)
   }
+
+  // Reset page when filters or search changes
+  useEffect(() => { setPage(1) }, [filters, taskSearch])
 
   const params = useMemo(() => {
     const p = {}
@@ -65,6 +73,17 @@ export default function TasksPage() {
   }, [filters, user?.developer_id, user?.role])
 
   const { data: tasks, loading, reload } = useApi(() => getTasks(params), [JSON.stringify(params)])
+
+  // Client-side task ID search + pagination
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return []
+    if (!taskSearch.trim()) return tasks
+    const q = taskSearch.trim().toLowerCase()
+    return tasks.filter((t) => (t.task_code || '').toLowerCase().includes(q))
+  }, [tasks, taskSearch])
+
+  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / pageSize))
+  const paginatedTasks = filteredTasks.slice((page - 1) * pageSize, page * pageSize)
 
   const setFilter = (key) => (value) => setFilters((f) => ({ ...f, [key]: value }))
 
@@ -189,7 +208,7 @@ export default function TasksPage() {
         <div>
           <h2 className="text-xl font-bold text-slate-900">{isDeveloper ? 'My Tasks' : 'Tasks'}</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {tasks?.length ?? 0} tasks matching filters
+            {filteredTasks.length} tasks matching filters
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -211,7 +230,33 @@ export default function TasksPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl items-end">
+      {/* Search bar + Filter toggle */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="relative flex-shrink-0 w-56">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search Task ID..."
+            value={taskSearch}
+            onChange={(e) => setTaskSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <button
+          onClick={() => setFiltersOpen((o) => !o)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${filtersOpen ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+        >
+          <Filter size={14} />
+          Filters
+          {Object.values(filters).filter(Boolean).length > 0 && (
+            <span className="bg-indigo-600 text-white rounded-full px-1.5 py-0 text-[10px] font-bold">{Object.values(filters).filter(Boolean).length}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Collapsible filters */}
+      {filtersOpen && (
+      <div className="flex flex-wrap gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl items-end animate-in slide-in-from-top-2">
         <FilterSelect label="Project" value={filters.project_id} onChange={setFilter('project_id')}
           options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
         <FilterSelect label="Main Module" value={filters.main_module_id} onChange={setFilter('main_module_id')}
@@ -246,8 +291,10 @@ export default function TasksPage() {
           </button>
         </div>
       </div>
+      )}
 
       {loading ? <LoadingSpinner /> : view === 'list' ? (
+        <>
         <div className="card overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -265,7 +312,7 @@ export default function TasksPage() {
               </tr>
             </thead>
             <tbody>
-              {tasks.map((t) => {
+              {paginatedTasks.map((t) => {
                 const editable = canEditTask(user, t)
                 const deletable = canDeleteTask(user)
                 const isExpanded = expandedRow === t.id
@@ -394,6 +441,42 @@ export default function TasksPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between mt-4 px-1">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>Showing {Math.min((page - 1) * pageSize + 1, filteredTasks.length)}–{Math.min(page * pageSize, filteredTasks.length)} of {filteredTasks.length}</span>
+            <span className="text-slate-300">|</span>
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
+              className="px-2 py-1 border border-slate-200 rounded-md bg-white text-xs text-slate-700 focus:ring-1 focus:ring-indigo-400"
+            >
+              <option value={10}>10</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ← Prev
+            </button>
+            <span className="px-3 py-1 text-xs font-medium text-slate-700">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+        </>
       ) : (
         <div className="grid grid-cols-4 gap-4">
           {KANBAN_COLUMNS.map((col) => (
@@ -411,11 +494,11 @@ export default function TasksPage() {
               <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex justify-between">
                 {col}
                 <span className="bg-slate-200 text-slate-600 rounded-full px-2 text-[10px] py-0.5">
-                  {tasks.filter((t) => t.status === col).length}
+                  {filteredTasks.filter((t) => t.status === col).length}
                 </span>
               </div>
               <div className="space-y-2 min-h-[60px]">
-                {tasks.filter((t) => t.status === col).map((t) => (
+                {filteredTasks.filter((t) => t.status === col).map((t) => (
                   <div
                     key={t.id}
                     draggable={canEditTask(user, t) ? 'true' : 'false'}

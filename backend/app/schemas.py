@@ -412,6 +412,8 @@ class TaskStatusOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
+    project_id: Optional[int] = None
+    project_name: Optional[str] = None
     color: str
     sort_order: int
     created_at: Optional[datetime] = None
@@ -608,6 +610,7 @@ class KBArticleDetail(KBArticleOut):
 # ---------- KB Category ----------
 class KBCategoryCreate(BaseModel):
     name: str
+    project_id: Optional[int] = None
     color: Optional[str] = "#4f46e5"
     sort_order: Optional[int] = 0
 

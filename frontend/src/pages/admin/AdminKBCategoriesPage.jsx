@@ -1,37 +1,62 @@
-import { useState } from 'react'
-import useApi from '../../hooks/useApi'
-import useAppStore from '../../store/useAppStore'
+import { useState, useEffect, useCallback } from 'react'
 import { getKBCategoryList, createKBCategory, updateKBCategory, deleteKBCategory } from '../../services/api'
+import useAppStore from '../../store/useAppStore'
+import useProjectDefault from '../../hooks/useProjectDefault'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
 
 export default function AdminKBCategoriesPage() {
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
-  const { data: categories, loading, reload } = useApi(getKBCategoryList, [])
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [categories, setCategories] = useState([])
+  const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [toDelete, setToDelete] = useState(null)
-  const [form, setForm] = useState({ name: '', color: '#4f46e5', sort_order: 0 })
+  const [filterProject, setFilterProject] = useState(defaultProjectId)
+  const [form, setForm] = useState({ name: '', project_id: '', color: '#4f46e5', sort_order: 0 })
 
-  const refreshAll = () => { reload(); bumpRefresh() }
+  const fetchCategories = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = {}
+      if (filterProject) params.project_id = filterProject
+      const data = await getKBCategoryList(params)
+      setCategories(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }, [filterProject])
+
+  useEffect(() => { fetchCategories() }, [fetchCategories])
+
+  const refreshAll = () => { fetchCategories(); bumpRefresh() }
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', color: '#4f46e5', sort_order: 0 })
+    setForm({ name: '', project_id: filterProject || '', color: '#4f46e5', sort_order: 0 })
     setShowForm(true)
   }
 
   const openEdit = (cat) => {
     setEditing(cat)
-    setForm({ name: cat.name, color: cat.color, sort_order: cat.sort_order })
+    setForm({ name: cat.name, project_id: cat.project_id || '', color: cat.color, sort_order: cat.sort_order })
     setShowForm(true)
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.name.trim()) return
-    if (editing) await updateKBCategory(editing.id, form)
-    else await createKBCategory(form)
+    const payload = {
+      name: form.name.trim(),
+      project_id: form.project_id ? Number(form.project_id) : null,
+      color: form.color,
+      sort_order: form.sort_order,
+    }
+    if (editing) await updateKBCategory(editing.id, payload)
+    else await createKBCategory(payload)
     setShowForm(false)
     setEditing(null)
     refreshAll()
@@ -52,16 +77,28 @@ export default function AdminKBCategoriesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-900">KB Categories</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Manage Knowledge Base article categories</p>
+          <p className="text-xs text-slate-500 mt-0.5">Manage Knowledge Base article categories per project</p>
         </div>
         <button className="btn btn-primary" onClick={openCreate}>+ Add Category</button>
+      </div>
+
+      {/* Project Filter */}
+      <div className="flex gap-3 mb-4">
+        <select
+          value={filterProject}
+          onChange={(e) => setFilterProject(e.target.value)}
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+        >
+          {showAllOption && <option value="">All Projects (Global + All)</option>}
+          {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
       </div>
 
       {showForm && (
         <div className="card mb-4">
           <div className="text-[15px] font-semibold mb-4">✏️ {editing ? 'Edit Category' : 'Add New Category'}</div>
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="form-label">Category Name *</label>
                 <input
@@ -71,6 +108,18 @@ export default function AdminKBCategoriesPage() {
                   onChange={(e) => update('name', e.target.value)}
                   required
                 />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="form-label">Project</label>
+                <select
+                  className="form-select"
+                  value={form.project_id}
+                  onChange={(e) => update('project_id', e.target.value)}
+                >
+                  {showAllOption && <option value="">🌐 Global (all projects)</option>}
+                  {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <span className="text-[10px] text-slate-400">Global categories appear in all projects</span>
               </div>
               <div className="flex flex-col gap-1">
                 <label className="form-label">Color</label>
@@ -110,6 +159,7 @@ export default function AdminKBCategoriesPage() {
             <thead>
               <tr>
                 <th>Category</th>
+                <th>Project</th>
                 <th>Color</th>
                 <th>Sort Order</th>
                 <th>Actions</th>
@@ -119,6 +169,12 @@ export default function AdminKBCategoriesPage() {
               {categories.map((cat) => (
                 <tr key={cat.id}>
                   <td className="font-semibold">{cat.name}</td>
+                  <td>
+                    {cat.project_name
+                      ? <span className="badge bg-blue-50 text-blue-700">{cat.project_name}</span>
+                      : <span className="badge bg-gray-100 text-gray-500">🌐 Global</span>
+                    }
+                  </td>
                   <td>
                     <div className="flex items-center gap-2">
                       <span

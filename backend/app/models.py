@@ -463,10 +463,13 @@ class KBCategory(Base):
     __tablename__ = "PRM_kb_categories"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True, index=True)
     color = Column(String(20), default="#4f46e5")
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=_now_ist)
+
+    project = relationship("Project")
 
 
 class AuditLog(Base):

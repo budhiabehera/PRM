@@ -115,6 +115,7 @@ _NEW_COLUMNS = [
     ("availabilities", "start_date", "DATE"),
     ("availabilities", "end_date", "DATE"),
     ("kb_articles", "visibility", "VARCHAR(20) DEFAULT 'global'"),
+    ("PRM_kb_categories", "project_id", "INTEGER"),
 ]
 
 
@@ -164,24 +165,6 @@ def run_lightweight_migrations():
                                 pass
 
             elif IS_MSSQL:
-                # MS SQL: create association tables if not exist
-                if "user_projects" not in existing_tables:
-                    conn.execute(text(
-                        "CREATE TABLE user_projects ("
-                        "  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
-                        "  project_id INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
-                        "  PRIMARY KEY (user_id, project_id)"
-                        ")"
-                    ))
-                if "developer_projects" not in existing_tables:
-                    conn.execute(text(
-                        "CREATE TABLE developer_projects ("
-                        "  developer_id INT NOT NULL REFERENCES developers(id) ON DELETE CASCADE,"
-                        "  project_id INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
-                        "  PRIMARY KEY (developer_id, project_id)"
-                        ")"
-                    ))
-
                 # Add missing columns (MS SQL syntax — no REFERENCES in ALTER TABLE ADD)
                 for table, column, col_type in _NEW_COLUMNS:
                     if table not in existing_tables:
@@ -196,6 +179,49 @@ def run_lightweight_migrations():
                             conn.execute(text(f"ALTER TABLE [{table}] ADD [{column}] {clean_type}"))
                         except Exception:
                             pass
+
+                # --- KB Categories: drop unique constraint on name (now unique per project, not globally) ---
+                if "PRM_kb_categories" in existing_tables:
+                    # Drop all unique constraints/indexes on 'name' column
+                    try:
+                        rows = conn.execute(text(
+                            "SELECT i.name FROM sys.indexes i "
+                            "JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id "
+                            "JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id "
+                            "WHERE i.object_id = OBJECT_ID('PRM_kb_categories') AND c.name = 'name' AND i.is_unique = 1"
+                        )).fetchall()
+                        for row in rows:
+                            try:
+                                conn.execute(text(f"DROP INDEX [{row[0]}] ON [PRM_kb_categories]"))
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+        # MS SQL: create association tables in separate connections (so failures don't abort other migrations)
+        if IS_MSSQL:
+            if "user_projects" not in existing_tables and "PRM_user_projects" not in existing_tables:
+                try:
+                    with engine.begin() as c2:
+                        c2.execute(text(
+                            "CREATE TABLE user_projects ("
+                            "  user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
+                            "  project_id INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
+                            "  PRIMARY KEY (user_id, project_id))"
+                        ))
+                except Exception:
+                    pass
+            if "developer_projects" not in existing_tables and "PRM_developer_projects" not in existing_tables:
+                try:
+                    with engine.begin() as c2:
+                        c2.execute(text(
+                            "CREATE TABLE developer_projects ("
+                            "  developer_id INT NOT NULL REFERENCES developers(id) ON DELETE CASCADE,"
+                            "  project_id INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,"
+                            "  PRIMARY KEY (developer_id, project_id))"
+                        ))
+                except Exception:
+                    pass
 
     except Exception as e:
         print(f"[MIGRATION WARNING] Lightweight migrations skipped: {e}")

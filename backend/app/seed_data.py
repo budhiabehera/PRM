@@ -307,8 +307,25 @@ def _seed_default_users(db: Session):
 
 def _seed_kb_categories(db: Session):
     """Seed default KB categories if none exist."""
-    if db.query(models.KBCategory).count() > 0:
-        return  # already seeded
+    from sqlalchemy import text, inspect
+    # Ensure project_id column exists (migration safety net)
+    try:
+        insp = inspect(db.bind)
+        cols = {c["name"] for c in insp.get_columns("PRM_kb_categories")}
+        if "project_id" not in cols:
+            db.execute(text("ALTER TABLE [PRM_kb_categories] ADD [project_id] INTEGER"))
+            db.commit()
+            print("[SEED] Added project_id column to PRM_kb_categories")
+    except Exception as e:
+        db.rollback()
+        # Table may not exist yet — create_all() will handle it
+    # Use raw SQL to check count (avoids ORM column mismatch issues)
+    try:
+        count = db.execute(text("SELECT COUNT(*) FROM [PRM_kb_categories]")).scalar()
+        if count > 0:
+            return  # already seeded
+    except Exception:
+        return  # table doesn't exist yet, create_all() will handle it
     defaults = [
         ("Process", "#3b82f6", 1),
         ("Setup Guide", "#22c55e", 2),
@@ -324,6 +341,8 @@ def _seed_kb_categories(db: Session):
         ("Release Notes", "#84cc16", 12),
     ]
     for name, color, order in defaults:
-        db.add(models.KBCategory(name=name, color=color, sort_order=order))
+        db.execute(text(
+            "INSERT INTO [PRM_kb_categories] ([name], [color], [sort_order]) VALUES (:name, :color, :sort_order)"
+        ), {"name": name, "color": color, "sort_order": order})
     db.commit()
     print(f"[SEED] Created {len(defaults)} default KB categories")

@@ -242,7 +242,7 @@ export const deleteKBAttachment = (articleId, attachmentId) => api.delete(`/know
 export const getKBCategories = () => api.get('/knowledge-base/categories').then(r => r.data)
 
 // ---------- KB Categories (master table) ----------
-export const getKBCategoryList = () => api.get('/kb-categories').then(r => r.data)
+export const getKBCategoryList = (params) => api.get('/kb-categories', { params }).then(r => r.data)
 export const createKBCategory = (data) => api.post('/kb-categories', data).then(r => r.data)
 export const updateKBCategory = (id, data) => api.put(`/kb-categories/${id}`, data).then(r => r.data)
 export const deleteKBCategory = (id) => api.delete(`/kb-categories/${id}`)

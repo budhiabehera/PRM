@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
-import { getProjects, getKBCategoryList } from '../../services/api'
+import { getKBCategoryList } from '../../services/api'
 
 // Font sizes
 const Size = ReactQuill.Quill.import('attributors/style/size')
@@ -13,21 +13,27 @@ const Font = ReactQuill.Quill.import('attributors/style/font')
 Font.whitelist = ['serif', 'sans-serif', 'monospace', 'Arial', 'Verdana', 'Georgia', 'Courier New', 'Times New Roman']
 ReactQuill.Quill.register(Font, true)
 
-export default function KBArticleForm({ initial, onSave, onCancel }) {
+export default function KBArticleForm({ initial, onSave, onCancel, availableProjects = [], defaultProjectId = '' }) {
   const [title, setTitle] = useState(initial?.title || '')
   const [content, setContent] = useState(initial?.content || '')
   const [category, setCategory] = useState(initial?.category || '')
-  const [projectId, setProjectId] = useState(initial?.project_id || '')
+  const [projectId, setProjectId] = useState(initial?.project_id || defaultProjectId || '')
   const [visibility, setVisibility] = useState(initial?.visibility || 'global')
-  const [projects, setProjects] = useState([])
   const [categoryOptions, setCategoryOptions] = useState([])
   const [saving, setSaving] = useState(false)
 
+  // Re-fetch categories when project changes
   useEffect(() => {
-    getProjects().then(setProjects).catch(() => {})
-    getKBCategoryList().then((cats) => setCategoryOptions(cats.map(c => c.name))).catch(() => {})
-  }, [])
+    const params = projectId ? { project_id: projectId } : {}
+    getKBCategoryList(params).then((cats) => setCategoryOptions(cats.map(c => c.name))).catch(() => {})
+  }, [projectId])
 
+  // Reset category when project changes (unless it's the initial load)
+  const [initialLoad, setInitialLoad] = useState(true)
+  useEffect(() => {
+    if (initialLoad) { setInitialLoad(false); return }
+    setCategory('')
+  }, [projectId])
   const modules = useMemo(() => ({
     toolbar: [
       [{ 'font': ['', 'serif', 'sans-serif', 'monospace', 'Arial', 'Verdana', 'Georgia', 'Courier New', 'Times New Roman'] }],
@@ -86,6 +92,19 @@ export default function KBArticleForm({ initial, onSave, onCancel }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project</label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">— None —</option>
+            {availableProjects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
           <select
             value={category}
@@ -107,19 +126,6 @@ export default function KBArticleForm({ initial, onSave, onCancel }) {
           >
             <option value="global">🌐 Global (visible to all)</option>
             <option value="personal">🔒 Personal (only me)</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project (optional)</label>
-          <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">— None —</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
           </select>
         </div>
       </div>

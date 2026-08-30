@@ -52,9 +52,14 @@ export default function KnowledgeBasePage() {
   useEffect(() => { fetchArticles() }, [fetchArticles])
   useEffect(() => {
     getProjects().then(setProjects).catch(() => {})
-    getKBCategories().then(setCategories).catch(() => {})
-    getKBCategoryList().then(setCategoryList).catch(() => {})
   }, [])
+
+  // Re-fetch categories when project filter changes
+  useEffect(() => {
+    const params = filterProject ? { project_id: filterProject } : {}
+    getKBCategories().then(setCategories).catch(() => {})
+    getKBCategoryList(params).then(setCategoryList).catch(() => {})
+  }, [filterProject])
 
   const openArticle = async (id) => {
     try {
@@ -170,7 +175,6 @@ export default function KnowledgeBasePage() {
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
           >
             <option value="">All Categories</option>
-            <option value="">All Categories</option>
             {(() => {
               const masterNames = categoryList.map(cat => cat.name)
               const extra = categories.filter(c => !masterNames.includes(c))
@@ -243,7 +247,7 @@ export default function KnowledgeBasePage() {
           <ArrowLeft className="w-4 h-4" /> Back to articles
         </button>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">New Article</h2>
-        <KBArticleForm onSave={handleCreate} onCancel={() => setView('list')} />
+        <KBArticleForm onSave={handleCreate} onCancel={() => setView('list')} availableProjects={restrictedProjects} defaultProjectId={defaultProjectId} />
       </div>
     )
   }
@@ -256,7 +260,7 @@ export default function KnowledgeBasePage() {
           <ArrowLeft className="w-4 h-4" /> Back to article
         </button>
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Edit Article</h2>
-        <KBArticleForm initial={selectedArticle} onSave={handleUpdate} onCancel={() => setView('view')} />
+        <KBArticleForm initial={selectedArticle} onSave={handleUpdate} onCancel={() => setView('view')} availableProjects={restrictedProjects} defaultProjectId={defaultProjectId} />
       </div>
     )
   }

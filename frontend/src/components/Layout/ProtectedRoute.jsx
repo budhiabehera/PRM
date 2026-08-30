@@ -51,6 +51,10 @@ export default function ProtectedRoute({ allowedRoles }) {
 
   // If page access rules exist in DB, use them instead of hardcoded allowedRoles
   if (pageAccess && pageAccess.length > 0 && allowedRoles) {
+    // Admin always has access to all pages
+    if (user?.role === 'Admin') {
+      return <Outlet />
+    }
     // Find the rule for the current path
     const currentPath = location.pathname
     const rule = pageAccess.find((r) => currentPath === r.page_key || currentPath.startsWith(r.page_key + '/'))

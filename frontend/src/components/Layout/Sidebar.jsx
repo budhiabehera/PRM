@@ -91,6 +91,8 @@ export default function Sidebar() {
   const hasAccess = (pageKey) => {
     // If no rules saved yet, fall back to role-based defaults
     if (!pageAccessRules || pageAccessRules.length === 0) return true
+    // Admin always has access to all pages
+    if (role === 'Admin') return true
     const rule = pageAccessRules.find((r) => r.page_key === pageKey)
     if (!rule) return true // page not in rules = accessible by all
     return rule.roles.includes(role)

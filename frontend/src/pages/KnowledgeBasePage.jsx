@@ -4,17 +4,11 @@ import useAuthStore from '../store/useAuthStore'
 import useProjectDefault from '../hooks/useProjectDefault'
 import {
   getKBArticles, getKBArticle, createKBArticle, updateKBArticle,
-  deleteKBArticle, uploadKBAttachment, deleteKBAttachment, getKBCategories, getProjects,
+  deleteKBArticle, uploadKBAttachment, deleteKBAttachment, getKBCategories, getProjects, getKBCategoryList,
 } from '../services/api'
 import KBArticleForm from '../components/forms/KBArticleForm'
 
-const CATEGORY_COLORS = {
-  'Process': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  'Setup Guide': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  'Module Guide': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  'FAQ': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  'Troubleshooting': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-}
+const DEFAULT_BADGE = 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
 
 export default function KnowledgeBasePage() {
   const user = useAuthStore((s) => s.user)
@@ -22,6 +16,7 @@ export default function KnowledgeBasePage() {
   const [articles, setArticles] = useState([])
   const [projects, setProjects] = useState([])
   const [categories, setCategories] = useState([])
+  const [categoryList, setCategoryList] = useState([])  // full objects from master table
   const [loading, setLoading] = useState(true)
 
   // Filters
@@ -58,6 +53,7 @@ export default function KnowledgeBasePage() {
   useEffect(() => {
     getProjects().then(setProjects).catch(() => {})
     getKBCategories().then(setCategories).catch(() => {})
+    getKBCategoryList().then(setCategoryList).catch(() => {})
   }, [])
 
   const openArticle = async (id) => {
@@ -174,7 +170,12 @@ export default function KnowledgeBasePage() {
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
           >
             <option value="">All Categories</option>
-            {['Process', 'Setup Guide', 'Module Guide', 'FAQ', 'Troubleshooting', ...categories.filter(c => !['Process', 'Setup Guide', 'Module Guide', 'FAQ', 'Troubleshooting'].includes(c))].map((c) => (
+            <option value="">All Categories</option>
+            {(() => {
+              const masterNames = categoryList.map(cat => cat.name)
+              const extra = categories.filter(c => !masterNames.includes(c))
+              return [...masterNames, ...extra]
+            })().map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
@@ -210,7 +211,7 @@ export default function KnowledgeBasePage() {
                 </div>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {a.category && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CATEGORY_COLORS[a.category] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: (categoryList.find(c => c.name === a.category)?.color || '#e2e8f0') + '20', color: categoryList.find(c => c.name === a.category)?.color || '#64748b' }}>
                       {a.category}
                     </span>
                   )}
@@ -276,7 +277,7 @@ export default function KnowledgeBasePage() {
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{selectedArticle.title}</h1>
               <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 {selectedArticle.category && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CATEGORY_COLORS[selectedArticle.category] || 'bg-gray-100 text-gray-800'}`}>
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: (categoryList.find(c => c.name === selectedArticle.category)?.color || '#e2e8f0') + '20', color: categoryList.find(c => c.name === selectedArticle.category)?.color || '#64748b' }}>
                     {selectedArticle.category}
                   </span>
                 )}

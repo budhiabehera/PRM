@@ -241,6 +241,12 @@ export const uploadKBAttachment = (articleId, file) => {
 export const deleteKBAttachment = (articleId, attachmentId) => api.delete(`/knowledge-base/${articleId}/attachments/${attachmentId}`)
 export const getKBCategories = () => api.get('/knowledge-base/categories').then(r => r.data)
 
+// ---------- KB Categories (master table) ----------
+export const getKBCategoryList = () => api.get('/kb-categories').then(r => r.data)
+export const createKBCategory = (data) => api.post('/kb-categories', data).then(r => r.data)
+export const updateKBCategory = (id, data) => api.put(`/kb-categories/${id}`, data).then(r => r.data)
+export const deleteKBCategory = (id) => api.delete(`/kb-categories/${id}`)
+
 // ---------- Standup ----------
 export const getMyStandup = (activityDate) => api.get('/standup/my-summary', { params: activityDate ? { activity_date: activityDate } : {} }).then(r => r.data)
 export const getTeamStandup = (activityDate) => api.get('/standup/team-summary', { params: activityDate ? { activity_date: activityDate } : {} }).then(r => r.data)

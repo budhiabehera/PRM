@@ -30,6 +30,7 @@ import PageAccessPage from './pages/admin/PageAccessPage'
 import AdminAvailabilityPage from './pages/admin/AdminAvailabilityPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import AuditLogPage from './pages/admin/AuditLogPage'
+import AdminKBCategoriesPage from './pages/admin/AdminKBCategoriesPage'
 
 import BitbucketSettingsPage from './pages/admin/BitbucketSettingsPage'
 
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="/admin/role-capacity" element={<RoleCapacityPage />} />
             <Route path="/admin/task-statuses" element={<TaskStatusPage />} />
             <Route path="/admin/page-access" element={<PageAccessPage />} />
+            <Route path="/admin/kb-categories" element={<AdminKBCategoriesPage />} />
             <Route path="/engineering/settings" element={<BitbucketSettingsPage />} />
             <Route path="/admin/audit-log" element={<AuditLogPage />} />
           </Route>

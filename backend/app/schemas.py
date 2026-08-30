@@ -605,6 +605,23 @@ class KBArticleDetail(KBArticleOut):
     attachments: List[KBAttachmentOut] = []
 
 
+# ---------- KB Category ----------
+class KBCategoryCreate(BaseModel):
+    name: str
+    color: Optional[str] = "#4f46e5"
+    sort_order: Optional[int] = 0
+
+
+class KBCategoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    color: str
+    sort_order: int
+    created_at: Optional[datetime] = None
+
+
+
 # --- Engineering / Bitbucket Schemas ---
 
 class BitbucketSettingsIn(BaseModel):

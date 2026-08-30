@@ -442,6 +442,7 @@ class KBArticle(Base):
     attachments = relationship("KBAttachment", back_populates="article", cascade="all, delete-orphan")
 
 
+
 class KBAttachment(Base):
     """File attachment for a KB article, stored in Azure Blob Storage."""
     __tablename__ = "PRM_kb_attachments"
@@ -455,6 +456,17 @@ class KBAttachment(Base):
     uploaded_at = Column(DateTime(timezone=True), default=_now_ist)
 
     article = relationship("KBArticle", back_populates="attachments")
+
+
+class KBCategory(Base):
+    """Master table for Knowledge Base article categories."""
+    __tablename__ = "PRM_kb_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+    color = Column(String(20), default="#4f46e5")
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
 
 
 class AuditLog(Base):

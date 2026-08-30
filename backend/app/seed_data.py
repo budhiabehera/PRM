@@ -12,6 +12,7 @@ from .auth import hash_password
 def run_seed(db: Session):
     """Only creates the admin user if no users exist (fresh database)."""
     _ensure_admin_user(db)
+    _seed_kb_categories(db)
 
 
 def _ensure_admin_user(db: Session):
@@ -302,3 +303,27 @@ def _seed_default_users(db: Session):
             active=True,
         ))
     db.commit()
+
+
+def _seed_kb_categories(db: Session):
+    """Seed default KB categories if none exist."""
+    if db.query(models.KBCategory).count() > 0:
+        return  # already seeded
+    defaults = [
+        ("Process", "#3b82f6", 1),
+        ("Setup Guide", "#22c55e", 2),
+        ("Module Guide", "#a855f7", 3),
+        ("FAQ", "#eab308", 4),
+        ("Troubleshooting", "#ef4444", 5),
+        ("Architecture", "#6366f1", 6),
+        ("Deployment", "#06b6d4", 7),
+        ("Database", "#f59e0b", 8),
+        ("API Documentation", "#14b8a6", 9),
+        ("Known Issues", "#f97316", 10),
+        ("Production Support", "#f43f5e", 11),
+        ("Release Notes", "#84cc16", 12),
+    ]
+    for name, color, order in defaults:
+        db.add(models.KBCategory(name=name, color=color, sort_order=order))
+    db.commit()
+    print(f"[SEED] Created {len(defaults)} default KB categories")

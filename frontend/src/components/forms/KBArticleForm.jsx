@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
-import { getProjects } from '../../services/api'
-
-const CATEGORY_OPTIONS = ['Process', 'Setup Guide', 'Module Guide', 'FAQ', 'Troubleshooting']
+import { getProjects, getKBCategoryList } from '../../services/api'
 
 // Font sizes
 const Size = ReactQuill.Quill.import('attributors/style/size')
@@ -22,10 +20,12 @@ export default function KBArticleForm({ initial, onSave, onCancel }) {
   const [projectId, setProjectId] = useState(initial?.project_id || '')
   const [visibility, setVisibility] = useState(initial?.visibility || 'global')
   const [projects, setProjects] = useState([])
+  const [categoryOptions, setCategoryOptions] = useState([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     getProjects().then(setProjects).catch(() => {})
+    getKBCategoryList().then((cats) => setCategoryOptions(cats.map(c => c.name))).catch(() => {})
   }, [])
 
   const modules = useMemo(() => ({
@@ -93,7 +93,7 @@ export default function KBArticleForm({ initial, onSave, onCancel }) {
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
           >
             <option value="">— None —</option>
-            {CATEGORY_OPTIONS.map((c) => (
+            {categoryOptions.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>

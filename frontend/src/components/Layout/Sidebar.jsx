@@ -54,6 +54,7 @@ const ADMIN_ITEMS = [
   { to: '/admin/role-capacity', label: 'Role Capacity', icon: ShieldCheck, roles: ['Admin', 'Manager'] },
   { to: '/admin/task-statuses', label: 'Task Status', icon: CircleDot, roles: ['Admin', 'Manager'] },
   { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/admin/kb-categories', label: 'KB Categories', icon: BookOpen, roles: ['Admin', 'Manager'] },
   { to: '/admin/page-access', label: 'Page Access', icon: Lock, roles: ['Admin'] },
   { to: '/admin/audit-log', label: 'Audit Log', icon: FileText, roles: ['Admin', 'Manager'] },
 ]

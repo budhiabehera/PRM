@@ -473,3 +473,133 @@ class AuditLog(Base):
     created_at = Column(DateTime(timezone=True))
 
     user = relationship("User", foreign_keys=[user_id])
+
+
+# ─── Engineering / Bitbucket Models ───────────────────────────────────
+
+class BitbucketSettings(Base):
+    __tablename__ = "PRM_bitbucket_settings"
+
+    id = Column(Integer, primary_key=True)
+    platform = Column(String(20), default="cloud")
+    base_url = Column(String(500), nullable=True)
+    workspace_slug = Column(String(100), nullable=True)
+    auth_type = Column(String(20), default="app_password")
+    auth_username = Column(String(100), nullable=True)
+    auth_token = Column(String(500), nullable=True)
+    webhook_secret = Column(String(100), nullable=True)
+    sync_enabled = Column(Boolean, default=True)
+    sync_interval = Column(Integer, default=15)
+    last_synced_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+
+class Repository(Base):
+    __tablename__ = "PRM_repositories"
+    __table_args__ = (UniqueConstraint("repo_slug", "project_id", name="uq_repo_slug"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=False, index=True)
+    repo_slug = Column(String(200), nullable=False)
+    repo_name = Column(String(200))
+    repo_full_name = Column(String(400))
+    default_branch = Column(String(100), default="main")
+    language = Column(String(50), nullable=True)
+    active = Column(Boolean, default=True)
+    last_synced_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    project = relationship("Project", backref="repositories")
+
+
+class Commit(Base):
+    __tablename__ = "PRM_commits"
+    __table_args__ = (UniqueConstraint("repo_id", "commit_hash", name="uq_commit_hash"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    repo_id = Column(Integer, ForeignKey("PRM_repositories.id"), nullable=False, index=True)
+    commit_hash = Column(String(40), nullable=False)
+    short_hash = Column(String(12))
+    author_name = Column(String(200))
+    author_email = Column(String(200))
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
+    message = Column(Text)
+    branch = Column(String(200))
+    committed_at = Column(DateTime, nullable=False)
+    additions = Column(Integer, default=0)
+    deletions = Column(Integer, default=0)
+    files_changed = Column(Integer, default=0)
+    task_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=func.now())
+
+    repo = relationship("Repository", backref="commits")
+    developer = relationship("Developer")
+    task = relationship("Task")
+
+
+class PullRequest(Base):
+    __tablename__ = "PRM_pull_requests"
+    __table_args__ = (UniqueConstraint("repo_id", "pr_number", name="uq_pr_number"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    repo_id = Column(Integer, ForeignKey("PRM_repositories.id"), nullable=False, index=True)
+    pr_number = Column(Integer, nullable=False)
+    title = Column(String(500))
+    description = Column(Text)
+    author_name = Column(String(200))
+    author_email = Column(String(200))
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
+    source_branch = Column(String(200))
+    dest_branch = Column(String(200))
+    status = Column(String(20), nullable=False)  # OPEN, MERGED, DECLINED, SUPERSEDED
+    commit_count = Column(Integer, default=0)
+    comment_count = Column(Integer, default=0)
+    task_id = Column(Integer, ForeignKey("PRM_tasks.id"), nullable=True, index=True)
+    created_at_bb = Column(DateTime)
+    updated_at_bb = Column(DateTime)
+    merged_at = Column(DateTime, nullable=True)
+    merge_duration_hr = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    repo = relationship("Repository", backref="pull_requests")
+    developer = relationship("Developer")
+    task = relationship("Task")
+    reviewers = relationship("PRReviewer", back_populates="pull_request")
+
+
+class PRReviewer(Base):
+    __tablename__ = "PRM_pr_reviewers"
+    __table_args__ = (UniqueConstraint("pr_id", "reviewer_email", name="uq_pr_reviewer"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    pr_id = Column(Integer, ForeignKey("PRM_pull_requests.id"), nullable=False, index=True)
+    reviewer_name = Column(String(200))
+    reviewer_email = Column(String(200))
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
+    status = Column(String(20), default="PENDING")
+    reviewed_at = Column(DateTime, nullable=True)
+    review_duration_hr = Column(Float, nullable=True)
+    comments_count = Column(Integer, default=0)
+
+    pull_request = relationship("PullRequest", back_populates="reviewers")
+    developer = relationship("Developer")
+
+
+class Release(Base):
+    __tablename__ = "PRM_releases"
+    __table_args__ = (UniqueConstraint("repo_id", "tag_name", name="uq_release_tag"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    repo_id = Column(Integer, ForeignKey("PRM_repositories.id"), nullable=False, index=True)
+    tag_name = Column(String(100), nullable=False)
+    release_name = Column(String(200))
+    description = Column(Text)
+    author_name = Column(String(200))
+    commit_hash = Column(String(40))
+    commit_count = Column(Integer, default=0)
+    pr_count = Column(Integer, default=0)
+    released_at = Column(DateTime, nullable=True)
+    days_since_prev = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    repo = relationship("Repository", backref="releases")

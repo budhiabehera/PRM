@@ -603,3 +603,47 @@ class KBArticleOut(BaseModel):
 
 class KBArticleDetail(KBArticleOut):
     attachments: List[KBAttachmentOut] = []
+
+
+# --- Engineering / Bitbucket Schemas ---
+
+class BitbucketSettingsIn(BaseModel):
+    platform: str = "cloud"
+    base_url: str | None = None
+    workspace_slug: str | None = None
+    auth_type: str = "app_password"
+    auth_username: str | None = None
+    auth_token: str | None = None
+    webhook_secret: str | None = None
+    sync_enabled: bool = True
+    sync_interval: int = 15
+
+
+class BitbucketSettingsOut(BitbucketSettingsIn):
+    id: int
+    last_synced_at: datetime | None = None
+    created_at: datetime | None = None
+    auth_token: str | None = None  # masked in output
+
+    class Config:
+        from_attributes = True
+
+
+class RepositoryCreate(BaseModel):
+    project_id: int
+    repo_slug: str
+    repo_name: str | None = None
+    repo_full_name: str | None = None
+    default_branch: str = "main"
+    language: str | None = None
+
+
+class RepositoryOut(RepositoryCreate):
+    id: int
+    active: bool = True
+    last_synced_at: datetime | None = None
+    created_at: datetime | None = None
+    project_name: str | None = None
+
+    class Config:
+        from_attributes = True

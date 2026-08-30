@@ -250,4 +250,13 @@ export const getStandupText = (developerId) => api.get('/standup/generate-text',
 export const getAuditLogs = (params) => api.get('/audit-logs', { params }).then(r => r.data)
 export const getAuditEntityTypes = () => api.get('/audit-logs/entity-types').then(r => r.data)
 
+// ---------- Engineering / Bitbucket ----------
+export const getBitbucketSettings = () => api.get('/engineering/settings').then(r => r.data)
+export const updateBitbucketSettings = (data) => api.put('/engineering/settings', data).then(r => r.data)
+export const testBitbucketConnection = () => api.post('/engineering/settings/test-connection').then(r => r.data)
+export const getLinkedRepositories = () => api.get('/engineering/repositories').then(r => r.data)
+export const getAvailableRepositories = () => api.get('/engineering/repositories/available').then(r => r.data)
+export const linkRepository = (data) => api.post('/engineering/repositories', data).then(r => r.data)
+export const unlinkRepository = (id) => api.delete(`/engineering/repositories/${id}`).then(r => r.data)
+
 export default api

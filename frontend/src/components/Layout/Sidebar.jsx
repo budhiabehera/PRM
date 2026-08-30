@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
   GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock, Timer,
+  GitBranch,
   Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight, BookOpen, MessageSquare, FileText,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
@@ -70,6 +71,11 @@ const REPORT_ITEMS = [
   { to: '/reports/time-variance', label: 'Time Variance', icon: Clock, roles: ['Admin', 'Manager', 'Lead'] },
 ]
 
+// Engineering section
+const ENGINEERING_ITEMS = [
+  { to: '/engineering/settings', label: 'Bitbucket Settings', icon: GitBranch, roles: ['Admin', 'Manager'] },
+]
+
 export default function Sidebar() {
   const role = useAuthStore((s) => s.user?.role)
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
@@ -106,15 +112,21 @@ export default function Sidebar() {
     ? REPORT_ITEMS.filter((item) => hasAccess(item.to))
     : REPORT_ITEMS.filter((item) => item.roles.includes(role))
 
+  const visibleEngineeringItems = hasRules
+    ? ENGINEERING_ITEMS.filter((item) => hasAccess(item.to))
+    : ENGINEERING_ITEMS.filter((item) => item.roles.includes(role))
+
   // Auto-expand sections if current route is within them
   const isAdminActive = visibleAdminItems.some((item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/'))
   const isIntegrationActive = visibleIntegrationItems.some((item) => location.pathname === item.to)
   const isReportActive = visibleReportItems.some((item) => location.pathname === item.to)
+  const isEngineeringActive = visibleEngineeringItems.some((item) => location.pathname === item.to || location.pathname.startsWith(item.to + '/'))
 
   const [sections, setSections] = useState({
     admin: true,
     integration: true,
     reports: true,
+    engineering: true,
   })
 
   const toggleSection = (key) => setSections((s) => ({ ...s, [key]: !s[key] }))
@@ -213,6 +225,20 @@ export default function Sidebar() {
           {!collapsed && <SectionHeader label="Reports" sectionKey="reports" isActive={isReportActive} />}
           {collapsed && <div className="border-t border-slate-200 mb-2" />}
           {(collapsed || sections.reports) && visibleReportItems.map(({ to, label, icon: Icon }) => (
+            <NavLink key={to} to={to} className={linkClass} title={collapsed ? label : undefined}>
+              <Icon size={collapsed ? 18 : 15} className="flex-shrink-0" />
+              {!collapsed && label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+
+      {/* Engineering (collapsible) */}
+      {visibleEngineeringItems.length > 0 && (
+        <div className={`${collapsed ? 'px-2' : 'px-3'} mb-5`}>
+          {!collapsed && <SectionHeader label="Engineering" sectionKey="engineering" isActive={isEngineeringActive} />}
+          {collapsed && <div className="border-t border-slate-200 mb-2" />}
+          {(collapsed || sections.engineering) && visibleEngineeringItems.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={linkClass} title={collapsed ? label : undefined}>
               <Icon size={collapsed ? 18 : 15} className="flex-shrink-0" />
               {!collapsed && label}

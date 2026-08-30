@@ -23,6 +23,7 @@ from .routers import my_dashboard
 from .routers import standup
 from .routers import knowledge_base
 from .routers import audit_log
+from .routers import engineering
 from .routers import user_settings
 from .deps import get_current_user
 from . import seed_data
@@ -88,6 +89,7 @@ app.include_router(standup.router, dependencies=[protected])
 app.include_router(knowledge_base.router, dependencies=[protected])
 app.include_router(audit_log.router, dependencies=[protected])
 app.include_router(user_settings.router, dependencies=[protected])
+app.include_router(engineering.router, dependencies=[protected])
 app.include_router(user_settings.preset_router, dependencies=[protected])
 
 

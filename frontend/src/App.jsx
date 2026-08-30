@@ -31,6 +31,8 @@ import AdminAvailabilityPage from './pages/admin/AdminAvailabilityPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import AuditLogPage from './pages/admin/AuditLogPage'
 
+import BitbucketSettingsPage from './pages/admin/BitbucketSettingsPage'
+
 import HolidaysPage from './pages/HolidaysPage'
 import SalesforceTasksReportPage from './pages/reports/SalesforceTasksReportPage'
 import ProjectProgressPage from './pages/reports/ProjectProgressPage'
@@ -93,6 +95,7 @@ export default function App() {
             <Route path="/admin/role-capacity" element={<RoleCapacityPage />} />
             <Route path="/admin/task-statuses" element={<TaskStatusPage />} />
             <Route path="/admin/page-access" element={<PageAccessPage />} />
+            <Route path="/engineering/settings" element={<BitbucketSettingsPage />} />
             <Route path="/admin/audit-log" element={<AuditLogPage />} />
           </Route>
 

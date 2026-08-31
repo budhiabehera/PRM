@@ -397,9 +397,9 @@ export default function TasksPage() {
                           )}
 
                           {/* Task Dependencies */}
-                          <div className="mt-3 pt-3 border-t border-slate-200">
+                          <div className="mt-4 p-3.5 rounded-xl bg-amber-50/50 border border-amber-100">
                             <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs font-semibold text-slate-500">Dependencies (Blocked By)</span>
+                              <span className="text-xs font-bold uppercase tracking-wide text-amber-700">🔗 Dependencies (Blocked By)</span>
                               {t.blocked_by && t.blocked_by.length > 0 && (
                                 <span className="bg-red-100 text-red-600 rounded-full px-2 text-[10px] py-0.5 font-medium">
                                   {t.blocked_by.length} blocker{t.blocked_by.length > 1 ? 's' : ''}

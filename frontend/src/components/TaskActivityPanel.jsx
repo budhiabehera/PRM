@@ -90,9 +90,9 @@ export default function TaskActivityPanel({ task, user, onUpdate }) {
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-slate-200">
+    <div className="mt-4 p-3.5 rounded-xl bg-blue-50/50 border border-blue-100">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Task Activity Log</span>
+        <span className="text-xs font-bold uppercase tracking-wide text-blue-700">📋 Task Activity Log</span>
         <button
           type="button"
           className="btn btn-primary btn-sm"

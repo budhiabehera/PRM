@@ -45,9 +45,9 @@ export default function TaskEngineeringPanel({ task }) {
   const hasData = commits.length > 0 || prs.length > 0
 
   return (
-    <div className="mt-3 pt-3 border-t border-slate-200">
+    <div className="mt-4 p-3.5 rounded-xl bg-purple-50/50 border border-purple-100">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-semibold text-slate-500">Engineering Activity</span>
+        <span className="text-xs font-bold uppercase tracking-wide text-purple-700">⚙️ Engineering Activity</span>
         {!loading && hasData && (
           <span className="bg-indigo-100 text-indigo-600 rounded-full px-2 text-[10px] py-0.5 font-medium">
             {commits.length + prs.length} item{commits.length + prs.length !== 1 ? 's' : ''}

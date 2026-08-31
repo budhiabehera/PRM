@@ -86,9 +86,9 @@ export default function TaskAttachmentsPanel({ task }) {
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-slate-200">
+    <div className="mt-4 p-3.5 rounded-xl bg-green-50/50 border border-green-100">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Attachments</span>
+        <span className="text-xs font-bold uppercase tracking-wide text-green-700">📎 Attachments</span>
         <label className="btn btn-primary btn-sm cursor-pointer">
           {uploading ? 'Uploading...' : '+ Upload File'}
           <input

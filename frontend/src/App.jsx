@@ -34,6 +34,9 @@ import AdminKBCategoriesPage from './pages/admin/AdminKBCategoriesPage'
 
 import BitbucketSettingsPage from './pages/admin/BitbucketSettingsPage'
 
+import CommitsPage from './pages/engineering/CommitsPage'
+import PullRequestsPage from './pages/engineering/PullRequestsPage'
+
 import HolidaysPage from './pages/HolidaysPage'
 import SalesforceTasksReportPage from './pages/reports/SalesforceTasksReportPage'
 import ProjectProgressPage from './pages/reports/ProjectProgressPage'
@@ -83,6 +86,8 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>
             <Route path="/sprint" element={<SprintPage />} />
             <Route path="/team" element={<TeamPage />} />
+            <Route path="/engineering/commits" element={<CommitsPage />} />
+            <Route path="/engineering/pull-requests" element={<PullRequestsPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
           </Route>
 

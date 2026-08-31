@@ -244,8 +244,7 @@ def create_task(
     # Audit log
     log_audit(db, current_user, "CREATE", "Task", task.id, task.task_code)
 
-    # Notify Teams/Power Automate in background
-    _notify_teams_async(task.id, current_user.full_name or current_user.username)
+    # Email notification only — Teams is triggered manually via "Notify Team" button
     _send_task_email_async(task.id, current_user.full_name or current_user.username)
 
     # In-app notification: notify assigned developer
@@ -294,8 +293,7 @@ def update_task(
     if changed_fields:
         log_audit(db, current_user, "UPDATE", "Task", task.id, task.task_code, changes=changed_fields)
 
-    # Notify Teams/Power Automate in background
-    _notify_teams_async(task.id, current_user.full_name or current_user.username)
+    # Email notification only — Teams is triggered manually via "Notify Team" button
     _send_task_email_async(task.id, current_user.full_name or current_user.username)
 
     # In-app notification: status changed

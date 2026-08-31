@@ -25,7 +25,7 @@ export default function FilterSelect({ label, value, onChange, options, allLabel
         {showAll && <option value="">{allLabel}</option>}
         {sortedOptions.map((opt) => {
           const optValue = opt.value != null ? String(opt.value) : String(opt)
-          const optLabel = opt.label ?? opt
+          const optLabel = opt.label ?? opt.name ?? optValue
           return (
             <option key={optValue} value={optValue}>
               {optLabel}

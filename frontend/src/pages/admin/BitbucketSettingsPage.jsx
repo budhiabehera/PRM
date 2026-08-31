@@ -3,10 +3,17 @@ import {
   getBitbucketSettings,
   updateBitbucketSettings,
   testBitbucketConnection,
+  syncRepository,
+  syncAllRepos,
+  syncRepoPRs,
+  syncAllPRs,
   getLinkedRepositories,
   getAvailableRepositories,
   linkRepository,
   unlinkRepository,
+  getRepoBranches,
+  updateRepository,
+  getBranchesBySlug,
 } from '../../services/api'
 import useDropdowns from '../../hooks/useDropdowns'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
@@ -17,17 +24,27 @@ export default function BitbucketSettingsPage() {
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [syncingAll, setSyncingAll] = useState(false)
   const [testing, setTesting] = useState(false)
   const [message, setMessage] = useState(null) // { type: 'success'|'error', text }
+  const [syncingAllPRs, setSyncingAllPRs] = useState(false)
+  const [syncingPRRepoId, setSyncingPRRepoId] = useState(null)
 
   // --- Linked Repos state ---
   const [repos, setRepos] = useState([])
   const [reposLoading, setReposLoading] = useState(true)
   const [availableRepos, setAvailableRepos] = useState([])
   const [showLinkForm, setShowLinkForm] = useState(false)
-  const [linkData, setLinkData] = useState({ repo_slug: '', project_id: '' })
+  const [linkData, setLinkData] = useState({ repo_slug: '', repo_name: '', repo_full_name: '', language: '', project_id: '', default_branch: 'main' })
   const [linking, setLinking] = useState(false)
+  const [syncingRepoId, setSyncingRepoId] = useState(null)
   const [toUnlink, setToUnlink] = useState(null)
+
+  // Branch editing
+  const [editingBranchRepoId, setEditingBranchRepoId] = useState(null)
+  const [branchOptions, setBranchOptions] = useState([])
+  const [linkBranches, setLinkBranches] = useState([])
+  const [loadingBranches, setLoadingBranches] = useState(false)
 
   const { projects } = useDropdowns()
 
@@ -93,7 +110,7 @@ export default function BitbucketSettingsPage() {
 
   const handleOpenLinkForm = async () => {
     setShowLinkForm(true)
-    setLinkData({ repo_slug: '', project_id: '' })
+    setLinkData({ repo_slug: '', repo_name: '', repo_full_name: '', language: '', project_id: '' })
     try {
       const available = await getAvailableRepositories()
       setAvailableRepos(available)
@@ -109,7 +126,7 @@ export default function BitbucketSettingsPage() {
     try {
       await linkRepository(linkData)
       setShowLinkForm(false)
-      setLinkData({ repo_slug: '', project_id: '' })
+      setLinkData({ repo_slug: '', repo_name: '', repo_full_name: '', language: '', project_id: '' })
       loadRepos()
       setMessage({ type: 'success', text: 'Repository linked successfully.' })
     } catch (err) {
@@ -129,6 +146,95 @@ export default function BitbucketSettingsPage() {
       setMessage({ type: 'success', text: 'Repository unlinked.' })
     } catch (err) {
       setMessage({ type: 'error', text: err.response?.data?.detail || 'Failed to unlink repository.' })
+    }
+  }
+
+  const handleSyncRepo = async (repo) => {
+    setSyncingRepoId(repo.id)
+    setMessage(null)
+    try {
+      const res = await syncRepository(repo.id)
+      loadRepos()
+      setMessage({
+        type: 'success',
+        text: `Synced "${repo.repo_name || repo.repo_slug}" — ${res.new ?? 0} new commits, ${res.skipped ?? 0} skipped, ${res.linked_tasks ?? 0} tasks linked.`,
+      })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || `Failed to sync "${repo.repo_name || repo.repo_slug}".` })
+    } finally {
+      setSyncingRepoId(null)
+    }
+  }
+
+  const handleSyncAll = async () => {
+    setSyncingAll(true)
+    setMessage(null)
+    try {
+      const res = await syncAllRepos()
+      const totalNew = Array.isArray(res) ? res.reduce((s, r) => s + (r.new || 0), 0) : (res.new || 0)
+      const totalLinked = Array.isArray(res) ? res.reduce((s, r) => s + (r.linked_tasks || 0), 0) : (res.linked_tasks || 0)
+      loadRepos()
+      setMessage({ type: 'success', text: `Sync complete — ${totalNew} new commits, ${totalLinked} tasks linked.` })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || 'Failed to sync all repositories.' })
+    } finally {
+      setSyncingAll(false)
+    }
+  }
+
+  const handleSyncRepoPRs = async (repo) => {
+    setSyncingPRRepoId(repo.id)
+    setMessage(null)
+    try {
+      const res = await syncRepoPRs(repo.id)
+      loadRepos()
+      setMessage({
+        type: 'success',
+        text: `PR sync "${repo.repo_name || repo.repo_slug}" — ${res.new ?? 0} new, ${res.updated ?? 0} updated.`,
+      })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || `Failed to sync PRs for "${repo.repo_name || repo.repo_slug}".` })
+    } finally {
+      setSyncingPRRepoId(null)
+    }
+  }
+
+  const handleSyncAllPRs = async () => {
+    setSyncingAllPRs(true)
+    setMessage(null)
+    try {
+      const res = await syncAllPRs()
+      const totalNew = Array.isArray(res) ? res.reduce((s, r) => s + (r.new || 0), 0) : (res.new || 0)
+      const totalUpdated = Array.isArray(res) ? res.reduce((s, r) => s + (r.updated || 0), 0) : (res.updated || 0)
+      loadRepos()
+      setMessage({ type: 'success', text: `PR sync complete — ${totalNew} new PRs, ${totalUpdated} updated.` })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || 'Failed to sync all PRs.' })
+    } finally {
+      setSyncingAllPRs(false)
+    }
+  }
+
+  const handleEditBranch = async (repo) => {
+    setEditingBranchRepoId(repo.id)
+    setBranchOptions([])
+    try {
+      const res = await getRepoBranches(repo.id)
+      setBranchOptions(res.branches || [])
+    } catch {
+      // Fallback: just let user type
+      setBranchOptions([])
+    }
+  }
+
+  const handleBranchChange = async (repoId, branch) => {
+    try {
+      await updateRepository(repoId, { default_branch: branch })
+      setEditingBranchRepoId(null)
+      loadRepos()
+      setMessage({ type: 'success', text: `Branch updated to "${branch}".` })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || 'Failed to update branch.' })
     }
   }
 
@@ -243,20 +349,50 @@ export default function BitbucketSettingsPage() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <div className="text-[15px] font-semibold">Linked Repositories</div>
-          <button className="btn btn-primary btn-sm" onClick={handleOpenLinkForm}>+ Link Repository</button>
+          <div className="flex items-center gap-2">
+            <button className="btn btn-secondary btn-sm" onClick={handleSyncAll} disabled={syncingAll}>
+              {syncingAll ? '⏳ Syncing All...' : '🔄 Sync All'}
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={handleSyncAllPRs} disabled={syncingAllPRs}>
+              {syncingAllPRs ? '⏳ Syncing PRs...' : '🔄 Sync All PRs'}
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={handleOpenLinkForm}>+ Link Repository</button>
+          </div>
         </div>
 
         {/* Link form (inline) */}
         {showLinkForm && (
           <div className="border border-slate-200 rounded-xl p-4 mb-4">
             <div className="text-sm font-semibold mb-3">Link a Repository</div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="form-label">Repository</label>
                 <select
                   className="form-select"
                   value={linkData.repo_slug}
-                  onChange={(e) => setLinkData((d) => ({ ...d, repo_slug: e.target.value }))}
+                  onChange={(e) => {
+                    const slug = e.target.value
+                    const repo = availableRepos.find((r) => (r.slug || r.full_name) === slug)
+                    setLinkData((d) => ({
+                      ...d,
+                      repo_slug: slug,
+                      repo_name: repo?.name || repo?.slug || slug,
+                      repo_full_name: repo?.full_name || '',
+                      language: repo?.language || '',
+                      default_branch: 'main',
+                    }))
+                    // Fetch branches for selected repo
+                    if (slug) {
+                      setLoadingBranches(true)
+                      setLinkBranches([])
+                      getBranchesBySlug(slug)
+                        .then((res) => setLinkBranches(res.branches || []))
+                        .catch(() => setLinkBranches([]))
+                        .finally(() => setLoadingBranches(false))
+                    } else {
+                      setLinkBranches([])
+                    }
+                  }}
                 >
                   <option value="">— Select repository —</option>
                   {availableRepos.map((r) => (
@@ -275,6 +411,23 @@ export default function BitbucketSettingsPage() {
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="form-label">Branch</label>
+                <select
+                  className="form-select"
+                  value={linkData.default_branch}
+                  onChange={(e) => setLinkData((d) => ({ ...d, default_branch: e.target.value }))}
+                  disabled={!linkData.repo_slug || loadingBranches}
+                >
+                  {loadingBranches ? (
+                    <option value="main">Loading branches...</option>
+                  ) : linkBranches.length > 0 ? (
+                    linkBranches.map((b) => <option key={b} value={b}>{b}</option>)
+                  ) : (
+                    <option value="main">main</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -305,12 +458,52 @@ export default function BitbucketSettingsPage() {
             <tbody>
               {repos.map((r) => (
                 <tr key={r.id}>
-                  <td className="font-medium">{r.repo_name}</td>
+                  <td className="font-medium">{r.repo_name || r.repo_slug || `Repo #${r.id}`}</td>
                   <td>{r.project_name}</td>
-                  <td>{r.default_branch || 'main'}</td>
+                  <td>
+                    {editingBranchRepoId === r.id ? (
+                      <div className="flex items-center gap-1">
+                        <select
+                          className="form-select text-xs py-1"
+                          defaultValue={r.default_branch || 'main'}
+                          onChange={(e) => handleBranchChange(r.id, e.target.value)}
+                        >
+                          {branchOptions.length > 0 ? (
+                            branchOptions.map((b) => <option key={b} value={b}>{b}</option>)
+                          ) : (
+                            <option value={r.default_branch || 'main'}>{r.default_branch || 'main'}</option>
+                          )}
+                        </select>
+                        <button className="text-xs text-slate-400 hover:text-slate-600" onClick={() => setEditingBranchRepoId(null)}>✕</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="text-indigo-600 hover:text-indigo-800 hover:underline text-left"
+                        onClick={() => handleEditBranch(r)}
+                      >
+                        {r.default_branch || 'main'}
+                      </button>
+                    )}
+                  </td>
                   <td>{r.last_synced_at ? new Date(r.last_synced_at).toLocaleString() : '—'}</td>
                   <td>
-                    <button className="btn btn-danger btn-sm" onClick={() => setToUnlink(r)}>Unlink</button>
+                    <div className="flex gap-1.5">
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleSyncRepo(r)}
+                        disabled={syncingRepoId === r.id}
+                      >
+                        {syncingRepoId === r.id ? 'Syncing...' : 'Sync'}
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleSyncRepoPRs(r)}
+                        disabled={syncingPRRepoId === r.id}
+                      >
+                        {syncingPRRepoId === r.id ? 'Syncing PRs...' : 'Sync PRs'}
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={() => setToUnlink(r)}>Unlink</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -321,7 +514,7 @@ export default function BitbucketSettingsPage() {
 
       <ConfirmDialog
         open={!!toUnlink}
-        message={`Unlink repository "${toUnlink?.repo_name}"? This will remove the link but won't delete any data.`}
+        message={`Unlink repository "${toUnlink?.repo_name || toUnlink?.repo_slug}"? This will remove the link but won't delete any data.`}
         onConfirm={handleUnlink}
         onCancel={() => setToUnlink(null)}
       />

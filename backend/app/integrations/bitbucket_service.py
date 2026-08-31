@@ -3,8 +3,8 @@
 Updated Aug 2026:
 - CHANGE-2770: Cross-workspace APIs removed Apr 14 2026.
   Use workspace-scoped endpoints only.
-- App passwords deprecated Jul 28 2026.
-  Support Bearer auth with API tokens.
+- App passwords deprecated Jul 28 2026 — replaced by API tokens.
+  Bitbucket API tokens use BASIC auth (email + token), not Bearer.
 """
 
 import requests
@@ -16,7 +16,7 @@ class BitbucketClient:
 
     def __init__(self, platform: str, workspace_slug: str | None,
                  base_url: str | None, auth_username: str | None,
-                 auth_token: str | None, auth_type: str = "app_password"):
+                 auth_token: str | None, auth_type: str = "api_token"):
         self.platform = platform
         self.workspace = workspace_slug
         self.auth_type = auth_type
@@ -26,19 +26,21 @@ class BitbucketClient:
             self.base = (base_url or "").rstrip("/") + "/rest/api/1.0"
 
         # --- Authentication setup ---
+        # For Bitbucket Cloud: ALL auth types (api_token, app_password, pat)
+        # use Basic auth (username + token/password). Bearer is only for OAuth.
+        # For Bitbucket Server: PAT without username uses Bearer header;
+        # with username uses Basic auth.
         self.auth = None
         self.headers = {}
 
         if platform == "cloud":
-            if auth_type == "api_token" and auth_token:
-                # New Bitbucket API Token — use Bearer auth
-                self.headers["Authorization"] = f"Bearer {auth_token}"
-            elif auth_username and auth_token:
-                # Legacy App Password — Basic auth (deprecated Jul 28 2026)
+            # Cloud always uses Basic auth regardless of auth_type
+            if auth_username and auth_token:
                 self.auth = (auth_username, auth_token)
         else:
             # Bitbucket Server / Data Center
             if auth_token and not auth_username:
+                # Server PAT without username — use Bearer header
                 self.headers["Authorization"] = f"Bearer {auth_token}"
             elif auth_username and auth_token:
                 self.auth = (auth_username, auth_token)
@@ -62,8 +64,6 @@ class BitbucketClient:
         """
         try:
             if self.platform == "cloud":
-                # Workspace-scoped endpoint — NOT the deprecated
-                # cross-workspace /repositories/{workspace} (CHANGE-2770)
                 data = self._get(f"/workspaces/{self.workspace}")
                 ws_name = data.get("name", self.workspace)
                 return True, f"Connected! Workspace: '{ws_name}'."
@@ -91,6 +91,23 @@ class BitbucketClient:
             return self._get("/repos",
                            params={"limit": page_size,
                                    "start": (page - 1) * page_size})
+
+    # ------------------------------------------------------------------
+    # Branches
+    # ------------------------------------------------------------------
+    def list_branches(self, repo_slug: str, page: int = 1,
+                      page_size: int = 100) -> dict:
+        """List branches for a repository."""
+        if self.platform == "cloud":
+            path = f"/repositories/{self.workspace}/{repo_slug}/refs/branches"
+            return self._get(path, params={"pagelen": page_size,
+                                           "page": page})
+        else:
+            path = (f"/projects/{self.workspace}/repos/{repo_slug}"
+                    f"/branches")
+            return self._get(path, params={"limit": page_size,
+                                           "start": (page - 1) * page_size,
+                                           "orderBy": "ALPHABETICAL"})
 
     # ------------------------------------------------------------------
     # Commits

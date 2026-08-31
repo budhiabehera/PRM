@@ -667,3 +667,106 @@ class RepositoryOut(RepositoryCreate):
 
     class Config:
         from_attributes = True
+
+
+# ---------- Commits ----------
+
+class CommitOut(BaseModel):
+    id: int
+    commit_hash: str
+    short_hash: str | None = None
+    author_name: str | None = None
+    developer_id: int | None = None
+    developer_name: str | None = None
+    message: str | None = None
+    branch: str | None = None
+    repo_name: str | None = None
+    repo_id: int | None = None
+    project_name: str | None = None
+    project_id: int | None = None
+    committed_at: datetime | None = None
+    additions: int = 0
+    deletions: int = 0
+    files_changed: int = 0
+    task_id: int | None = None
+    task_code: str | None = None
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class CommitKPIs(BaseModel):
+    total_commits: int = 0
+    unique_authors: int = 0
+    total_additions: int = 0
+    total_deletions: int = 0
+
+
+class CommitListResponse(BaseModel):
+    items: list[CommitOut] = []
+    total: int = 0
+    page: int = 1
+    pages: int = 1
+    kpis: CommitKPIs = CommitKPIs()
+
+
+# --- Pull Request Schemas ---
+
+class PRReviewerOut(BaseModel):
+    id: int
+    reviewer_name: str | None = None
+    developer_id: int | None = None
+    status: str = "PENDING"
+    reviewed_at: datetime | None = None
+    review_duration_hr: float | None = None
+    comments_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class PullRequestOut(BaseModel):
+    id: int
+    pr_number: int
+    title: str | None = None
+    description: str | None = None
+    author_name: str | None = None
+    developer_id: int | None = None
+    developer_name: str | None = None
+    repo_id: int | None = None
+    repo_name: str | None = None
+    project_id: int | None = None
+    project_name: str | None = None
+    source_branch: str | None = None
+    dest_branch: str | None = None
+    status: str = "OPEN"
+    commit_count: int = 0
+    comment_count: int = 0
+    task_id: int | None = None
+    task_code: str | None = None
+    created_at_bb: datetime | None = None
+    updated_at_bb: datetime | None = None
+    merged_at: datetime | None = None
+    merge_duration_hr: float | None = None
+    created_at: datetime | None = None
+    reviewers: list[PRReviewerOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class PRKPIs(BaseModel):
+    open_count: int = 0
+    merged_count: int = 0
+    declined_count: int = 0
+    avg_merge_time_hr: float = 0.0
+    prs_without_review: int = 0
+
+
+class PullRequestListResponse(BaseModel):
+    items: list[PullRequestOut] = []
+    total: int = 0
+    page: int = 1
+    pages: int = 1
+    kpis: PRKPIs = PRKPIs()

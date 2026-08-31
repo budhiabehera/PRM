@@ -264,5 +264,18 @@ export const getLinkedRepositories = () => api.get('/engineering/repositories').
 export const getAvailableRepositories = () => api.get('/engineering/repositories/available').then(r => r.data)
 export const linkRepository = (data) => api.post('/engineering/repositories', data).then(r => r.data)
 export const unlinkRepository = (id) => api.delete(`/engineering/repositories/${id}`).then(r => r.data)
+export const getRepoBranches = (repoId) => api.get(`/engineering/repositories/${repoId}/branches`).then(r => r.data)
+export const updateRepository = (repoId, data) => api.patch(`/engineering/repositories/${repoId}`, data).then(r => r.data)
+export const getBranchesBySlug = (repoSlug) => api.get('/engineering/repositories/branches-by-slug', { params: { repo_slug: repoSlug } }).then(r => r.data)
+
+// --- Engineering Commits APIs ---
+export const getCommits = (params) => api.get('/engineering/commits', { params }).then(r => r.data)
+export const syncRepository = (repoId) => api.post(`/engineering/repositories/${repoId}/sync`).then(r => r.data)
+export const syncAllRepos = () => api.post('/engineering/sync-all').then(r => r.data)
+
+// --- Engineering Pull Requests APIs ---
+export const getPullRequests = (params) => api.get('/engineering/pull-requests', { params }).then(r => r.data)
+export const syncRepoPRs = (repoId) => api.post(`/engineering/repositories/${repoId}/sync-prs`).then(r => r.data)
+export const syncAllPRs = () => api.post('/engineering/sync-all-prs').then(r => r.data)
 
 export default api

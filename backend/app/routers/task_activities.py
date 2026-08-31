@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
+from ..services.audit_service import log_audit
 
 router = APIRouter(prefix="/api/task-activities", tags=["Task Activities"])
 
@@ -96,6 +97,18 @@ def create_activity(
 
     db.commit()
     db.refresh(activity)
+
+    # Audit log — record as a task update (activity added)
+    log_audit(
+        db, current_user, "UPDATE", "Task", task.id, task.task_code,
+        changes={
+            "activity_added": {
+                "old": None,
+                "new": f"{payload.activity_date} — {payload.hours_spent}h — {(payload.description or '')[:100]}"
+            }
+        },
+    )
+
     return _serialize_activity(activity)
 
 
@@ -113,6 +126,12 @@ def update_activity(
 
     task = db.get(models.Task, activity.task_id)
 
+    # Track old values for audit
+    old_desc = activity.description or ""
+    old_hours = activity.hours_spent or 0
+    old_pct = activity.percentage or 0
+    old_date = str(activity.activity_date) if activity.activity_date else ""
+
     if payload.activity_date is not None:
         activity.activity_date = payload.activity_date
     if payload.description is not None:
@@ -129,6 +148,24 @@ def update_activity(
 
     db.commit()
     db.refresh(activity)
+
+    # Audit log — record activity update
+    if task:
+        changed = {}
+        if payload.description is not None and payload.description != old_desc:
+            changed["activity_description"] = {"old": old_desc[:100], "new": (payload.description or "")[:100]}
+        if payload.hours_spent is not None and payload.hours_spent != old_hours:
+            changed["activity_hours"] = {"old": str(old_hours), "new": str(payload.hours_spent)}
+        if payload.percentage is not None and payload.percentage != old_pct:
+            changed["activity_percentage"] = {"old": str(old_pct), "new": str(payload.percentage)}
+        if payload.activity_date is not None and str(payload.activity_date) != old_date:
+            changed["activity_date"] = {"old": old_date, "new": str(payload.activity_date)}
+        if changed:
+            log_audit(
+                db, current_user, "UPDATE", "Task", task.id, task.task_code,
+                changes=changed,
+            )
+
     return _serialize_activity(activity)
 
 
@@ -142,6 +179,10 @@ def delete_activity(
     if not activity:
         raise HTTPException(404, "Activity not found")
     task = db.get(models.Task, activity.task_id)
+
+    # Capture info before deletion for audit
+    deleted_info = f"{activity.activity_date} — {activity.hours_spent or 0}h — {(activity.description or '')[:100]}"
+
     db.delete(activity)
     db.flush()
 
@@ -149,3 +190,15 @@ def delete_activity(
         _recalculate_task_stats(task, db)
 
     db.commit()
+
+    # Audit log — record activity deletion
+    if task:
+        log_audit(
+            db, current_user, "UPDATE", "Task", task.id, task.task_code,
+            changes={
+                "activity_deleted": {
+                    "old": deleted_info,
+                    "new": None
+                }
+            },
+        )

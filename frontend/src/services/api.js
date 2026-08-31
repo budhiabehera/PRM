@@ -273,9 +273,18 @@ export const getCommits = (params) => api.get('/engineering/commits', { params }
 export const syncRepository = (repoId) => api.post(`/engineering/repositories/${repoId}/sync`).then(r => r.data)
 export const syncAllRepos = () => api.post('/engineering/sync-all').then(r => r.data)
 
+// --- Engineering Dashboard APIs ---
+export const getEngineeringOverview = (params) => api.get('/engineering/overview', { params }).then(r => r.data)
+
 // --- Engineering Pull Requests APIs ---
 export const getPullRequests = (params) => api.get('/engineering/pull-requests', { params }).then(r => r.data)
 export const syncRepoPRs = (repoId) => api.post(`/engineering/repositories/${repoId}/sync-prs`).then(r => r.data)
 export const syncAllPRs = () => api.post('/engineering/sync-all-prs').then(r => r.data)
+
+// --- Engineering Code Reviews APIs ---
+export const getCodeReviews = (params) => api.get('/engineering/code-reviews', { params }).then(r => r.data)
+
+// --- Engineering Releases APIs ---
+export const getReleases = (params) => api.get('/engineering/releases', { params }).then(r => r.data)
 
 export default api

@@ -166,12 +166,35 @@ def _build_developer_summary(developer_id: int, db: Session, target_date: date |
                 "reason": "Blocked by dependency",
             })
 
+    # --- Recent Commits from the standup date ---
+    recent_commit_rows = (
+        db.query(models.Commit)
+        .options(joinedload(models.Commit.repo))
+        .filter(
+            models.Commit.developer_id == developer_id,
+            models.Commit.committed_at >= datetime.combine(yesterday, datetime.min.time()),
+            models.Commit.committed_at <= datetime.combine(yesterday, datetime.max.time()),
+        )
+        .order_by(models.Commit.committed_at.desc())
+        .limit(10)
+        .all()
+    )
+    recent_commits = [
+        {
+            "short_hash": c.short_hash or (c.commit_hash[:7] if c.commit_hash else ""),
+            "message": c.message,
+            "repo_name": (c.repo.repo_name or c.repo.repo_slug) if c.repo else None,
+        }
+        for c in recent_commit_rows
+    ]
+
     return {
         "developer_id": developer_id,
         "developer_name": developer.name,
         "yesterday": yesterday_items,
         "today": today_items,
         "blockers": blockers,
+        "recent_commits": recent_commits,
     }
 
 
@@ -248,7 +271,7 @@ def get_my_standup(
                 "subject": task.subject if task else None,
                 "notes": a.description, "hours_spent": a.hours_spent, "percentage": a.percentage,
             })
-        return {"developer_id": None, "developer_name": current_user.full_name or current_user.username, "yesterday": yesterday_items, "today": [], "blockers": []}
+        return {"developer_id": None, "developer_name": current_user.full_name or current_user.username, "yesterday": yesterday_items, "today": [], "blockers": [], "recent_commits": []}
 
     summary = _build_developer_summary(current_user.developer_id, db, target_date)
     return summary
@@ -373,6 +396,23 @@ def get_team_standup(
     for t in all_on_hold:
         on_hold_by_dev[t.developer_id].append(t)
 
+    # 4b. BATCH: recent commits for ALL developers on the standup date
+    all_commits = (
+        db.query(models.Commit)
+        .options(joinedload(models.Commit.repo))
+        .filter(
+            models.Commit.developer_id.in_(dev_ids),
+            models.Commit.committed_at >= datetime.combine(yesterday, datetime.min.time()),
+            models.Commit.committed_at <= datetime.combine(yesterday, datetime.max.time()),
+        )
+        .order_by(models.Commit.developer_id, models.Commit.committed_at.desc())
+        .all()
+    )
+    commits_by_dev = defaultdict(list)
+    for c in all_commits:
+        if len(commits_by_dev[c.developer_id]) < 10:  # limit 10 per developer
+            commits_by_dev[c.developer_id].append(c)
+
     # 5. Assemble summaries
     summaries = []
     for dev in developers:
@@ -413,12 +453,22 @@ def get_team_standup(
                 "reason": "On Hold",
             })
 
+        recent_commits = [
+            {
+                "short_hash": c.short_hash or (c.commit_hash[:7] if c.commit_hash else ""),
+                "message": c.message,
+                "repo_name": (c.repo.repo_name or c.repo.repo_slug) if c.repo else None,
+            }
+            for c in commits_by_dev.get(dev.id, [])
+        ]
+
         summaries.append({
             "developer_id": dev.id,
             "developer_name": dev.name,
             "yesterday": yesterday_items,
             "today": today_items,
             "blockers": blockers,
+            "recent_commits": recent_commits,
         })
 
     return summaries

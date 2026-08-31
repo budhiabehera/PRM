@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
   GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock, Timer, GitCommitHorizontal,
-  GitBranch, GitPullRequest,
+  GitBranch, GitPullRequest, Eye,
   Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight, BookOpen, MessageSquare, FileText,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
@@ -74,8 +74,11 @@ const REPORT_ITEMS = [
 
 // Engineering section
 const ENGINEERING_ITEMS = [
+  { to: '/engineering', label: 'Overview', icon: LayoutDashboard, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/engineering/commits', label: 'Commits', icon: GitCommitHorizontal, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/engineering/pull-requests', label: 'Pull Requests', icon: GitPullRequest, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/engineering/code-reviews', label: 'Code Reviews', icon: Eye, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/engineering/releases', label: 'Releases', icon: Tag, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/engineering/settings', label: 'Bitbucket Settings', icon: GitBranch, roles: ['Admin', 'Manager'] },
 ]
 
@@ -244,7 +247,7 @@ export default function Sidebar() {
           {!collapsed && <SectionHeader label="Engineering" sectionKey="engineering" isActive={isEngineeringActive} />}
           {collapsed && <div className="border-t border-slate-200 mb-2" />}
           {(collapsed || sections.engineering) && visibleEngineeringItems.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} className={linkClass} title={collapsed ? label : undefined}>
+            <NavLink key={to} to={to} end={to === '/engineering'} className={linkClass} title={collapsed ? label : undefined}>
               <Icon size={collapsed ? 18 : 15} className="flex-shrink-0" />
               {!collapsed && label}
             </NavLink>

@@ -57,6 +57,9 @@ app.include_router(auth_router.router)
 # Public integration endpoints (no auth required)
 app.include_router(integrations.public_router)
 
+# Public webhook endpoint for Bitbucket (HMAC-verified, no user auth)
+app.include_router(engineering.webhook_router)
+
 # Every other route requires a valid logged-in user. Fine-grained role checks
 # (e.g. "only Admin/Manager/Lead can edit this task") are applied per-endpoint
 # inside each router via app.deps.require_roles / can_edit_task / can_delete_task.

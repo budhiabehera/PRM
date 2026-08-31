@@ -406,3 +406,108 @@ def sync_prs_all_repos(db: Session) -> dict:
             logger.error(f"PR sync failed for {repo.repo_slug}: {e}")
             results[repo.repo_slug] = {"error": str(e)}
     return results
+
+
+# ── Release / Tag sync ─────────────────────────────────────────────────
+
+def sync_releases_for_repo(repo: models.Repository, db: Session,
+                           max_pages: int = 5) -> dict:
+    """Sync tags/releases from Bitbucket for a single repository.
+
+    Returns: {"new": int, "skipped": int}
+    """
+    client = _build_client(db)
+    stats = {"new": 0, "skipped": 0}
+
+    for page_num in range(1, max_pages + 1):
+        try:
+            raw = client.list_tags(repo.repo_slug, page=page_num, page_size=50)
+        except Exception as e:
+            logger.error(f"Error fetching tags for {repo.repo_slug} page {page_num}: {e}")
+            break
+
+        tags_data = raw.get("values", [])
+        if not tags_data:
+            break
+
+        for tag in tags_data:
+            tag_name = tag.get("name", "")
+            if not tag_name:
+                continue
+
+            # Check if already exists
+            exists = db.query(models.Release).filter(
+                models.Release.repo_id == repo.id,
+                models.Release.tag_name == tag_name,
+            ).first()
+            if exists:
+                stats["skipped"] += 1
+                continue
+
+            # Extract fields from Bitbucket Cloud tag object
+            target = tag.get("target", {})
+            commit_hash = target.get("hash", "")
+            released_at_str = target.get("date")
+            author_raw = target.get("author", {}).get("raw", "")
+            author_name = author_raw.split("<")[0].strip() if author_raw else ""
+            description = tag.get("message", "") or target.get("message", "")
+
+            # Parse released_at
+            released_at = _parse_bb_datetime(released_at_str)
+
+            release = models.Release(
+                repo_id=repo.id,
+                tag_name=tag_name,
+                release_name=tag_name,
+                description=description,
+                author_name=author_name,
+                commit_hash=commit_hash,
+                released_at=released_at,
+            )
+            db.add(release)
+            stats["new"] += 1
+
+        # Check if there are more pages (Cloud pagination)
+        if not raw.get("next"):
+            break
+
+    db.commit()
+
+    # ── Calculate days_since_prev for all releases in this repo ──
+    all_releases = (
+        db.query(models.Release)
+        .filter(models.Release.repo_id == repo.id)
+        .order_by(models.Release.released_at.asc())
+        .all()
+    )
+    prev_released_at = None
+    for rel in all_releases:
+        if prev_released_at and rel.released_at:
+            rel.days_since_prev = (rel.released_at - prev_released_at).days
+        else:
+            rel.days_since_prev = None
+        if rel.released_at:
+            prev_released_at = rel.released_at
+    db.commit()
+
+    # Update repo last_synced_at
+    repo.last_synced_at = datetime.utcnow()
+    db.commit()
+
+    return stats
+
+
+def sync_releases_all_repos(db: Session) -> dict:
+    """Sync releases/tags for all active repositories."""
+    repos = db.query(models.Repository).filter(
+        models.Repository.active == True  # noqa: E712
+    ).all()
+    results = {}
+    for repo in repos:
+        try:
+            stats = sync_releases_for_repo(repo, db)
+            results[repo.repo_slug] = stats
+        except Exception as e:
+            logger.error(f"Release sync failed for {repo.repo_slug}: {e}")
+            results[repo.repo_slug] = {"error": str(e)}
+    return results

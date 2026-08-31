@@ -4,7 +4,7 @@ import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
-import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency } from '../services/api'
+import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests } from '../services/api'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -19,6 +19,7 @@ import { PRIORITY_OPTIONS } from '../utils/constants'
 import { ChevronDown, ChevronRight, Search, Filter } from 'lucide-react'
 import TaskActivityPanel from '../components/TaskActivityPanel'
 import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
+import TaskEngineeringPanel from '../components/TaskEngineeringPanel'
 import PresetBar from '../components/common/PresetBar'
 import useFilterPresets from '../hooks/useFilterPresets'
 
@@ -432,6 +433,9 @@ export default function TasksPage() {
 
                           {/* Task Attachments */}
                           <TaskAttachmentsPanel task={t} />
+
+                          {/* Engineering — Linked Commits & PRs */}
+                          <TaskEngineeringPanel task={t} />
                         </td>
                       </tr>
                     )}

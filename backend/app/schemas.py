@@ -770,3 +770,77 @@ class PullRequestListResponse(BaseModel):
     page: int = 1
     pages: int = 1
     kpis: PRKPIs = PRKPIs()
+
+
+# --- Code Review Schemas ---
+
+class ReviewLeaderboardItem(BaseModel):
+    developer_id: int | None = None
+    developer_name: str
+    reviews_total: int = 0
+    reviews_approved: int = 0
+    reviews_changes_requested: int = 0
+    avg_turnaround_hr: float = 0.0
+    total_comments: int = 0
+
+
+class AwaitingReviewItem(BaseModel):
+    pr_id: int
+    pr_number: int
+    title: str | None = None
+    repo_name: str | None = None
+    project_name: str | None = None
+    author_name: str | None = None
+    source_branch: str | None = None
+    created_at_bb: datetime | None = None
+    days_waiting: float = 0.0
+    pending_reviewers: list[str] = []
+
+
+class CodeReviewKPIs(BaseModel):
+    total_reviews: int = 0
+    avg_turnaround_hr: float = 0.0
+    prs_awaiting_review: int = 0
+    oldest_pending_days: float = 0.0
+
+
+class CodeReviewResponse(BaseModel):
+    leaderboard: list[ReviewLeaderboardItem] = []
+    awaiting_review: list[AwaitingReviewItem] = []
+    kpis: CodeReviewKPIs = CodeReviewKPIs()
+
+
+# --- Release Schemas ---
+
+class ReleaseOut(BaseModel):
+    id: int
+    tag_name: str
+    release_name: str | None = None
+    description: str | None = None
+    author_name: str | None = None
+    commit_hash: str | None = None
+    commit_count: int = 0
+    pr_count: int = 0
+    released_at: datetime | None = None
+    days_since_prev: int | None = None
+    repo_id: int | None = None
+    repo_name: str | None = None
+    project_id: int | None = None
+    project_name: str | None = None
+    created_at: datetime | None = None
+    class Config:
+        from_attributes = True
+
+class ReleaseKPIs(BaseModel):
+    total_releases: int = 0
+    avg_days_between_releases: float = 0.0
+    avg_commits_per_release: float = 0.0
+    last_release_date: str | None = None
+    last_release_tag: str | None = None
+
+class ReleaseListResponse(BaseModel):
+    items: list[ReleaseOut] = []
+    total: int = 0
+    page: int = 1
+    pages: int = 1
+    kpis: ReleaseKPIs = ReleaseKPIs()

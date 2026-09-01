@@ -43,6 +43,7 @@ class ProjectBase(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     description: Optional[str] = ""
+    hours_check_enabled: Optional[bool] = False
 
 
 class ProjectCreate(ProjectBase):
@@ -52,6 +53,7 @@ class ProjectCreate(ProjectBase):
 class ProjectUpdate(ProjectBase):
     name: Optional[str] = None
     code: Optional[str] = None
+    hours_check_enabled: Optional[bool] = None
 
 
 class Project(ProjectBase):

@@ -31,7 +31,9 @@ export default function TasksPage() {
   const user = useAuthStore((s) => s.user)
   const isDeveloper = user?.role === 'Developer'
   const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
-  const [filters, setFilters] = useState({ project_id: defaultProjectId })
+  // Default to current user's tasks (all roles) — managers can clear to see all
+  const myDevId = user?.developer_id || ''
+  const [filters, setFilters] = useState({ project_id: defaultProjectId, developer_id: myDevId })
   const [view, setView] = useState('list')
 
   // Filter presets
@@ -67,11 +69,12 @@ export default function TasksPage() {
   const params = useMemo(() => {
     const p = {}
     Object.entries(filters).forEach(([k, v]) => { if (v) p[k] = v })
-    if (user?.role === 'Developer' && user?.developer_id) {
+    if (isDeveloper && user?.developer_id) {
+      // Developers always see only their own tasks (enforced)
       p.developer_id = user.developer_id
     }
     return p
-  }, [filters, user?.developer_id, user?.role])
+  }, [filters, user?.developer_id, isDeveloper])
 
   const { data: tasks, loading, reload } = useApi(() => getTasks(params), [JSON.stringify(params)])
 

@@ -267,3 +267,184 @@ def send_task_assignment_email(
         return True, f"Task assignment email sent to {to_email}"
     except Exception as exc:
         return False, f"Failed to send task email: {exc}"
+
+
+def _build_hours_reminder_html(
+    developer_name: str,
+    check_date: str,
+    total_hours: float,
+    task_breakdown: list[dict],
+    min_hours: float,
+    company_logo: str = "",
+) -> str:
+    """Build a professional HTML email for daily hours reminder."""
+    # Build task breakdown table rows
+    task_rows = ""
+    for task in task_breakdown:
+        task_rows += f"""
+                      <tr>
+                        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:13px;font-weight:600;">{task.get('task_code', '-')}</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#475569;font-size:13px;">{task.get('description', '-')}</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:13px;text-align:right;font-weight:600;">{task.get('hours', 0)}</td>
+                      </tr>"""
+
+    if not task_rows:
+        task_rows = """
+                      <tr>
+                        <td colspan="3" style="padding:12px;color:#94a3b8;font-size:13px;text-align:center;font-style:italic;">No tasks logged for this date</td>
+                      </tr>"""
+
+    # Deficit calculation
+    deficit = round(min_hours - total_hours, 2)
+
+    logo_block = ""
+    if company_logo:
+        logo_block = f'<img src="{company_logo}" alt="Company Logo" style="max-height:50px;margin-bottom:15px;" />'
+
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#dc2626 0%,#ef4444 100%);padding:30px 40px;text-align:center;">
+            {logo_block}
+            <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:600;">⏱️ Daily Hours Reminder</h1>
+            <p style="color:#fecaca;margin:5px 0 0;font-size:12px;">PRM — Project & Resource Management</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:35px 40px;">
+            <p style="color:#334155;font-size:15px;margin:0 0 20px;">Dear <strong>{developer_name}</strong>,</p>
+
+            <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px;">
+              Our records show that you have logged <strong style="color:#dc2626;">{total_hours} hours</strong>
+              for <strong>{check_date}</strong>, which is below the expected
+              <strong>{min_hours} hours</strong>.
+              You are short by <strong style="color:#dc2626;">{deficit} hours</strong>.
+            </p>
+
+            <!-- Task Breakdown Table -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:0 0 25px;">
+              <tr>
+                <td style="background-color:#f8fafc;padding:10px 12px;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:700;border-bottom:2px solid #e2e8f0;">Task</td>
+                <td style="background-color:#f8fafc;padding:10px 12px;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:700;border-bottom:2px solid #e2e8f0;">Description</td>
+                <td style="background-color:#f8fafc;padding:10px 12px;color:#64748b;font-size:11px;text-transform:uppercase;font-weight:700;border-bottom:2px solid #e2e8f0;text-align:right;">Hours</td>
+              </tr>
+              {task_rows}
+              <tr>
+                <td colspan="2" style="padding:10px 12px;background-color:#fef2f2;color:#991b1b;font-size:13px;font-weight:700;">Total</td>
+                <td style="padding:10px 12px;background-color:#fef2f2;color:#991b1b;font-size:14px;font-weight:700;text-align:right;">{total_hours}</td>
+              </tr>
+            </table>
+
+            <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 25px;">
+              Please ensure your time logs are updated by end of day.
+            </p>
+
+            <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0;border-top:1px solid #e2e8f0;padding-top:20px;">
+              ⚠️ This is an automated reminder from PRM. If you believe this is incorrect,
+              please update your time logs or contact your manager.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background-color:#f8fafc;padding:20px 40px;text-align:center;border-top:1px solid #e2e8f0;">
+            <p style="color:#94a3b8;font-size:11px;margin:0;">
+              &copy; 2026 PRM — Project & Resource Management. All rights reserved.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+def send_hours_reminder_email(
+    to_email: str,
+    cc_email: str | None,
+    developer_name: str,
+    check_date: str,
+    total_hours: float,
+    task_breakdown: list[dict],
+    min_hours: float,
+    smtp_host: str,
+    smtp_port: int,
+    smtp_username: str,
+    smtp_password: str,
+    from_email: str,
+    from_name: str = "PRM System",
+    use_tls: bool = True,
+    company_logo_url: str = "",
+) -> tuple[bool, str]:
+    """Send daily hours reminder email to a developer who logged < min_hours.
+    CC goes to the Development Manager. Returns (success, message).
+    """
+    if not smtp_host or not to_email:
+        return False, "SMTP not configured or no recipient email."
+
+    html_body = _build_hours_reminder_html(
+        developer_name=developer_name,
+        check_date=check_date,
+        total_hours=total_hours,
+        task_breakdown=task_breakdown,
+        min_hours=min_hours,
+        company_logo=company_logo_url,
+    )
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Daily Hours Reminder — {developer_name} ({check_date})"
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = to_email
+    if cc_email:
+        msg["Cc"] = cc_email
+
+    # Plain text fallback
+    task_lines = "\n".join(
+        f"  {t.get('task_code', '-')} | {t.get('description', '-')} | {t.get('hours', 0)}h"
+        for t in task_breakdown
+    ) or "  (No tasks logged)"
+
+    text_body = (
+        f"Dear {developer_name},\n\n"
+        f"Our records show that you have logged {total_hours} hours for {check_date}, "
+        f"which is below the expected {min_hours} hours.\n\n"
+        f"Task-wise breakdown:\n{task_lines}\n"
+        f"Total: {total_hours} hours\n\n"
+        f"Please ensure your time logs are updated by end of day.\n\n"
+        f"Regards,\nPRM System"
+    )
+
+    msg.attach(MIMEText(text_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
+
+    # Build recipient list (To + Cc)
+    recipients = [to_email]
+    if cc_email:
+        recipients.append(cc_email)
+
+    try:
+        if use_tls:
+            server = smtplib.SMTP(smtp_host, smtp_port)
+            server.starttls()
+        else:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port)
+
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg, to_addrs=recipients)
+        server.quit()
+        cc_note = f" (CC: {cc_email})" if cc_email else ""
+        return True, f"Hours reminder email sent to {to_email}{cc_note}"
+    except Exception as exc:
+        return False, f"Failed to send hours reminder email: {exc}"

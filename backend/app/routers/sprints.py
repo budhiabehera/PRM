@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..deps import require_roles, get_current_user, get_user_project_ids
+from ..deps import MANAGEMENT_EXCLUDED_ROLES
 from ..utils.calculations import net_capacity
 
 router = APIRouter(prefix="/api/sprints", tags=["Sprints"])
@@ -13,7 +14,7 @@ def _sprint_with_stats(sprint: models.Sprint, db: Session):
     alloc_hrs = sum(t.estimated_hours for t in tasks)
 
     # Only count developers assigned to the sprint's project (if sprint has a project)
-    dev_q = db.query(models.Developer).filter(models.Developer.active == True)  # noqa: E712
+    dev_q = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))  # noqa: E712
     if sprint.project_id:
         from ..models import developer_projects
         dev_q = dev_q.filter(models.Developer.id.in_(

@@ -148,6 +148,7 @@ class Project(Base):
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     description = Column(Text, default="")
+    hours_check_enabled = Column(Boolean, default=False)  # Enable daily hours email check for this project
 
     modules = relationship("MainModule", back_populates="project", foreign_keys="[MainModule.project_id]")
     tasks = relationship("Task", back_populates="project")

@@ -206,14 +206,19 @@ export default function PullRequestsPage() {
           <h2 className="text-xl font-bold text-slate-900">Pull Requests</h2>
           <p className="text-xs text-slate-500 mt-0.5">Browse and review pull requests across all linked repositories</p>
         </div>
-        <button
+        <div className="flex items-center gap-2">
+          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+            📄 Export PDF
+          </button>
+          <button
           className="btn btn-primary flex items-center gap-2"
           onClick={handleSyncAll}
           disabled={syncing}
         >
           <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
           {syncing ? 'Syncing...' : 'Sync PRs'}
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* Toast */}

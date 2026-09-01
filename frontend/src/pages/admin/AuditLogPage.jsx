@@ -98,9 +98,14 @@ export default function AuditLogPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
         <h1 className="text-2xl font-bold text-slate-800">Audit Log</h1>
         <p className="text-sm text-slate-500 mt-1">Track all create, update, and delete actions across the system.</p>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          📄 Export PDF
+        </button>
       </div>
 
       {/* Filters */}

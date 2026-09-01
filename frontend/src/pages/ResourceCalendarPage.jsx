@@ -12,7 +12,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-const DAY_ABBR = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function getDaysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
@@ -55,14 +55,20 @@ export default function ResourceCalendarPage() {
     getProjects().then(setProjects).catch(() => {})
   }, [])
 
-  // Initialize week start to current week's Monday
+  // Initialize week start to current week's Sunday (Sun-Sat week)
   useEffect(() => {
-    const d = new Date(year, month - 1, today.getDate())
-    const dayOfWeek = d.getDay() // 0=Sun
-    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-    const monday = new Date(d)
-    monday.setDate(d.getDate() + diff)
-    setSelectedWeekStart(monday.getDate())
+    const ref = (year === today.getFullYear() && month === today.getMonth() + 1)
+      ? new Date(year, month - 1, today.getDate())
+      : new Date(year, month - 1, 1)
+    // Find Sunday: getDay() returns 0=Sun, so Sunday = ref - getDay()
+    const sunday = new Date(ref)
+    sunday.setDate(ref.getDate() - ref.getDay())
+    // If Sunday is in previous month and we're viewing current month, start from day 1
+    if (sunday.getMonth() + 1 !== month || sunday.getFullYear() !== year) {
+      setSelectedWeekStart(1)
+    } else {
+      setSelectedWeekStart(sunday.getDate())
+    }
   }, [month, year])
 
   const loadData = async () => {
@@ -92,14 +98,34 @@ export default function ResourceCalendarPage() {
   }
 
   // Determine which days to show based on view mode
+  // Compute the Sunday date for the current week view (Sun-Sat week)
+  const weekSunday = useMemo(() => {
+    if (viewMode !== 'week') return null
+    const start = selectedWeekStart || 1
+    const clampedDay = Math.min(Math.max(start, 1), daysInMonth)
+    const d = new Date(year, month - 1, clampedDay)
+    // Find Sunday: go back by getDay() days
+    const sun = new Date(d)
+    sun.setDate(d.getDate() - d.getDay())
+    return sun
+  }, [viewMode, selectedWeekStart, year, month, daysInMonth])
+
   const visibleDays = useMemo(() => {
     const days = []
     if (viewMode === 'day') {
-      days.push(selectedDay)
-    } else if (viewMode === 'week') {
-      const start = selectedWeekStart || 1
-      for (let d = start; d < start + 7 && d <= daysInMonth; d++) {
-        days.push(d)
+      days.push(Math.min(selectedDay, daysInMonth))
+    } else if (viewMode === 'week' && weekSunday) {
+      // Generate 7 days from Monday, but only include days that belong to the current month
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(weekSunday)
+        d.setDate(weekSunday.getDate() + i)
+        if (d.getMonth() + 1 === month && d.getFullYear() === year) {
+          days.push(d.getDate())
+        }
+      }
+      // If no days from current month (week is entirely in prev/next month), show first/last week
+      if (days.length === 0) {
+        for (let d = 1; d <= Math.min(7, daysInMonth); d++) days.push(d)
       }
     } else {
       for (let d = 1; d <= daysInMonth; d++) {
@@ -107,7 +133,7 @@ export default function ResourceCalendarPage() {
       }
     }
     return days
-  }, [viewMode, selectedDay, selectedWeekStart, daysInMonth])
+  }, [viewMode, selectedDay, weekSunday, daysInMonth, month, year])
 
   // Day headers for visible days
   const dayHeaders = useMemo(() => {
@@ -118,7 +144,7 @@ export default function ResourceCalendarPage() {
         day: d,
         dow,
         isWeekend: dow === 0 || dow === 6,
-        label: DAY_ABBR[dow === 0 ? 6 : dow - 1],
+        label: DAY_ABBR[dow],
       }
     })
   }, [visibleDays, year, month])
@@ -133,16 +159,26 @@ export default function ResourceCalendarPage() {
     return resources
   }, [data, resourceFilter])
 
-  // Week navigation
+  // Week navigation — step by 7 days, switch month if needed
   const prevWeek = () => {
-    const newStart = (selectedWeekStart || 1) - 7
-    if (newStart >= 1) setSelectedWeekStart(newStart)
-    else prevMonth()
+    if (!weekSunday) return
+    const prev = new Date(weekSunday)
+    prev.setDate(prev.getDate() - 7)
+    if (prev.getMonth() + 1 !== month || prev.getFullYear() !== year) {
+      setMonth(prev.getMonth() + 1)
+      setYear(prev.getFullYear())
+    }
+    setSelectedWeekStart(prev.getDate())
   }
   const nextWeek = () => {
-    const newStart = (selectedWeekStart || 1) + 7
-    if (newStart <= daysInMonth) setSelectedWeekStart(newStart)
-    else nextMonth()
+    if (!weekSunday) return
+    const next = new Date(weekSunday)
+    next.setDate(next.getDate() + 7)
+    if (next.getMonth() + 1 !== month || next.getFullYear() !== year) {
+      setMonth(next.getMonth() + 1)
+      setYear(next.getFullYear())
+    }
+    setSelectedWeekStart(next.getDate())
   }
 
   // Day navigation
@@ -170,28 +206,31 @@ export default function ResourceCalendarPage() {
             <span title="Hours are from task activity logs. Each cell shows hours logged for that day. Default capacity = 8 hrs/day. Red = exceeded capacity, Green = 50-100%, Grey = under 50%.">Daily time spent per resource — 8 hrs/day capacity. Click a cell to see task details. ⓘ</span>
           </p>
         </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          📄 Export PDF
+        </button>
       </div>
 
       {/* Controls Row */}
       <div className="flex items-center gap-4 mb-5 bg-white border border-slate-200 rounded-xl px-5 py-3 flex-wrap">
         {/* Navigation */}
-        <button onClick={viewMode === 'day' ? prevDay : viewMode === 'week' ? prevWeek : prevMonth}
+        <button onClick={viewMode === 'day' ? prevDay : prevMonth}
           className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600">
           <ChevronLeft size={20} />
         </button>
         <h3 className="text-lg font-semibold text-slate-800 min-w-[200px] text-center">
           {viewMode === 'day' && `${selectedDay} ${MONTH_NAMES[month - 1]} ${year}`}
-          {viewMode === 'week' && `Week of ${selectedWeekStart || 1} ${MONTH_NAMES[month - 1]} ${year}`}
+          {viewMode === 'week' && weekSunday && `Week of ${weekSunday.getDate()} ${MONTH_NAMES[weekSunday.getMonth()]} ${weekSunday.getFullYear()}`}
           {viewMode === 'month' && `${MONTH_NAMES[month - 1]} ${year}`}
         </h3>
-        <button onClick={viewMode === 'day' ? nextDay : viewMode === 'week' ? nextWeek : nextMonth}
+        <button onClick={viewMode === 'day' ? nextDay : nextMonth}
           className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600">
           <ChevronRight size={20} />
         </button>
 
         {/* View Mode Switcher */}
         <div className="flex gap-1 bg-slate-100 rounded-lg p-1 ml-4">
-          {['day', 'week', 'month'].map((mode) => (
+          {['day', 'month'].map((mode) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}

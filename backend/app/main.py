@@ -111,6 +111,10 @@ def seed_on_startup():
     finally:
         db.close()
 
+    # Start the background scheduler for daily hours check (10 PM IST)
+    from .services.scheduler import start_hours_check_scheduler
+    start_hours_check_scheduler()
+
 
 
 @app.get("/api/health")

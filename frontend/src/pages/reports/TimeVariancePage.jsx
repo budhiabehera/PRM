@@ -29,9 +29,14 @@ export default function TimeVariancePage() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
         <h2 className="text-xl font-bold text-slate-900">Time Variance</h2>
         <p className="text-xs text-slate-500 mt-0.5">Estimated vs. actual hours on tasks with logged time — spot what's running over or under budget</p>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          📄 Export PDF
+        </button>
       </div>
 
       {loading ? <LoadingSpinner /> : (

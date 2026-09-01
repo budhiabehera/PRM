@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from typing import Optional
 
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user
+from ..deps import require_roles
+from ..services.daily_hours_check import run_daily_hours_check, get_all_developers_daily_summary
 
 router = APIRouter(prefix="/api/time-logs", tags=["Time Logs"])
 
@@ -58,6 +60,7 @@ def list_time_logs(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     task_id: Optional[int] = Query(None),
+    include_activities: bool = Query(True, description="Include hours from task activity log"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -80,7 +83,53 @@ def list_time_logs(
         query = query.filter(models.TimeLog.task_id == task_id)
 
     time_logs = query.order_by(models.TimeLog.date.desc(), models.TimeLog.id.desc()).all()
-    return [_serialize_time_log(tl) for tl in time_logs]
+    result = [_serialize_time_log(tl) for tl in time_logs]
+
+    # Also include hours from task activity log (PRM_task_activities)
+    if include_activities:
+        act_query = (
+            db.query(models.TaskActivity)
+            .options(joinedload(models.TaskActivity.task))
+            .filter(models.TaskActivity.developer_id == current_user.developer_id)
+        )
+        if date_from:
+            act_query = act_query.filter(models.TaskActivity.activity_date >= date_from)
+        if date_to:
+            act_query = act_query.filter(models.TaskActivity.activity_date <= date_to)
+        if task_id:
+            act_query = act_query.filter(models.TaskActivity.task_id == task_id)
+
+        activities = act_query.all()
+
+        # Aggregate activity hours per task per date (to avoid duplicating with time_logs)
+        # Build a set of (task_id, date) from existing time_logs
+        existing_keys = {(tl.task_id, tl.date) for tl in time_logs}
+
+        # Group activities by (task_id, date)
+        from collections import defaultdict
+        act_grouped = defaultdict(float)
+        for a in activities:
+            key = (a.task_id, a.activity_date)
+            act_grouped[key] += (a.hours_spent or 0)
+
+        # Add activity entries that don't already have time_log entries
+        for (t_id, d), hours in act_grouped.items():
+            if hours > 0:
+                task = db.get(models.Task, t_id)
+                result.append({
+                    "id": None,  # no time_log id — this is from activity log
+                    "task_id": t_id,
+                    "developer_id": current_user.developer_id,
+                    "date": d,
+                    "hours": hours,
+                    "notes": "(from activity log)",
+                    "created_at": None,
+                    "task_code": task.task_code if task else None,
+                    "task_description": task.description if task else None,
+                    "source": "activity_log",
+                })
+
+    return result
 
 
 @router.post("", status_code=201)
@@ -156,3 +205,77 @@ def delete_time_log(
 
     db.delete(time_log)
     db.commit()
+
+
+# ─── Daily Hours Check Endpoints ────────────────────────────────────────────
+
+
+@router.get("/daily-summary")
+def daily_summary(
+    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format. Defaults to today (IST)."),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Get all developers' hours summary for a specific date.
+    Shows total hours (time_logs + task_activities), leave status, and task breakdown.
+    Accessible to all authenticated users.
+    """
+    from ..services.daily_hours_check import IST, get_today_ist
+
+    if date:
+        try:
+            from datetime import date as date_type
+            parts = date.split("-")
+            check_date = date_type(int(parts[0]), int(parts[1]), int(parts[2]))
+        except (ValueError, IndexError):
+            raise HTTPException(400, "Invalid date format. Use YYYY-MM-DD.")
+    else:
+        check_date = get_today_ist()
+
+    return get_all_developers_daily_summary(db, check_date, current_user)
+
+
+@router.post("/check-hours")
+def check_hours(
+    date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format. Defaults to today (IST)."),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_roles("Admin", "Manager")),
+):
+    """
+    Manually trigger the daily hours check and send reminder emails.
+    Admin/Manager only. Checks all active developers and emails those under 8 hours.
+    """
+    from ..services.daily_hours_check import get_today_ist
+
+    if date:
+        try:
+            from datetime import date as date_type
+            parts = date.split("-")
+            check_date = date_type(int(parts[0]), int(parts[1]), int(parts[2]))
+        except (ValueError, IndexError):
+            raise HTTPException(400, "Invalid date format. Use YYYY-MM-DD.")
+    else:
+        check_date = get_today_ist()
+
+    return run_daily_hours_check(db, check_date)
+
+
+@router.post("/schedule-check")
+def schedule_check(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_roles("Admin", "Manager")),
+):
+    """
+    Endpoint for automated daily hours check (10 PM IST).
+    Called by external scheduler (Task Scheduler, Azure WebJob, or background thread).
+
+    Trigger options:
+    - Windows Task Scheduler:
+        curl -X POST http://localhost:8001/api/time-logs/schedule-check -H "Authorization: Bearer <admin_token>"
+    - Azure App Service WebJob (HTTP trigger)
+    - Built-in background scheduler (see main.py startup event)
+    """
+    from ..services.daily_hours_check import get_today_ist
+    check_date = get_today_ist()
+    return run_daily_hours_check(db, check_date)

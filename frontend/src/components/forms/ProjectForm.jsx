@@ -12,6 +12,7 @@ export default function ProjectForm({ initial, onSubmit, onCancel }) {
     start_date: toDateInput(initial?.start_date) || '',
     end_date: toDateInput(initial?.end_date) || '',
     description: initial?.description || '',
+    hours_check_enabled: initial?.hours_check_enabled || false,
   })
   const [errors, setErrors] = useState({})
 
@@ -63,6 +64,17 @@ export default function ProjectForm({ initial, onSubmit, onCancel }) {
           <label className="form-label">Description</label>
           <textarea className="form-textarea" placeholder="Brief project description..." value={form.description}
             onChange={(e) => update('description', e.target.value)} />
+        </div>
+        <div className="flex items-center gap-2 col-span-2 mt-1">
+          <input
+            type="checkbox"
+            id="hours_check_enabled"
+            checked={form.hours_check_enabled}
+            onChange={(e) => update('hours_check_enabled', e.target.checked)}
+          />
+          <label htmlFor="hours_check_enabled" className="text-sm text-slate-700">
+            Enable daily hours check email <span className="text-slate-400">(sends reminder at 10 PM IST if resource logs &lt; 8 hours)</span>
+          </label>
         </div>
       </div>
       <div className="flex gap-2 mt-5">

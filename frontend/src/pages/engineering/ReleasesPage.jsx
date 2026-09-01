@@ -245,6 +245,9 @@ export default function ReleasesPage() {
           <h2 className="text-xl font-bold text-slate-900">Releases</h2>
           <p className="text-xs text-slate-500 mt-0.5">Track release history and cadence across linked repositories</p>
         </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          📄 Export PDF
+        </button>
       </div>
 
       {/* Filters row */}

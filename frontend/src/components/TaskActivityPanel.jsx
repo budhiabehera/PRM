@@ -1,4 +1,9 @@
-import { useState, useEffect } from 'react'
+
+import { useState, useEffect, useCallback } from 'react'
+// Local date helper — avoids UTC shift from toISOString()
+const localDateStr = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
 import { getTaskActivities, createTaskActivity, updateTaskActivity, deleteTaskActivity } from '../services/api'
 import { formatShortDate } from '../utils/formatters'
 
@@ -8,7 +13,7 @@ export default function TaskActivityPanel({ task, user, onUpdate }) {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({
-    activity_date: new Date().toISOString().split('T')[0],
+    activity_date: localDateStr(),
     description: '',
     hours_spent: '',
     percentage: '',
@@ -28,7 +33,7 @@ export default function TaskActivityPanel({ task, user, onUpdate }) {
   }, [task.id])
 
   const resetForm = () => {
-    setForm({ activity_date: new Date().toISOString().split('T')[0], description: '', hours_spent: '', percentage: '' })
+    setForm({ activity_date: localDateStr(), description: '', hours_spent: '', percentage: '' })
     setEditingId(null)
     setShowForm(false)
     setError('')
@@ -108,7 +113,7 @@ export default function TaskActivityPanel({ task, user, onUpdate }) {
           <div className="grid grid-cols-4 gap-3">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-slate-500 font-medium">Date *</label>
-              <input type="date" className="form-input text-xs" value={form.activity_date} max={new Date().toISOString().split('T')[0]}
+              <input type="date" className="form-input text-xs" value={form.activity_date} max={localDateStr()}
                 onChange={(e) => setForm((f) => ({ ...f, activity_date: e.target.value }))} required />
             </div>
             <div className="flex flex-col gap-1 col-span-2">

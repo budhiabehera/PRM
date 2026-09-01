@@ -116,6 +116,8 @@ _NEW_COLUMNS = [
     ("availabilities", "end_date", "DATE"),
     ("kb_articles", "visibility", "VARCHAR(20) DEFAULT 'global'"),
     ("PRM_kb_categories", "project_id", "INTEGER"),
+    ("projects", "hours_check_enabled", "BOOLEAN DEFAULT 0"),
+    ("PRM_projects", "hours_check_enabled", "BIT DEFAULT 0"),
 ]
 
 
@@ -222,6 +224,15 @@ def run_lightweight_migrations():
                         ))
                 except Exception:
                     pass
+
+        # --- Fix NULL values in newly added columns ---
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "UPDATE PRM_projects SET hours_check_enabled = 0 WHERE hours_check_enabled IS NULL"
+                ))
+        except Exception:
+            pass
 
     except Exception as e:
         print(f"[MIGRATION WARNING] Lightweight migrations skipped: {e}")

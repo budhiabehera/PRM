@@ -339,6 +339,25 @@ def delete_task(
     if not can_delete_task(current_user):
         raise HTTPException(403, "You don't have permission to delete tasks.")
     task_code = task.task_code
+
+    # Delete child records first (FK constraints prevent direct task delete)
+    # 1. Task activities
+    db.query(models.TaskActivity).filter(models.TaskActivity.task_id == task_id).delete(synchronize_session=False)
+    # 2. Time logs
+    db.query(models.TimeLog).filter(models.TimeLog.task_id == task_id).delete(synchronize_session=False)
+    # 3. Task attachments
+    db.query(models.TaskAttachment).filter(models.TaskAttachment.task_id == task_id).delete(synchronize_session=False)
+    # 4. Task dependencies (both directions)
+    db.query(models.TaskDependency).filter(
+        (models.TaskDependency.task_id == task_id) | (models.TaskDependency.depends_on_id == task_id)
+    ).delete(synchronize_session=False)
+    # 5. Notifications linked to this task
+    db.query(models.Notification).filter(models.Notification.task_id == task_id).delete(synchronize_session=False)
+    # 6. Engineering: unlink commits and PRs (set task_id to NULL, don't delete them)
+    db.query(models.Commit).filter(models.Commit.task_id == task_id).update({"task_id": None}, synchronize_session=False)
+    db.query(models.PullRequest).filter(models.PullRequest.task_id == task_id).update({"task_id": None}, synchronize_session=False)
+
+    # Now safe to delete the task
     db.delete(task)
     db.commit()
     log_audit(db, current_user, "DELETE", "Task", task_id, task_code)

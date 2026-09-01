@@ -55,3 +55,14 @@ table.data-table tr:hover td { @apply bg-slate-50; }
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
+
+/* Print styles for PDF export (window.print → Save as PDF) */
+@media print {
+  .sidebar, header, nav, .no-print { display: none !important; }
+  .btn { display: none !important; }
+  body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+  table.data-table { font-size: 10px; }
+  .badge { border: 1px solid #cbd5e1; }
+  @page { margin: 0.5in; }
+}

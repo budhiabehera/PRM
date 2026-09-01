@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, require_roles
+from ..deps import MANAGEMENT_EXCLUDED_ROLES
 
 router = APIRouter(prefix="/api/standup", tags=["Standup"])
 
@@ -291,7 +292,7 @@ def get_team_standup(
 
     # 1. Get developers list
     if current_user.role == "Admin":
-        developers = db.query(models.Developer).filter(models.Developer.active == True).all()
+        developers = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES)).all()
     else:
         project_ids = [p.id for p in current_user.projects]
         if not project_ids and current_user.developer_id:

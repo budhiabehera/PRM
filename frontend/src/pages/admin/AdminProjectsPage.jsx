@@ -78,13 +78,14 @@ export default function AdminProjectsPage() {
         <div className="text-[15px] font-semibold mb-3.5">All Projects</div>
         <table className="data-table">
           <thead>
-            <tr><th>Project Name</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Project Name</th><th>Status</th><th>Hours Check</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {filteredProjects.map((p) => (
               <tr key={p.id}>
                 <td className="font-medium">{p.name}</td>
                 <td><StatusBadge status={p.status} /></td>
+                <td>{p.hours_check_enabled ? <span className="text-green-600 font-medium">✅ Enabled</span> : <span className="text-slate-400">Disabled</span>}</td>
                 <td>
                   <div className="flex gap-1.5">
                     <button className="btn btn-secondary btn-sm" onClick={() => { setEditing(p); setShowForm(true) }}>Edit</button>

@@ -20,11 +20,16 @@ export default function MyDashboardPage() {
   return (
     <div>
       {/* Page Header */}
-      <div className="mb-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
         <h2 className="text-xl font-bold text-slate-900">My Dashboard</h2>
         <p className="text-xs text-slate-500 mt-0.5">
           Your personal task overview, upcoming deadlines, and workload
         </p>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          📄 Export PDF
+        </button>
       </div>
 
       {/* Summary Cards */}

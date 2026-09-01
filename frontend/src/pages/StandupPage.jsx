@@ -80,6 +80,9 @@ export default function StandupPage() {
               onChange={(e) => setSelectedDate(e.target.value)}
             />
           </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+            📄 Export PDF
+          </button>
           {tab === 'my' && (
           <button
             onClick={handleCopy}

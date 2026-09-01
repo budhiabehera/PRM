@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..deps import require_roles, get_current_user, get_user_project_ids
+from ..deps import MANAGEMENT_EXCLUDED_ROLES
 from ..utils.calculations import utilization_status
 
 router = APIRouter(prefix="/api/resources", tags=["Resources"])
@@ -67,7 +68,7 @@ def resource_stats(db: Session = Depends(get_db),
     allowed = get_user_project_ids(current_user)
     dev_q = db.query(models.Developer).options(
         joinedload(models.Developer.tasks),
-    ).filter(models.Developer.active == True)  # noqa: E712
+    ).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))  # noqa: E712
     if allowed is not None:
         from ..models import developer_projects
         dev_q = dev_q.filter(models.Developer.id.in_(

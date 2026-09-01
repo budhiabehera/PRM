@@ -39,6 +39,9 @@ export default function TeamPage() {
           <p className="text-xs text-slate-500 mt-0.5">Team overview and current workload</p>
         </div>
         <div className="flex items-center gap-2">
+          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+            📄 Export PDF
+          </button>
           <select className="form-select max-w-[160px]" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
             {showAllOption && <option value="">All Projects</option>}
             {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

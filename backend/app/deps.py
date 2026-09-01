@@ -118,3 +118,23 @@ def get_user_project_ids(user: models.User) -> list[int] | None:
         if dev:
             project_ids = [p.id for p in dev.projects]
     return project_ids
+
+
+# --- Management roles to exclude from operational views ---
+# These roles (SVP-Product, AVP-Product, Product Manager) should not appear in
+# time logs, sprint tracking, utilization, standup, or any developer-level views.
+MANAGEMENT_EXCLUDED_ROLES = {
+    "svp product", "svp-product",
+    "avp product", "avp-product",
+    "product manager", "product-manager",
+}
+
+
+def filter_operational_developers(query, model=None):
+    """Apply the management role exclusion filter to a Developer query.
+    Usage: query = filter_operational_developers(db.query(Developer).filter(...))
+    """
+    M = model or models.Developer
+    for role in MANAGEMENT_EXCLUDED_ROLES:
+        query = query.filter(M.role.notilike(role))
+    return query

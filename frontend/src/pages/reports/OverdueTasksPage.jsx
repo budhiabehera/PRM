@@ -25,9 +25,14 @@ export default function OverdueTasksPage() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
         <h2 className="text-xl font-bold text-slate-900">Overdue Tasks</h2>
         <p className="text-xs text-slate-500 mt-0.5">Tasks past their end date that aren't marked Completed — what's slipping</p>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          📄 Export PDF
+        </button>
       </div>
 
       {loading ? <LoadingSpinner /> : (

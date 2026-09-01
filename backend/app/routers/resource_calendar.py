@@ -6,6 +6,7 @@ from datetime import date
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user
+from ..deps import MANAGEMENT_EXCLUDED_ROLES
 
 router = APIRouter(prefix="/api/resource-calendar", tags=["Resource Calendar"])
 
@@ -31,10 +32,10 @@ def get_resource_calendar(
         end_date = date(year, month + 1, 1)
 
     # Get developers (optionally filtered by project)
-    dev_query = db.query(models.Developer).filter(models.Developer.active == True)
+    dev_query = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))
     if project_id:
         dev_query = dev_query.join(models.Developer.projects).filter(models.Project.id == project_id)
-    developers = dev_query.order_by(models.Developer.name).all()
+    developers = dev_query.order_by(func.lower(func.ltrim(func.rtrim(models.Developer.name)))).all()
 
     if not developers:
         return {"resources": [], "month": month, "year": year}

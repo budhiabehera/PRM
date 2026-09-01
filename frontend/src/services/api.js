@@ -221,6 +221,10 @@ export const updateTimeLog = (id, data) => api.put(`/time-logs/${id}`, data).the
 export const deleteTimeLog = (id) => api.delete(`/time-logs/${id}`)
 export const getTimeLogSummary = (params) => api.get('/time-logs/summary', { params }).then(r => r.data)
 
+// --- Time Log Daily Summary APIs ---
+export const getDailySummary = (date) => api.get('/time-logs/daily-summary', { params: { date } }).then(r => r.data)
+export const triggerHoursCheck = () => api.post('/time-logs/check-hours').then(r => r.data)
+
 // ---------- Notifications ----------
 export const getNotifications = (params) => api.get('/notifications', { params }).then(r => r.data)
 export const getUnreadCount = () => api.get('/notifications/unread-count').then(r => r.data)

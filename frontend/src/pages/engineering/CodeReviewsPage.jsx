@@ -126,6 +126,9 @@ export default function CodeReviewsPage() {
           <h2 className="text-xl font-bold text-slate-900">Code Reviews</h2>
           <p className="text-xs text-slate-500 mt-0.5">Review activity leaderboard and PRs awaiting review</p>
         </div>
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          📄 Export PDF
+        </button>
       </div>
 
       {/* Filters row */}

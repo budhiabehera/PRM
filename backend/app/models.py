@@ -618,3 +618,46 @@ class Release(Base):
     created_at = Column(DateTime, default=func.now())
 
     repo = relationship("Repository", backref="releases")
+
+
+# ─── Alert Engine Models ─────────────────────────────────────────────
+
+class AlertRule(Base):
+    """Configurable alert rules for engineering notifications."""
+    __tablename__ = "PRM_alert_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rule_type = Column(String(50), nullable=False)  # pr_review_pending, task_no_activity, task_overdue, sprint_delay
+    name = Column(String(200), nullable=False)
+    description = Column(String(500), nullable=True)
+    threshold = Column(Integer, nullable=False)  # hours for PR, days for tasks, percentage for sprint
+    enabled = Column(Boolean, default=True)
+    severity = Column(String(20), default="warning")  # info, warning, critical
+    notify_in_app = Column(Boolean, default=True)
+    notify_email = Column(Boolean, default=False)
+    notify_teams = Column(Boolean, default=False)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True)  # null = all projects
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    project = relationship("Project")
+
+
+class AlertHistory(Base):
+    """Log of triggered alerts — tracks when alerts fired and resolved."""
+    __tablename__ = "PRM_alert_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    rule_id = Column(Integer, ForeignKey("PRM_alert_rules.id"), nullable=False, index=True)
+    rule_type = Column(String(50))
+    severity = Column(String(20))
+    title = Column(String(200))
+    message = Column(String(500))
+    entity_type = Column(String(50))  # "Task", "PullRequest", "Sprint"
+    entity_id = Column(Integer, nullable=True)
+    entity_label = Column(String(100), nullable=True)  # e.g. task_code, PR #number
+    resolved = Column(Boolean, default=False)
+    resolved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+
+    rule = relationship("AlertRule")

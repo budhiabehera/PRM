@@ -267,6 +267,7 @@ export const unlinkRepository = (id) => api.delete(`/engineering/repositories/${
 export const getRepoBranches = (repoId) => api.get(`/engineering/repositories/${repoId}/branches`).then(r => r.data)
 export const updateRepository = (repoId, data) => api.patch(`/engineering/repositories/${repoId}`, data).then(r => r.data)
 export const getBranchesBySlug = (repoSlug) => api.get('/engineering/repositories/branches-by-slug', { params: { repo_slug: repoSlug } }).then(r => r.data)
+export const createBranchForTask = (taskId, data = {}) => api.post(`/engineering/tasks/${taskId}/create-branch`, data).then(r => r.data)
 
 // --- Engineering Commits APIs ---
 export const getCommits = (params) => api.get('/engineering/commits', { params }).then(r => r.data)
@@ -286,5 +287,26 @@ export const getCodeReviews = (params) => api.get('/engineering/code-reviews', {
 
 // --- Engineering Releases APIs ---
 export const getReleases = (params) => api.get('/engineering/releases', { params }).then(r => r.data)
+export const syncRepoReleases = (repoId) => api.post(`/engineering/repositories/${repoId}/sync-releases`).then(r => r.data)
+export const syncAllReleases = () => api.post('/engineering/sync-all-releases').then(r => r.data)
+
+// --- Engineering Risk Analysis APIs ---
+export const getRiskAnalysis = (params) => api.get('/engineering/risks', { params }).then(r => r.data)
+
+// --- Alert Rules & History APIs ---
+export const getAlertRules = () => api.get('/alerts/rules').then(r => r.data)
+export const createAlertRule = (data) => api.post('/alerts/rules', data).then(r => r.data)
+export const updateAlertRule = (id, data) => api.put(`/alerts/rules/${id}`, data).then(r => r.data)
+export const deleteAlertRule = (id) => api.delete(`/alerts/rules/${id}`).then(r => r.data)
+export const checkAlerts = () => api.post('/alerts/check').then(r => r.data)
+export const getAlertHistory = (params) => api.get('/alerts/history', { params }).then(r => r.data)
+export const resolveAlert = (id) => api.post(`/alerts/history/${id}/resolve`).then(r => r.data)
+
+// --- PM (Project Manager) APIs ---
+export const pmChat = (message) => api.post('/pm/chat', { message }).then(r => r.data)
+export const pmProjectSummary = (projectId) => api.get('/pm/project-summary', { params: { project_id: projectId } }).then(r => r.data)
+export const pmSprintSummary = (sprintId) => api.get('/pm/sprint-summary', { params: { sprint_id: sprintId } }).then(r => r.data)
+export const pmDailyBrief = () => api.get('/pm/daily-brief').then(r => r.data)
+export const pmTeamReport = (params) => api.get('/pm/team-report', { params }).then(r => r.data)
 
 export default api

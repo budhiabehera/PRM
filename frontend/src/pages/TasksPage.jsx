@@ -4,7 +4,7 @@ import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
-import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests } from '../services/api'
+import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests, createBranchForTask } from '../services/api'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -115,6 +115,15 @@ export default function TasksPage() {
       showToast('success', `Teams: ${res.message}`)
     } catch (err) {
       showToast('error', err.response?.data?.detail || 'Could not notify Teams.')
+    }
+  }
+
+  const handleCreateBranch = async (task) => {
+    try {
+      const res = await createBranchForTask(task.id)
+      showToast('success', `Branch created: ${res.branch_name} in ${res.repo_slug}`)
+    } catch (err) {
+      showToast('error', err.response?.data?.detail || 'Could not create branch.')
     }
   }
 
@@ -395,6 +404,10 @@ export default function TasksPage() {
                               <button className="btn btn-secondary btn-sm" title="Notify Microsoft Teams" onClick={() => handleNotifyTeams(t)}>🟦 Notify Teams</button>
                             </div>
                           )}
+
+                          <div className="flex gap-2 mt-2">
+                            <button className="btn btn-secondary btn-sm" title="Create Bitbucket branch for this task" onClick={() => handleCreateBranch(t)}>🔀 Create Branch</button>
+                          </div>
 
                           {/* Task Dependencies */}
                           <div className="mt-4 p-3.5 rounded-xl bg-amber-50/50 border border-amber-100">

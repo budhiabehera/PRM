@@ -19,6 +19,7 @@ from ..integrations.sync_service import (
     sync_commits_for_repo, sync_all_repos, extract_task_codes,
     sync_prs_for_repo, sync_prs_all_repos,
     sync_releases_for_repo, sync_releases_all_repos,
+    link_orphan_commits_via_branches,
 )
 
 logger = logging.getLogger(__name__)
@@ -319,6 +320,98 @@ def sync_all(db: Session = Depends(get_db),
     """Trigger commit sync for all active repositories (Admin only)."""
     results = sync_all_repos(db)
     return results
+
+
+@router.post("/repositories/{repo_id}/relink-tasks")
+def relink_tasks_from_branches(
+    repo_id: int,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_roles("Admin", "Manager", "Lead")),
+):
+    """Re-link orphan commits to tasks using branch names and PR source branches.
+    Useful after syncing PRs — links commits on feature/T09045-* branches to task T09045."""
+    repo = db.get(models.Repository, repo_id)
+    if not repo:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Repository not found.")
+    linked = link_orphan_commits_via_branches(repo, db)
+    return {"linked": linked, "message": f"{linked} commits linked to tasks via branch names."}
+
+
+@router.post("/relink-all-tasks")
+def relink_all_tasks(
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_roles("Admin")),
+):
+    """Re-link orphan commits across all repos using branch/PR data."""
+    repos = db.query(models.Repository).filter(models.Repository.active == True).all()
+    total = 0
+    for repo in repos:
+        total += link_orphan_commits_via_branches(repo, db)
+    return {"linked": total, "message": f"{total} commits linked to tasks via branch names."}
+
+
+@router.post("/tasks/{task_id}/create-branch")
+def create_branch_for_task(
+    task_id: int,
+    payload: dict | None = None,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_roles("Admin", "Manager", "Development Manager", "Developer")),
+):
+    """Create a Bitbucket branch for a PRM task.
+
+    Branch name format: feature/T09045-short-description
+    Auto-selects the repo linked to the task's project.
+
+    Optional payload:
+      - repo_id: int (if task's project has multiple repos)
+      - source_branch: str (default: repo's default_branch)
+      - prefix: str (default: "feature")
+    """
+    import re
+    task = db.get(models.Task, task_id)
+    if not task:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found.")
+
+    payload = payload or {}
+    prefix = payload.get("prefix", "feature")
+    repo_id = payload.get("repo_id")
+    source_branch = payload.get("source_branch")
+
+    # Find the repo — use specified repo_id or first repo linked to task's project
+    if repo_id:
+        repo = db.get(models.Repository, repo_id)
+    else:
+        repo = (
+            db.query(models.Repository)
+            .filter(models.Repository.project_id == task.project_id, models.Repository.active == True)
+            .first()
+        )
+    if not repo:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            detail="No linked repository found for this task's project. Link a repo first.")
+
+    if not source_branch:
+        source_branch = repo.default_branch or "main"
+
+    # Build branch name: feature/T09045-short-description
+    desc_slug = re.sub(r'[^a-z0-9]+', '-', (task.description or task.subject or "")[:40].lower()).strip('-')
+    branch_name = f"{prefix}/{task.task_code}-{desc_slug}" if desc_slug else f"{prefix}/{task.task_code}"
+
+    # Create branch via Bitbucket API
+    client = _get_bb_client(db)
+    try:
+        result = client.create_branch(repo.repo_slug, branch_name, source_branch)
+    except Exception as e:
+        error_msg = str(e)[:300]
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY,
+                            detail=f"Failed to create branch: {error_msg}")
+
+    return {
+        "branch_name": branch_name,
+        "repo_slug": repo.repo_slug,
+        "source_branch": source_branch,
+        "message": f"Branch '{branch_name}' created in {repo.repo_slug} from {source_branch}.",
+    }
 
 
 # ── Commit endpoints ───────────────────────────────────────────────
@@ -1484,3 +1577,312 @@ def _webhook_sync_prs(repo_id: int):
         logger.error("Webhook PR sync failed for repo %s: %s", repo_id, exc)
     finally:
         db.close()
+
+
+
+# ── Risk Analysis endpoint ─────────────────────────────────────────
+
+@router.get("/risks", response_model=schemas.RiskAnalysisResponse)
+def get_risk_analysis(
+    project_id: int | None = Query(None),
+    sprint_id: int | None = Query(None),
+    stale_days: int = Query(3, ge=1),
+    pr_review_threshold_hr: int = Query(24, ge=1),
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(get_current_user),
+):
+    """Project health & risk analysis — stale tasks, missing dev activity,
+    delayed PRs, sprint health, resource risks."""
+    from datetime import date as date_type
+    now = datetime.utcnow()
+    today = date_type.today()
+
+    # Determine sprint context
+    sprint = None
+    sprint_start = None
+    sprint_end = None
+    if sprint_id:
+        sprint = db.get(models.Sprint, sprint_id)
+        if sprint:
+            sprint_start = sprint.start_date
+            sprint_end = sprint.end_date
+
+    # ── 1. STALE TASKS ──
+    # In-progress tasks with no recent commits
+    active_statuses = ["inprogress", "in progress", "qa-wip", "clarification"]
+    task_q = (
+        db.query(models.Task)
+        .options(
+            joinedload(models.Task.developer),
+            joinedload(models.Task.sprint),
+            joinedload(models.Task.project),
+        )
+        .filter(func.lower(func.replace(models.Task.status, " ", "")).in_(
+            [s.replace(" ", "") for s in active_statuses]
+        ))
+    )
+    if project_id:
+        task_q = task_q.filter(models.Task.project_id == project_id)
+    if sprint_id:
+        task_q = task_q.filter(models.Task.sprint_id == sprint_id)
+
+    active_tasks = task_q.all()
+
+    # Batch-fetch last commit date per task
+    task_ids = [t.id for t in active_tasks]
+    last_commits = {}
+    if task_ids:
+        lc_rows = (
+            db.query(
+                models.Commit.task_id,
+                func.max(models.Commit.committed_at).label("last_date"),
+            )
+            .filter(models.Commit.task_id.in_(task_ids))
+            .group_by(models.Commit.task_id)
+            .all()
+        )
+        last_commits = {r.task_id: r.last_date for r in lc_rows}
+
+    stale_tasks = []
+    for t in active_tasks:
+        last_dt = last_commits.get(t.id)
+        if last_dt:
+            days_idle = (now - last_dt).days
+            if days_idle >= stale_days:
+                # Calculate risk score
+                score = 0
+                score += min(30, days_idle * 5)
+                if t.end_date and t.end_date < today:
+                    score += 25
+                # Check for open PR
+                has_open_pr = db.query(models.PullRequest).filter(
+                    models.PullRequest.task_id == t.id,
+                    models.PullRequest.status == "OPEN",
+                ).first()
+                if has_open_pr:
+                    score += 20
+                score = min(score, 100)
+
+                stale_tasks.append(schemas.StaleTaskItem(
+                    task_id=t.id,
+                    task_code=t.task_code,
+                    description=(t.description or "")[:100],
+                    developer_name=t.developer.name if t.developer else None,
+                    status=t.status,
+                    sprint_name=t.sprint.name if t.sprint else None,
+                    project_name=t.project.name if t.project else None,
+                    days_since_last_commit=days_idle,
+                    last_commit_date=str(last_dt.date()) if last_dt else None,
+                    risk_score=score,
+                ))
+
+    stale_tasks.sort(key=lambda x: x.risk_score, reverse=True)
+
+    # ── 2. NO DEV ACTIVITY TASKS ──
+    # Tasks in sprint with zero commits AND zero PRs
+    no_activity_q = (
+        db.query(models.Task)
+        .options(
+            joinedload(models.Task.developer),
+            joinedload(models.Task.sprint),
+            joinedload(models.Task.project),
+        )
+        .filter(func.lower(func.replace(models.Task.status, " ", "")).in_(
+            ["notstarted", "inprogress", "in progress", "not started"]
+        ))
+    )
+    if project_id:
+        no_activity_q = no_activity_q.filter(models.Task.project_id == project_id)
+    if sprint_id:
+        no_activity_q = no_activity_q.filter(models.Task.sprint_id == sprint_id)
+
+    candidate_tasks = no_activity_q.all()
+
+    # Batch: task_ids that have commits
+    task_ids_with_commits = set()
+    if candidate_tasks:
+        c_ids = [t.id for t in candidate_tasks]
+        rows = db.query(models.Commit.task_id).filter(
+            models.Commit.task_id.in_(c_ids)
+        ).distinct().all()
+        task_ids_with_commits = {r.task_id for r in rows}
+
+    # Batch: task_ids that have PRs
+    task_ids_with_prs = set()
+    if candidate_tasks:
+        c_ids = [t.id for t in candidate_tasks]
+        rows = db.query(models.PullRequest.task_id).filter(
+            models.PullRequest.task_id.in_(c_ids)
+        ).distinct().all()
+        task_ids_with_prs = {r.task_id for r in rows}
+
+    no_dev_tasks = []
+    for t in candidate_tasks:
+        if t.id not in task_ids_with_commits and t.id not in task_ids_with_prs:
+            score = 25  # no commits
+            if t.end_date and t.end_date < today:
+                score += 25
+            score += 25  # no activity at all baseline
+            if t.status and t.status.lower().replace(" ", "") == "inprogress":
+                score += 15  # in progress but nothing
+            score = min(score, 100)
+
+            no_dev_tasks.append(schemas.NoDevActivityTask(
+                task_id=t.id,
+                task_code=t.task_code,
+                description=(t.description or "")[:100],
+                developer_name=t.developer.name if t.developer else None,
+                status=t.status,
+                sprint_name=t.sprint.name if t.sprint else None,
+                project_name=t.project.name if t.project else None,
+                assigned_date=str(t.start_date) if t.start_date else None,
+                risk_score=score,
+            ))
+
+    no_dev_tasks.sort(key=lambda x: x.risk_score, reverse=True)
+
+    # ── 3. DELAYED PRs ──
+    threshold_dt = now - timedelta(hours=pr_review_threshold_hr)
+    delayed_pr_q = (
+        db.query(models.PullRequest)
+        .options(
+            joinedload(models.PullRequest.repo),
+            selectinload(models.PullRequest.reviewers),
+        )
+        .filter(
+            models.PullRequest.status == "OPEN",
+            models.PullRequest.created_at_bb <= threshold_dt,
+        )
+    )
+    if project_id:
+        delayed_pr_q = delayed_pr_q.join(
+            models.Repository, models.PullRequest.repo_id == models.Repository.id
+        ).filter(models.Repository.project_id == project_id)
+
+    delayed_prs = []
+    for pr in delayed_pr_q.all():
+        pending = [r.reviewer_name or "Unknown"
+                   for r in pr.reviewers if r.status == "PENDING"]
+        if pending:
+            hrs = (now - pr.created_at_bb).total_seconds() / 3600 if pr.created_at_bb else 0
+            delayed_prs.append(schemas.DelayedPRItem(
+                pr_id=pr.id,
+                pr_number=pr.pr_number,
+                title=pr.title,
+                repo_name=pr.repo.repo_name or pr.repo.repo_slug if pr.repo else None,
+                author_name=pr.author_name,
+                hours_waiting=round(hrs, 1),
+                pending_reviewers=pending,
+            ))
+    delayed_prs.sort(key=lambda x: x.hours_waiting, reverse=True)
+
+    # ── 4. SPRINT HEALTH ──
+    sprint_health = None
+    if sprint:
+        sprint_tasks = (
+            db.query(models.Task)
+            .filter(models.Task.sprint_id == sprint.id)
+            .all()
+        )
+        total_t = len(sprint_tasks)
+        s_task_ids = [t.id for t in sprint_tasks]
+
+        with_commits = 0
+        with_merged = 0
+        if s_task_ids:
+            with_commits = db.query(func.count(func.distinct(models.Commit.task_id))).filter(
+                models.Commit.task_id.in_(s_task_ids)
+            ).scalar() or 0
+            with_merged = db.query(func.count(func.distinct(models.PullRequest.task_id))).filter(
+                models.PullRequest.task_id.in_(s_task_ids),
+                models.PullRequest.status == "MERGED",
+            ).scalar() or 0
+
+        readiness = round((with_merged / total_t) * 100, 1) if total_t > 0 else 0
+        risk_level = "LOW" if readiness > 70 else ("MEDIUM" if readiness > 40 else "HIGH")
+
+        sprint_health = schemas.SprintHealth(
+            sprint_name=sprint.name,
+            total_tasks=total_t,
+            tasks_with_commits=with_commits,
+            tasks_with_merged_pr=with_merged,
+            tasks_no_activity=total_t - with_commits,
+            readiness_pct=readiness,
+            risk_level=risk_level,
+        )
+
+    # ── 5. RESOURCE RISKS ──
+    resource_risks = []
+    dev_q = db.query(models.Developer).filter(models.Developer.active == True)
+    devs = dev_q.all()
+
+    for dev in devs:
+        # Count assigned tasks in sprint
+        atq = db.query(func.count(models.Task.id)).filter(
+            models.Task.developer_id == dev.id
+        )
+        if sprint_id:
+            atq = atq.filter(models.Task.sprint_id == sprint_id)
+        assigned = atq.scalar() or 0
+        if assigned == 0:
+            continue
+
+        # Pending reviews
+        pending_reviews = (
+            db.query(func.count(models.PRReviewer.id))
+            .filter(
+                models.PRReviewer.developer_id == dev.id,
+                models.PRReviewer.status == "PENDING",
+            )
+            .scalar() or 0
+        )
+
+        # Commits in sprint range
+        commits_count = 0
+        cq = db.query(func.count(models.Commit.id)).filter(
+            models.Commit.developer_id == dev.id
+        )
+        if sprint_start:
+            cq = cq.filter(models.Commit.committed_at >= datetime.combine(
+                sprint_start, datetime.min.time()))
+        if sprint_end:
+            cq = cq.filter(models.Commit.committed_at <= datetime.combine(
+                sprint_end, datetime.max.time()))
+        commits_count = cq.scalar() or 0
+
+        risk_type = ""
+        if pending_reviews >= 3:
+            risk_type = "review_bottleneck"
+        elif commits_count == 0 and assigned > 0:
+            risk_type = "idle"
+
+        if risk_type:
+            resource_risks.append(schemas.ResourceRisk(
+                developer_name=dev.name,
+                developer_id=dev.id,
+                open_prs_to_review=pending_reviews,
+                commits_this_sprint=commits_count,
+                assigned_tasks=assigned,
+                risk_type=risk_type,
+            ))
+
+    # ── KPIs ──
+    all_scores = [t.risk_score for t in stale_tasks] + [t.risk_score for t in no_dev_tasks]
+    avg_score = round(sum(all_scores) / len(all_scores), 1) if all_scores else 0
+
+    kpis = schemas.RiskKPIs(
+        total_stale_tasks=len(stale_tasks),
+        total_no_activity=len(no_dev_tasks),
+        delayed_prs_count=len(delayed_prs),
+        avg_risk_score=avg_score,
+        sprint_readiness_pct=sprint_health.readiness_pct if sprint_health else 0,
+    )
+
+    return schemas.RiskAnalysisResponse(
+        stale_tasks=stale_tasks,
+        no_dev_activity_tasks=no_dev_tasks,
+        delayed_prs=delayed_prs,
+        sprint_health=sprint_health,
+        resource_risks=resource_risks,
+        kpis=kpis,
+    )

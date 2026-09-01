@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarRange, ListChecks, Users, Gauge, CalendarClock,
   GanttChartSquare, FolderKanban, Boxes, UserPlus, Tag, Settings, ClipboardList, Wrench, CalendarDays, ShieldCheck, CalendarCheck2, CircleDot, Lock, Timer, GitCommitHorizontal,
-  GitBranch, GitPullRequest, Eye,
+  GitBranch, GitPullRequest, Eye, Bell, Bot,
   Cloud, TrendingUp, AlertTriangle, Building2, Clock, Home, ChevronsLeft, ChevronsRight, BookOpen, MessageSquare, FileText,
   ChevronDown, ChevronRight,
 } from 'lucide-react'
@@ -74,11 +74,14 @@ const REPORT_ITEMS = [
 
 // Engineering section
 const ENGINEERING_ITEMS = [
+  { to: '/engineering/pm', label: 'PM Assistant', icon: Bot, roles: ['Admin', 'Manager', 'Lead', 'Developer'] },
   { to: '/engineering', label: 'Overview', icon: LayoutDashboard, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/engineering/commits', label: 'Commits', icon: GitCommitHorizontal, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/engineering/pull-requests', label: 'Pull Requests', icon: GitPullRequest, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/engineering/code-reviews', label: 'Code Reviews', icon: Eye, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/engineering/releases', label: 'Releases', icon: Tag, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/engineering/risks', label: 'Risk Analysis', icon: AlertTriangle, roles: ['Admin', 'Manager', 'Lead'] },
+  { to: '/engineering/alerts', label: 'Alert Rules', icon: Bell, roles: ['Admin', 'Manager'] },
   { to: '/engineering/settings', label: 'Bitbucket Settings', icon: GitBranch, roles: ['Admin', 'Manager'] },
 ]
 

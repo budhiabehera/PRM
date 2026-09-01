@@ -26,6 +26,8 @@ from .routers import audit_log
 from .routers import kb_categories
 from .routers import engineering
 from .routers import user_settings
+from .routers import alerts
+from .routers import pm_chat
 from .deps import get_current_user
 from . import seed_data
 
@@ -96,7 +98,9 @@ app.include_router(kb_categories.router, dependencies=[protected])
 app.include_router(user_settings.router, dependencies=[protected])
 app.include_router(engineering.router, dependencies=[protected])
 app.include_router(user_settings.preset_router, dependencies=[protected])
+app.include_router(alerts.router, dependencies=[protected])
 
+app.include_router(pm_chat.router, dependencies=[protected])
 
 
 @app.on_event("startup")

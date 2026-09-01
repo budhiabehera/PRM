@@ -39,7 +39,10 @@ import PullRequestsPage from './pages/engineering/PullRequestsPage'
 import CodeReviewsPage from './pages/engineering/CodeReviewsPage'
 import ReleasesPage from './pages/engineering/ReleasesPage'
 import EngineeringDashboard from './pages/engineering/EngineeringDashboard'
+import RiskDashboardPage from './pages/engineering/RiskDashboardPage'
 
+import PMChatPage from './pages/engineering/PMChatPage'
+import AlertRulesPage from './pages/engineering/AlertRulesPage'
 import HolidaysPage from './pages/HolidaysPage'
 import SalesforceTasksReportPage from './pages/reports/SalesforceTasksReportPage'
 import ProjectProgressPage from './pages/reports/ProjectProgressPage'
@@ -85,6 +88,7 @@ export default function App() {
           <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
 
+          <Route path="/engineering/pm" element={<PMChatPage />} />
           {/* Not available to Developer role */}
           <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>
             <Route path="/sprint" element={<SprintPage />} />
@@ -94,6 +98,7 @@ export default function App() {
             <Route path="/engineering/commits" element={<CommitsPage />} />
             <Route path="/engineering/pull-requests" element={<PullRequestsPage />} />
             <Route path="/engineering/releases" element={<ReleasesPage />} />
+            <Route path="/engineering/risks" element={<RiskDashboardPage />} />
             <Route path="/timeline" element={<TimelinePage />} />
           </Route>
 
@@ -110,6 +115,7 @@ export default function App() {
             <Route path="/admin/kb-categories" element={<AdminKBCategoriesPage />} />
             <Route path="/engineering/settings" element={<BitbucketSettingsPage />} />
             <Route path="/admin/audit-log" element={<AuditLogPage />} />
+            <Route path="/engineering/alerts" element={<AlertRulesPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER_LEAD} />}>

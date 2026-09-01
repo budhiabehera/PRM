@@ -7,6 +7,8 @@ import {
   syncAllRepos,
   syncRepoPRs,
   syncAllPRs,
+  syncRepoReleases,
+  syncAllReleases,
   getLinkedRepositories,
   getAvailableRepositories,
   linkRepository,
@@ -29,6 +31,8 @@ export default function BitbucketSettingsPage() {
   const [message, setMessage] = useState(null) // { type: 'success'|'error', text }
   const [syncingAllPRs, setSyncingAllPRs] = useState(false)
   const [syncingPRRepoId, setSyncingPRRepoId] = useState(null)
+  const [syncingAllReleases, setSyncingAllReleases] = useState(false)
+  const [syncingReleaseRepoId, setSyncingReleaseRepoId] = useState(null)
 
   // --- Linked Repos state ---
   const [repos, setRepos] = useState([])
@@ -215,6 +219,38 @@ export default function BitbucketSettingsPage() {
     }
   }
 
+  const handleSyncRepoReleases = async (repo) => {
+    setSyncingReleaseRepoId(repo.id)
+    setMessage(null)
+    try {
+      const res = await syncRepoReleases(repo.id)
+      loadRepos()
+      setMessage({
+        type: 'success',
+        text: `Release sync "${repo.repo_name || repo.repo_slug}" — ${res.new ?? 0} new, ${res.skipped ?? 0} skipped.`,
+      })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || `Failed to sync releases for "${repo.repo_name || repo.repo_slug}".` })
+    } finally {
+      setSyncingReleaseRepoId(null)
+    }
+  }
+
+  const handleSyncAllReleases = async () => {
+    setSyncingAllReleases(true)
+    setMessage(null)
+    try {
+      const res = await syncAllReleases()
+      const totalNew = Object.values(res).reduce((s, r) => s + (r.new || 0), 0)
+      loadRepos()
+      setMessage({ type: 'success', text: `Release sync complete — ${totalNew} new releases synced.` })
+    } catch (err) {
+      setMessage({ type: 'error', text: err.response?.data?.detail || 'Failed to sync all releases.' })
+    } finally {
+      setSyncingAllReleases(false)
+    }
+  }
+
   const handleEditBranch = async (repo) => {
     setEditingBranchRepoId(repo.id)
     setBranchOptions([])
@@ -355,6 +391,9 @@ export default function BitbucketSettingsPage() {
             </button>
             <button className="btn btn-secondary btn-sm" onClick={handleSyncAllPRs} disabled={syncingAllPRs}>
               {syncingAllPRs ? '⏳ Syncing PRs...' : '🔄 Sync All PRs'}
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={handleSyncAllReleases} disabled={syncingAllReleases}>
+              {syncingAllReleases ? '⏳ Syncing Releases...' : '🔄 Sync All Releases'}
             </button>
             <button className="btn btn-primary btn-sm" onClick={handleOpenLinkForm}>+ Link Repository</button>
           </div>
@@ -501,6 +540,13 @@ export default function BitbucketSettingsPage() {
                         disabled={syncingPRRepoId === r.id}
                       >
                         {syncingPRRepoId === r.id ? 'Syncing PRs...' : 'Sync PRs'}
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleSyncRepoReleases(r)}
+                        disabled={syncingReleaseRepoId === r.id}
+                      >
+                        {syncingReleaseRepoId === r.id ? 'Syncing Releases...' : 'Sync Releases'}
                       </button>
                       <button className="btn btn-danger btn-sm" onClick={() => setToUnlink(r)}>Unlink</button>
                     </div>

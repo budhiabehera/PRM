@@ -52,6 +52,13 @@ class BitbucketClient:
         resp.raise_for_status()
         return resp.json()
 
+    def _post(self, path: str, json_data: dict | None = None) -> Any:
+        url = f"{self.base}{path}"
+        resp = requests.post(url, auth=self.auth, headers=self.headers,
+                            json=json_data, timeout=15)
+        resp.raise_for_status()
+        return resp.json()
+
     # ------------------------------------------------------------------
     # Connection test
     # ------------------------------------------------------------------
@@ -108,6 +115,29 @@ class BitbucketClient:
             return self._get(path, params={"limit": page_size,
                                            "start": (page - 1) * page_size,
                                            "orderBy": "ALPHABETICAL"})
+
+    def create_branch(self, repo_slug: str, branch_name: str,
+                      source_branch: str = "main") -> dict:
+        """Create a new branch in a repository.
+
+        Cloud: POST /2.0/repositories/{workspace}/{repo}/refs/branches
+        Server: POST /rest/api/1.0/projects/{workspace}/repos/{repo}/branches
+        """
+        if self.platform == "cloud":
+            path = f"/repositories/{self.workspace}/{repo_slug}/refs/branches"
+            return self._post(path, json_data={
+                "name": branch_name,
+                "target": {
+                    "hash": source_branch,  # Can be branch name or commit hash
+                },
+            })
+        else:
+            path = (f"/projects/{self.workspace}/repos/{repo_slug}"
+                    f"/branches")
+            return self._post(path, json_data={
+                "name": branch_name,
+                "startPoint": source_branch,
+            })
 
     # ------------------------------------------------------------------
     # Commits

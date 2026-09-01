@@ -142,8 +142,13 @@ def sync_commits_for_repo(repo: models.Repository, db: Session,
             developer_id = match_developer(author_name, author_email, db)
 
             # Extract task codes and link
+            # Priority: 1) commit message, 2) branch name from repo config
             task_id = None
             task_codes = extract_task_codes(message)
+            if not task_codes:
+                # Fallback: check the configured branch name
+                branch_name = repo.default_branch or ""
+                task_codes = extract_task_codes(branch_name)
             if task_codes:
                 task_id = link_to_task(task_codes[0], db)
                 if task_id:
@@ -178,6 +183,66 @@ def sync_commits_for_repo(repo: models.Repository, db: Session,
     db.commit()
 
     return stats
+
+
+def link_orphan_commits_via_branches(repo: models.Repository, db: Session) -> int:
+    """Post-sync pass: link commits that have no task_id but whose branch
+    contains a task code (e.g. feature/T09045-fix-login).
+    
+    Also checks if any PR linked to a task has a source_branch — and links
+    commits on that branch to the same task.
+    
+    Returns: number of commits newly linked.
+    """
+    linked = 0
+
+    # 1. Get all unlinked commits for this repo
+    orphans = (
+        db.query(models.Commit)
+        .filter(
+            models.Commit.repo_id == repo.id,
+            models.Commit.task_id.is_(None),
+        )
+        .all()
+    )
+    if not orphans:
+        return 0
+
+    # 2. Build branch→task_id map from PRs that have task_id
+    branch_task_map = {}
+    pr_rows = (
+        db.query(models.PullRequest.source_branch, models.PullRequest.task_id)
+        .filter(
+            models.PullRequest.repo_id == repo.id,
+            models.PullRequest.task_id.isnot(None),
+            models.PullRequest.source_branch.isnot(None),
+        )
+        .all()
+    )
+    for pr in pr_rows:
+        if pr.source_branch:
+            branch_task_map[pr.source_branch] = pr.task_id
+
+    # 3. For each orphan commit, try to link via branch name
+    for commit in orphans:
+        # First: check commit's own branch field for task codes
+        if commit.branch:
+            codes = extract_task_codes(commit.branch)
+            if codes:
+                tid = link_to_task(codes[0], db)
+                if tid:
+                    commit.task_id = tid
+                    linked += 1
+                    continue
+
+        # Second: check if commit's branch matches a PR's source_branch
+        if commit.branch and commit.branch in branch_task_map:
+            commit.task_id = branch_task_map[commit.branch]
+            linked += 1
+
+    if linked:
+        db.commit()
+    return linked
 
 
 def sync_all_repos(db: Session) -> dict:
@@ -377,6 +442,27 @@ def sync_prs_for_repo(repo: models.Repository, db: Session,
         # Check if there are more pages (Cloud pagination)
         if not raw.get("next"):
             break
+
+    # ── Auto-status transition: PR Merged → Task "QA-WIP" ──
+    # After syncing all PRs, check for newly merged PRs linked to tasks
+    # and auto-update task status to "QA-WIP" (Ready for QA)
+    merged_prs = (
+        db.query(models.PullRequest)
+        .filter(
+            models.PullRequest.repo_id == repo.id,
+            models.PullRequest.status == "MERGED",
+            models.PullRequest.task_id.isnot(None),
+        )
+        .all()
+    )
+    for pr in merged_prs:
+        task = db.get(models.Task, pr.task_id)
+        if task and task.status and task.status.lower().replace(" ", "") in (
+            "inprogress", "in progress", "notstarted", "not started"
+        ):
+            task.status = "QA-WIP"
+            stats["tasks_moved_to_qa"] = stats.get("tasks_moved_to_qa", 0) + 1
+            logger.info(f"Task {task.task_code} auto-moved to QA-WIP (PR #{pr.pr_number} merged)")
 
     db.commit()
     return stats

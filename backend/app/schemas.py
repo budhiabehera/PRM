@@ -844,3 +844,131 @@ class ReleaseListResponse(BaseModel):
     page: int = 1
     pages: int = 1
     kpis: ReleaseKPIs = ReleaseKPIs()
+
+
+# --- Risk Analysis Schemas ---
+
+class StaleTaskItem(BaseModel):
+    task_id: int
+    task_code: str
+    description: str | None = None
+    developer_name: str | None = None
+    status: str | None = None
+    sprint_name: str | None = None
+    project_name: str | None = None
+    days_since_last_commit: int = 0
+    last_commit_date: str | None = None
+    risk_score: int = 0
+
+class NoDevActivityTask(BaseModel):
+    task_id: int
+    task_code: str
+    description: str | None = None
+    developer_name: str | None = None
+    status: str | None = None
+    sprint_name: str | None = None
+    project_name: str | None = None
+    assigned_date: str | None = None
+    risk_score: int = 0
+
+class DelayedPRItem(BaseModel):
+    pr_id: int
+    pr_number: int
+    title: str | None = None
+    repo_name: str | None = None
+    author_name: str | None = None
+    hours_waiting: float = 0.0
+    pending_reviewers: list[str] = []
+
+class SprintHealth(BaseModel):
+    sprint_name: str | None = None
+    total_tasks: int = 0
+    tasks_with_commits: int = 0
+    tasks_with_merged_pr: int = 0
+    tasks_no_activity: int = 0
+    readiness_pct: float = 0.0
+    risk_level: str = "UNKNOWN"
+
+class ResourceRisk(BaseModel):
+    developer_name: str
+    developer_id: int | None = None
+    open_prs_to_review: int = 0
+    commits_this_sprint: int = 0
+    assigned_tasks: int = 0
+    risk_type: str = ""
+
+class RiskKPIs(BaseModel):
+    total_stale_tasks: int = 0
+    total_no_activity: int = 0
+    delayed_prs_count: int = 0
+    avg_risk_score: float = 0.0
+    sprint_readiness_pct: float = 0.0
+
+class RiskAnalysisResponse(BaseModel):
+    stale_tasks: list[StaleTaskItem] = []
+    no_dev_activity_tasks: list[NoDevActivityTask] = []
+    delayed_prs: list[DelayedPRItem] = []
+    sprint_health: SprintHealth | None = None
+    resource_risks: list[ResourceRisk] = []
+    kpis: RiskKPIs = RiskKPIs()
+
+
+# --- Alert Rule Schemas ---
+
+class AlertRuleCreate(BaseModel):
+    rule_type: str
+    name: str
+    description: str | None = None
+    threshold: int
+    enabled: bool = True
+    severity: str = "warning"
+    notify_in_app: bool = True
+    notify_email: bool = False
+    notify_teams: bool = False
+    project_id: int | None = None
+
+
+class AlertRuleUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    threshold: int | None = None
+    enabled: bool | None = None
+    severity: str | None = None
+    notify_in_app: bool | None = None
+    notify_email: bool | None = None
+    notify_teams: bool | None = None
+    project_id: int | None = None
+
+
+class AlertRuleOut(AlertRuleCreate):
+    id: int
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    project_name: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class AlertHistoryOut(BaseModel):
+    id: int
+    rule_id: int
+    rule_type: str | None = None
+    severity: str | None = None
+    title: str | None = None
+    message: str | None = None
+    entity_type: str | None = None
+    entity_id: int | None = None
+    entity_label: str | None = None
+    resolved: bool = False
+    resolved_at: datetime | None = None
+    created_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class AlertCheckResult(BaseModel):
+    alerts_triggered: int = 0
+    alerts_resolved: int = 0
+    details: list[dict] = []

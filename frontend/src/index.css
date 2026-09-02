@@ -57,12 +57,26 @@ table.data-table tr:hover td { @apply bg-slate-50; }
 }
 
 /* Print styles for PDF export (window.print → Save as PDF) */
+/* Print styles for PDF export — hides sidebar, header, buttons; shows only content */
 @media print {
-  .sidebar, header, nav, .no-print { display: none !important; }
-  .btn { display: none !important; }
+  /* Hide sidebar (fixed left panel) */
+  aside, [class*="fixed left-0 top-14"], [class*="sidebar"] { display: none !important; }
+  /* Hide header (fixed top bar) */
+  header, [class*="fixed top-0"] { display: none !important; }
+  /* Hide navigation and buttons */
+  nav, .no-print, .btn { display: none !important; }
+  /* Remove left margin from main content (sidebar offset) */
+  main, [class*="ml-56"], [class*="ml-[72px]"] {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+  }
+  /* Clean body */
   body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Cards: no shadow, thin border, avoid page breaks inside */
   .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+  /* Smaller table text for print */
   table.data-table { font-size: 10px; }
   .badge { border: 1px solid #cbd5e1; }
+  /* Page margins */
   @page { margin: 0.5in; }
 }

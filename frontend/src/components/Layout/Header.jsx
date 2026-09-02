@@ -4,10 +4,18 @@ import { LogOut, PanelLeftClose, PanelLeftOpen, KeyRound, LayoutGrid } from 'luc
 import useAuthStore from '../../store/useAuthStore'
 import useUIStore from '../../store/useUIStore'
 import NotificationBell from '../NotificationBell'
-import { changePassword } from '../../services/api'
+import { changePassword, getIntegrationSettings } from '../../services/api'
 
 export default function Header() {
   const { user, logout } = useAuthStore()
+  const [companyLogo, setCompanyLogo] = useState(null)
+
+  // Fetch company logo from settings (once)
+  useEffect(() => {
+    getIntegrationSettings()
+      .then(s => setCompanyLogo(s?.company_logo_url || null))
+      .catch(() => {})
+  }, [])
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const navigate = useNavigate()
   const [showPwModal, setShowPwModal] = useState(false)
@@ -67,10 +75,14 @@ export default function Header() {
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
           <h1 className="text-[17px] font-semibold flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <LayoutGrid size={16} className="text-white" />
-            </div>
-            PRM <span className="font-normal text-slate-300">— Project & Resource Management</span>
+            {companyLogo ? (
+              <img src={companyLogo} alt="Company Logo" className="h-8 object-contain" />
+            ) : (
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <LayoutGrid size={16} className="text-white" />
+              </div>
+            )}
+            <span className="font-normal text-slate-300">Project & Resource Management</span>
           </h1>
         </div>
         <div className="text-sm font-bold text-white tracking-wide">

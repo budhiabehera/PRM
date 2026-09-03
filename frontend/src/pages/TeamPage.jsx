@@ -18,13 +18,13 @@ const avatarColor = (name) => {
 }
 
 export default function TeamPage() {
-  const { data: stats, loading: l1 } = useApi(getResourceStats, [])
-  const { data: resources, loading: l2, reload: reloadResources } = useApi(() => getResources(sprintFilter ? { sprint_id: sprintFilter } : {}), [sprintFilter])
   const { skills, projects, sprints } = useDropdowns()
   const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
   const [projectFilter, setProjectFilter] = useState(defaultProjectId)
   const [skillFilter, setSkillFilter] = useState('')
   const [sprintFilter, setSprintFilter] = useState('')
+  const { data: stats, loading: l1 } = useApi(getResourceStats, [])
+  const { data: resources, loading: l2, reload: reloadResources } = useApi(() => getResources(sprintFilter ? { sprint_id: sprintFilter } : {}), [sprintFilter])
 
   if (l1 || l2) return <LoadingSpinner label="Loading team..." />
 

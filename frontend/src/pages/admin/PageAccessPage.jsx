@@ -33,6 +33,16 @@ const ALL_PAGES = [
   { page_key: '/reports/overdue-tasks', page_label: 'Overdue Tasks', section: 'reports' },
   { page_key: '/reports/customer-summary', page_label: 'Customer Summary', section: 'reports' },
   { page_key: '/reports/time-variance', page_label: 'Time Variance', section: 'reports' },
+  // Engineering
+  { page_key: '/engineering/pm', page_label: 'PM Assistant', section: 'engineering' },
+  { page_key: '/engineering', page_label: 'Overview', section: 'engineering' },
+  { page_key: '/engineering/commits', page_label: 'Commits', section: 'engineering' },
+  { page_key: '/engineering/pull-requests', page_label: 'Pull Requests', section: 'engineering' },
+  { page_key: '/engineering/code-reviews', page_label: 'Code Reviews', section: 'engineering' },
+  { page_key: '/engineering/releases', page_label: 'Releases', section: 'engineering' },
+  { page_key: '/engineering/risks', page_label: 'Risk Analysis', section: 'engineering' },
+  { page_key: '/engineering/alerts', page_label: 'Alert Rules', section: 'engineering' },
+  { page_key: '/engineering/settings', page_label: 'Bitbucket Settings', section: 'engineering' },
 ]
 
 export default function PageAccessPage() {
@@ -203,6 +213,7 @@ export default function PageAccessPage() {
     { key: 'overview', label: 'Overview Pages' },
     { key: 'admin', label: 'Admin Pages' },
     { key: 'reports', label: 'Reports' },
+    { key: 'engineering', label: 'Engineering' },
   ]
 
   return (

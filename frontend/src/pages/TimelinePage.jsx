@@ -14,7 +14,7 @@ export default function TimelinePage() {
   const [filters, setFilters] = useState({ project_id: defaultProjectId })
 
   const { data: gantt, loading: l1 } = useApi(() => getGanttData(filters), [JSON.stringify(filters)])
-  const { data: allocation, loading: l2 } = useApi(getMonthlyAllocation, [])
+  const { data: allocation, loading: l2 } = useApi(() => getMonthlyAllocation(filters), [JSON.stringify(filters)])
 
   const setFilter = (key) => (value) => setFilters((f) => ({ ...f, [key]: value || undefined }))
 

@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import useApi from '../../hooks/useApi'
 import useDropdowns from '../../hooks/useDropdowns'
+import useProjectDefault from '../../hooks/useProjectDefault'
+import FilterSelect from '../../components/common/FilterSelect'
 import useAppStore from '../../store/useAppStore'
 import { getUserSetupList, createUserSetup, updateUserSetup, deleteUserSetup, getSkills, getRoleCapacities, getCapacityByRole, resendWelcomeEmail, getNextResourceCode } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
@@ -11,6 +13,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 
 export default function UserSetupPage() {
   const { projects } = useDropdowns()
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
+  const [projectFilter, setProjectFilter] = useState(defaultProjectId)
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
   const { data: users, loading, reload } = useApi(getUserSetupList, [])
   const { data: skillsList } = useApi(getSkills, [])
@@ -201,9 +205,17 @@ export default function UserSetupPage() {
         </div>
       )}
 
+      {/* Project Filter */}
+      <div className="flex gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl">
+        <FilterSelect label="Project" value={projectFilter} onChange={setProjectFilter}
+          options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
+      </div>
+
       {/* Users Table */}
       <div className="card">
-        <div className="text-[15px] font-semibold mb-3.5">All Users ({users?.length ?? 0})</div>
+        <div className="text-[15px] font-semibold mb-3.5">
+          {projectFilter ? `Project Users` : 'All Users'} ({(projectFilter ? users?.filter(u => (u.project_ids || []).includes(Number(projectFilter))) : users)?.length ?? 0})
+        </div>
         <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
@@ -220,7 +232,7 @@ export default function UserSetupPage() {
               </tr>
             </thead>
             <tbody>
-              {users?.map((u) => {
+              {(projectFilter ? users?.filter(u => (u.project_ids || []).includes(Number(projectFilter))) : users)?.map((u) => {
                 const isExpanded = expandedRow === u.id
                 const projNames = (u.project_ids || [])
                   .map((pid) => projects.find((p) => p.id === pid)?.name)

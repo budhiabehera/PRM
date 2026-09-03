@@ -195,7 +195,7 @@ export const getUtilizationGrid = (params) => api.get('/utilization/grid', { par
 
 // ---------- Timeline ----------
 export const getGanttData = (params) => api.get('/timeline/gantt', { params }).then(r => r.data)
-export const getMonthlyAllocation = () => api.get('/timeline/monthly-allocation').then(r => r.data)
+export const getMonthlyAllocation = (params) => api.get('/timeline/monthly-allocation', { params }).then(r => r.data)
 
 // ---------- Integrations (MS Teams / Salesforce) ----------
 export const getIntegrationSettings = () => api.get('/integrations/settings').then(r => r.data)

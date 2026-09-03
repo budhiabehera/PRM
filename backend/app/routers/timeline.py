@@ -48,13 +48,19 @@ def gantt_data(
 
 
 @router.get("/monthly-allocation")
-def monthly_allocation(db: Session = Depends(get_db),
+def monthly_allocation(project_id: int | None = None,
+                       db: Session = Depends(get_db),
                        current_user: models.User = Depends(get_current_user)):
     """Total allocated hours per sprint/month, split by project."""
     allowed = get_user_project_ids(current_user)
-    sprints = db.query(models.Sprint).options(
+    q = db.query(models.Sprint).options(
         joinedload(models.Sprint.tasks).joinedload(models.Task.project),
-    ).order_by(models.Sprint.id.asc()).all()
+    )
+    if project_id:
+        q = q.filter(models.Sprint.project_id == project_id)
+    if allowed is not None:
+        q = q.filter(models.Sprint.project_id.in_(allowed))
+    sprints = q.order_by(models.Sprint.id.asc()).all()
     result = []
     for s in sprints:
         by_project: dict[str, float] = {}

@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/resource-calendar", tags=["Resource Calendar"])
 def get_resource_calendar(
     year: int = Query(...),
     month: int = Query(...),
+    developer_id: int | None = None,
     project_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
@@ -33,6 +34,8 @@ def get_resource_calendar(
 
     # Get developers (optionally filtered by project)
     dev_query = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))
+    if developer_id:
+        dev_query = dev_query.filter(models.Developer.id == developer_id)
     if project_id:
         dev_query = dev_query.join(models.Developer.projects).filter(models.Project.id == project_id)
     developers = dev_query.order_by(func.lower(func.ltrim(func.rtrim(models.Developer.name)))).all()
@@ -47,8 +50,10 @@ def get_resource_calendar(
     # 1. developer_id matches directly, OR
     # 2. developer_id is NULL but the task is assigned to the developer
     from sqlalchemy import or_
+    from sqlalchemy.orm import joinedload
     activities = (
         db.query(models.TaskActivity)
+        .options(joinedload(models.TaskActivity.task))
         .join(models.Task, models.TaskActivity.task_id == models.Task.id)
         .filter(
             or_(models.TaskActivity.developer_id.in_(dev_ids), (models.TaskActivity.developer_id == None) & (models.Task.developer_id.in_(dev_ids))),

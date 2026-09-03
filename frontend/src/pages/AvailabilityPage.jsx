@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
-import useAuthStore, { isLeadOrAbove } from '../store/useAuthStore'
+import useAuthStore, { isSelfOnly, isLeadOrAbove } from '../store/useAuthStore'
 import { getAvailability, upsertAvailability, deleteAvailability } from '../services/api'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import Modal from '../components/common/Modal'
@@ -11,7 +11,7 @@ export default function AvailabilityPage() {
   const { resources, sprints } = useDropdowns()
   const user = useAuthStore((s) => s.user)
   const canManage = isLeadOrAbove(user)
-  const isDeveloper = user?.role === 'Developer'
+  const isDeveloper = isSelfOnly()
   const devParams = isDeveloper && user?.developer_id ? { developer_id: user.developer_id } : undefined
 
   const { data: records, loading, reload } = useApi(() => getAvailability(devParams), [user?.developer_id])

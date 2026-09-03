@@ -109,3 +109,49 @@ def delete_page_access(
         raise HTTPException(404, "Page access rule not found")
     db.delete(record)
     db.commit()
+
+
+# ── Role Data Scope ──────────────────────────────────────────────
+# Controls whether a role sees only own data (self_only), team data (team), or all data (full)
+
+class RoleDataScopeIn(BaseModel):
+    role: str
+    data_scope: str  # "self_only" | "team" | "full"
+
+
+class BulkRoleDataScopeIn(BaseModel):
+    scopes: List[RoleDataScopeIn]
+
+
+@router.get("/data-scopes")
+def list_data_scopes(db: Session = Depends(get_db)):
+    """Get all role data scope settings."""
+    items = db.query(models.RoleDataScope).order_by(models.RoleDataScope.role).all()
+    return [{"role": s.role, "data_scope": s.data_scope} for s in items]
+
+
+@router.get("/data-scope/{role}")
+def get_role_data_scope(role: str, db: Session = Depends(get_db)):
+    """Get data scope for a specific role. Defaults to self_only if not configured."""
+    item = db.query(models.RoleDataScope).filter(models.RoleDataScope.role == role).first()
+    if item:
+        return {"role": item.role, "data_scope": item.data_scope}
+    # Default: Admin=full, otherwise self_only
+    default = "full" if role == "Admin" else "self_only"
+    return {"role": role, "data_scope": default}
+
+
+@router.post("/data-scopes/bulk", status_code=200)
+def bulk_save_data_scopes(
+    payload: BulkRoleDataScopeIn,
+    db: Session = Depends(get_db),
+    _admin=Depends(require_roles("Admin")),
+):
+    """Save all role data scope settings at once (replaces existing)."""
+    db.query(models.RoleDataScope).delete()
+    db.flush()
+    for s in payload.scopes:
+        record = models.RoleDataScope(role=s.role, data_scope=s.data_scope)
+        db.add(record)
+    db.commit()
+    return {"message": f"Saved {len(payload.scopes)} role data scopes."}

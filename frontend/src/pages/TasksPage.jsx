@@ -3,7 +3,7 @@ import useApi from '../hooks/useApi'
 import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
 import useAppStore from '../store/useAppStore'
-import useAuthStore, { canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
+import useAuthStore, { isSelfOnly, canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
 import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests, createBranchForTask } from '../services/api'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
@@ -29,7 +29,7 @@ export default function TasksPage() {
   const { projects, mainModules, subModules, resources, workTypes, sprints, taskStatuses } = useDropdowns()
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
   const user = useAuthStore((s) => s.user)
-  const isDeveloper = user?.role === 'Developer'
+  const isDeveloper = isSelfOnly()
   const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
   // Default to current user's tasks (all roles) — managers can clear to see all
   const myDevId = user?.developer_id || ''

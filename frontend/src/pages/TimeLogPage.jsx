@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getTimeLogs, createTimeLog, updateTimeLog, deleteTimeLog, getTasks, getDailySummary, triggerHoursCheck } from '../services/api'
 import { ChevronLeft, ChevronRight, Save, MessageSquare, X, Clock, Users, Send } from 'lucide-react'
-import useAuthStore, { isManagerOrAbove } from '../store/useAuthStore'
+import useAuthStore, { isManagerOrAbove, isSelfOnly } from '../store/useAuthStore'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 
 function getSunday(d) {
@@ -121,7 +121,8 @@ export default function TimeLogPage() {
       // Only fetch for today and past dates — skip future dates
       const today = new Date()
       today.setHours(23, 59, 59, 999)
-      const promises = weekDays.filter(d => d <= today).map(d => getDailySummary(formatDate(d)))
+      const devId = isSelfOnly() ? user?.developer_id : undefined
+      const promises = weekDays.filter(d => d <= today).map(d => getDailySummary(formatDate(d), devId))
       const results = await Promise.all(promises)
       setDailySummary(results)
     } catch {
@@ -310,7 +311,10 @@ export default function TimeLogPage() {
     const generated = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     const weekLabel = `${formatShortDate(weekDays[0])} — ${formatShortDate(weekDays[6])}`
 
-    const dayHeaders = weekDays.map((d, i) => `${DAY_LABELS[i]}<br>${d.getDate()}/${d.getMonth()+1}`)
+    const dayHeaders = weekDays.map((d, i) => {
+      const isWE = d.getDay() === 0 || d.getDay() === 6
+      return isWE ? `<span style="color:#f87171">${DAY_LABELS[i]}<br>${d.getDate()}/${d.getMonth()+1}</span>` : `${DAY_LABELS[i]}<br>${d.getDate()}/${d.getMonth()+1}`
+    })
     const headers = ['Resource', ...dayHeaders, 'Total']
 
     const rows = summaryData.map(dev => {
@@ -506,9 +510,9 @@ export default function TimeLogPage() {
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="text-left px-4 py-3 font-semibold text-slate-600 min-w-[180px]">Resource</th>
                   {weekDays.map((d, i) => (
-                    <th key={i} className="text-center px-2 py-3 font-semibold text-slate-600 min-w-[90px]">
-                      <div className="text-xs text-slate-400">{DAY_LABELS[i]}</div>
-                      <div className="text-[11px] text-slate-500">{d.getDate()}/{d.getMonth() + 1}</div>
+                    <th key={i} className={`text-center px-2 py-3 font-semibold min-w-[90px] ${d.getDay() === 0 || d.getDay() === 6 ? 'bg-red-50/60 text-red-400' : 'text-slate-600'}`}>
+                      <div className={`text-xs ${d.getDay() === 0 || d.getDay() === 6 ? 'text-red-400' : 'text-slate-400'}`}>{DAY_LABELS[i]}</div>
+                      <div className={`text-[11px] ${d.getDay() === 0 || d.getDay() === 6 ? 'text-red-300' : 'text-slate-500'}`}>{d.getDate()}/{d.getMonth() + 1}</div>
                     </th>
                   ))}
                   <th className="text-center px-3 py-3 font-semibold text-slate-600 min-w-[70px]">Total</th>
@@ -524,8 +528,9 @@ export default function TimeLogPage() {
                       </td>
                       {dev.days.map((day, dayIndex) => {
                         const style = getSummaryCellStyle(day)
+                        const isWeekend = weekDays[dayIndex]?.getDay() === 0 || weekDays[dayIndex]?.getDay() === 6
                         return (
-                          <td key={dayIndex} className={`px-2 py-2.5 text-center ${style.bg}`}>
+                          <td key={dayIndex} className={`px-2 py-2.5 text-center ${isWeekend ? 'bg-red-50/40' : style.bg}`}>
                             {day.is_holiday ? (
                               <span className="text-sm" title="Holiday">🎉</span>
                             ) : day.is_on_leave ? (
@@ -555,7 +560,7 @@ export default function TimeLogPage() {
                   <tr className="bg-slate-50 border-t border-slate-200">
                     <td className="px-4 py-3 font-semibold text-slate-700 text-xs">Team Total</td>
                     {teamTotalPerDay.map((total, i) => (
-                      <td key={i} className="px-2 py-3 text-center">
+                      <td key={i} className={`px-2 py-3 text-center ${weekDays[i]?.getDay() === 0 || weekDays[i]?.getDay() === 6 ? 'bg-red-50/40' : ''}`}>
                         <span className="font-bold text-xs text-slate-700">{total.toFixed(1)}h</span>
                       </td>
                     ))}

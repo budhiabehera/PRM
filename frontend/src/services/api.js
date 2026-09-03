@@ -222,7 +222,7 @@ export const deleteTimeLog = (id) => api.delete(`/time-logs/${id}`)
 export const getTimeLogSummary = (params) => api.get('/time-logs/summary', { params }).then(r => r.data)
 
 // --- Time Log Daily Summary APIs ---
-export const getDailySummary = (date) => api.get('/time-logs/daily-summary', { params: { date } }).then(r => r.data)
+export const getDailySummary = (date, developer_id) => api.get('/time-logs/daily-summary', { params: { date, developer_id } }).then(r => r.data)
 export const triggerHoursCheck = () => api.post('/time-logs/check-hours').then(r => r.data)
 
 // ---------- Notifications ----------
@@ -314,3 +314,8 @@ export const pmDailyBrief = () => api.get('/pm/daily-brief').then(r => r.data)
 export const pmTeamReport = (params) => api.get('/pm/team-report', { params }).then(r => r.data)
 
 export default api
+
+// Role Data Scope
+export const getDataScopes = () => api.get('/page-access/data-scopes').then(r => r.data)
+export const getRoleDataScope = (role) => api.get(`/page-access/data-scope/${encodeURIComponent(role)}`).then(r => r.data)
+export const bulkSaveDataScopes = (data) => api.post('/page-access/data-scopes/bulk', data).then(r => r.data)

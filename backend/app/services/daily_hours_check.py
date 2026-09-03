@@ -316,7 +316,7 @@ def run_daily_hours_check(db: Session, check_date: date = None) -> dict:
     return result
 
 
-def get_all_developers_daily_summary(db: Session, check_date: date, current_user=None) -> dict:
+def get_all_developers_daily_summary(db: Session, check_date: date, current_user=None, developer_id: int = None) -> dict:
     """
     OPTIMIZED: Get hours summary for developers using batch queries (2-3 total).
     Replaces the old N+1 pattern that ran 5 queries per developer.
@@ -334,7 +334,10 @@ def get_all_developers_daily_summary(db: Session, check_date: date, current_user
         jl(models.Developer.user_account)
     ).filter(models.Developer.active == True)
 
-    if current_user:
+    # If specific developer requested, filter directly (most efficient for self-only scope)
+    if developer_id:
+        dev_query = dev_query.filter(models.Developer.id == developer_id)
+    elif current_user:
         user_role = (current_user.role or "").strip()
         if user_role == "Admin":
             pass

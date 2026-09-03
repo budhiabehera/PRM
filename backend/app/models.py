@@ -662,3 +662,12 @@ class AlertHistory(Base):
     created_at = Column(DateTime, default=func.now())
 
     rule = relationship("AlertRule")
+
+class RoleDataScope(Base):
+    """Defines data visibility scope per role: self_only, team, or full."""
+    __tablename__ = "PRM_role_data_scope"
+
+    id = Column(Integer, primary_key=True, index=True)
+    role = Column(String(100), nullable=False, unique=True)
+    data_scope = Column(String(20), nullable=False, default="self_only")  # self_only | team | full
+    created_at = Column(DateTime(timezone=True), default=_now_ist)

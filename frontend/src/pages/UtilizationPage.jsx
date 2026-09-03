@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import useApi from '../hooks/useApi'
-import useAuthStore from '../store/useAuthStore'
+import useAuthStore, { isSelfOnly } from '../store/useAuthStore'
 import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
 import { getUtilizationGrid } from '../services/api'
@@ -27,7 +27,7 @@ function sortRowsByName(rows) {
 
 export default function UtilizationPage() {
   const user = useAuthStore((s) => s.user)
-  const isDeveloper = user?.role === 'Developer'
+  const isDeveloper = isSelfOnly()
   const devParams = isDeveloper && user?.developer_id ? { developer_id: user.developer_id } : undefined
   const { resources, sprints: allSprints, projects } = useDropdowns()
 

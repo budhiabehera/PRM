@@ -195,6 +195,7 @@ def delete_time_log(
 @router.get("/daily-summary")
 def daily_summary(
     date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format. Defaults to today (IST)."),
+    developer_id: Optional[int] = Query(None, description="Filter to a specific developer"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -215,7 +216,7 @@ def daily_summary(
     else:
         check_date = get_today_ist()
 
-    return get_all_developers_daily_summary(db, check_date, current_user)
+    return get_all_developers_daily_summary(db, check_date, current_user, developer_id=developer_id)
 
 
 @router.post("/check-hours")

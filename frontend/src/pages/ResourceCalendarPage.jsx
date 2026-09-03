@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { getResourceCalendar, getProjects } from '../services/api'
 import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
-import useAuthStore from '../store/useAuthStore'
+import useAuthStore, { isSelfOnly } from '../store/useAuthStore'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import FilterSelect from '../components/common/FilterSelect'
@@ -34,7 +34,7 @@ function getWeekNumber(d) {
 export default function ResourceCalendarPage() {
   const today = new Date()
   const user = useAuthStore((s) => s.user)
-  const isDeveloper = user?.role === 'Developer'
+  const isDeveloper = isSelfOnly()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth() + 1)
   const [data, setData] = useState(null)
@@ -75,6 +75,7 @@ export default function ResourceCalendarPage() {
     setLoading(true)
     try {
       const params = { year, month }
+      if (isDeveloper && user?.developer_id) params.developer_id = user.developer_id
       if (projectFilter) params.project_id = projectFilter
       const result = await getResourceCalendar(params)
       setData(result)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getPageAccess, bulkSavePageAccess, getRoleCapacities } from '../../services/api'
+import { getPageAccess, bulkSavePageAccess, getRoleCapacities, getDataScopes, bulkSaveDataScopes, getUsers } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 
 // All available pages in the system
@@ -42,6 +42,8 @@ export default function PageAccessPage() {
   const [roles, setRoles] = useState([])
   // accessMap: { page_key: { role: true/false } }
   const [accessMap, setAccessMap] = useState({})
+  const [scopeMap, setScopeMap] = useState({}) // { role: 'self_only'|'team'|'full' }
+  const [roleCounts, setRoleCounts] = useState({}) // { role: count }
 
   const showToast = (type, text) => {
     setToast({ type, text })
@@ -51,9 +53,11 @@ export default function PageAccessPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [pageAccessData, roleCapData] = await Promise.all([
+        const [pageAccessData, roleCapData, scopeData, usersData] = await Promise.all([
           getPageAccess(),
           getRoleCapacities(),
+          getDataScopes(),
+          getUsers().catch(() => []),
         ])
 
         // Get roles from role capacity page
@@ -61,6 +65,20 @@ export default function PageAccessPage() {
         // Always include Admin
         const allRoles = [...new Set(['Admin', ...roleNames])]
         setRoles(allRoles)
+
+        // Build scope map — default: Admin=full, others=self_only
+        const sMap = {}
+        allRoles.forEach(r => { sMap[r] = r === 'Admin' ? 'full' : 'self_only' })
+        scopeData.forEach(s => { if (sMap[s.role] !== undefined) sMap[s.role] = s.data_scope })
+        setScopeMap(sMap)
+
+        // Count users per role
+        const counts = {}
+        usersData.forEach(u => {
+          const r = u.role || 'Unknown'
+          counts[r] = (counts[r] || 0) + 1
+        })
+        setRoleCounts(counts)
 
         // Build access map from saved data
         const map = {}
@@ -131,6 +149,34 @@ export default function PageAccessPage() {
     })
   }
 
+  // Auto-sync page checkboxes when scope changes
+  const handleScopeChange = (role, newScope) => {
+    setScopeMap(prev => ({ ...prev, [role]: newScope }))
+    
+    // Auto-adjust page access checkboxes
+    const selfOnlyExcluded = ['/', '/sprint', '/team', '/timeline']
+    const selfOnlyAllowed = ['/tasks', '/utilization', '/availability', '/holidays', '/time-logs', '/resource-calendar', '/knowledge-base', '/standup', '/settings']
+    
+    setAccessMap(prev => {
+      const newMap = { ...prev }
+      if (newScope === 'self_only') {
+        // Uncheck team/manager pages, ensure self pages are checked
+        selfOnlyExcluded.forEach(pk => {
+          if (newMap[pk]) newMap[pk] = { ...newMap[pk], [role]: false }
+        })
+        selfOnlyAllowed.forEach(pk => {
+          if (newMap[pk]) newMap[pk] = { ...newMap[pk], [role]: true }
+        })
+      } else if (newScope === 'team' || newScope === 'full') {
+        // Check all overview pages
+        ALL_PAGES.filter(p => p.section === 'overview').forEach(p => {
+          if (newMap[p.page_key]) newMap[p.page_key] = { ...newMap[p.page_key], [role]: true }
+        })
+      }
+      return newMap
+    })
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -141,7 +187,10 @@ export default function PageAccessPage() {
         roles: roles.filter((r) => accessMap[p.page_key]?.[r]),
       }))
       await bulkSavePageAccess({ pages })
-      showToast('success', 'Page access settings saved successfully!')
+      // Save data scopes
+      const scopes = roles.map(r => ({ role: r, data_scope: scopeMap[r] || 'self_only' }))
+      await bulkSaveDataScopes({ scopes })
+      showToast('success', 'Page access & data scope settings saved successfully!')
     } catch (err) {
       showToast('error', err.response?.data?.detail || 'Could not save settings')
     }
@@ -175,6 +224,53 @@ export default function PageAccessPage() {
           {toast.text}
         </div>
       )}
+
+      {/* Data Scope per Role */}
+      <div className="card mb-6">
+        <div className="px-5 py-4 border-b border-slate-200">
+          <h2 className="text-sm font-bold text-slate-800">🔒 Data Scope per Role</h2>
+          <p className="text-xs text-slate-500 mt-1">Controls what data each role can see — changing scope auto-adjusts page checkboxes below</p>
+        </div>
+        <div className="p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roles.map(role => {
+              const scope = scopeMap[role] || 'self_only'
+              const borderColor = scope === 'full' ? 'border-emerald-300 bg-emerald-50/40'
+                : scope === 'team' ? 'border-blue-300 bg-blue-50/40'
+                : 'border-amber-300 bg-amber-50/40'
+              const badgeColor = scope === 'full' ? 'bg-emerald-100 text-emerald-700'
+                : scope === 'team' ? 'bg-blue-100 text-blue-700'
+                : 'bg-amber-100 text-amber-700'
+              const count = roleCounts[role] || 0
+              return (
+                <div key={role} className={`p-3 rounded-lg border-2 ${borderColor} transition-colors`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="text-sm font-semibold text-slate-800">{role}</span>
+                      {count > 0 && <span className={`ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${badgeColor}`}>{count} user{count !== 1 ? 's' : ''}</span>}
+                    </div>
+                  </div>
+                  <select
+                    className="form-select text-xs py-1.5 px-3 w-full"
+                    value={scope}
+                    onChange={(e) => handleScopeChange(role, e.target.value)}
+                    disabled={role === 'Admin'}
+                  >
+                    <option value="self_only">👤 Self Only</option>
+                    <option value="team">👥 Team View</option>
+                    <option value="full">🌐 Full Access</option>
+                  </select>
+                </div>
+              )
+            })}
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-3 text-[11px]">
+            <div className="p-2 rounded border border-amber-200 bg-amber-50/50"><strong>👤 Self Only</strong> — Own tasks, hours, calendar only. No Dashboard.</div>
+            <div className="p-2 rounded border border-blue-200 bg-blue-50/50"><strong>👥 Team View</strong> — Project team data. Dashboard &amp; team pages visible.</div>
+            <div className="p-2 rounded border border-emerald-200 bg-emerald-50/50"><strong>🌐 Full Access</strong> — All data across all projects.</div>
+          </div>
+        </div>
+      </div>
 
       {sections.map((section) => {
         const sectionPages = ALL_PAGES.filter((p) => p.section === section.key)

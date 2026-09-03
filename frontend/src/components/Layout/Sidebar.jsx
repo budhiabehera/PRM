@@ -110,7 +110,7 @@ export default function Sidebar() {
 
   // When page access rules exist, use them exclusively (ignore hardcoded role arrays)
   // When no rules exist, fall back to the old hardcoded behavior
-  const isDeveloper = role === 'Developer'
+  const isDeveloper = useAuthStore.getState().dataScope === 'self_only'
   const baseOverviewItems = isDeveloper ? DEVELOPER_ITEMS : ALL_OVERVIEW_ITEMS
   const overviewItems = baseOverviewItems.filter((item) => hasAccess(item.to))
   const visibleAdminItems = hasRules

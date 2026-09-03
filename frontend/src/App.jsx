@@ -60,7 +60,7 @@ const NON_DEVELOPER = ['Admin', 'Manager', 'Lead']
 // Dashboard: hide from Developer role — redirect to My Dashboard
 function DashboardOrRedirect() {
   const user = useAuthStore((s) => s.user)
-  if (user?.role === 'Developer') {
+  if (useAuthStore.getState().dataScope === 'self_only') {
     return <Navigate to="/my-dashboard" replace />
   }
   return <DashboardPage />

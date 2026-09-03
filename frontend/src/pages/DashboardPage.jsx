@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import useApi from '../hooks/useApi'
-import useAuthStore from '../store/useAuthStore'
+import useAuthStore, { isSelfOnly } from '../store/useAuthStore'
 import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
 import {
@@ -19,7 +19,7 @@ import { formatNumber, formatPercent } from '../utils/formatters'
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user)
   const { sprints, projects } = useDropdowns()
-  const isDeveloper = user?.role === 'Developer'
+  const isDeveloper = isSelfOnly()
   const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
   const [selectedProject, setSelectedProject] = useState(defaultProjectId)
   const [selectedSprint, setSelectedSprint] = useState('')

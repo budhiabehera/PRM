@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { login } from '../services/api'
+import { login, getRoleDataScope } from '../services/api'
 import useAuthStore from '../store/useAuthStore'
 
 const DEMO_ACCOUNTS = [
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const setAuth = useAuthStore((s) => s.setAuth)
+  const setDataScope = useAuthStore((s) => s.setDataScope)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -26,6 +27,11 @@ export default function LoginPage() {
     try {
       const data = await login(username, password)
       setAuth(data.access_token, data.user)
+      // Load role data scope (Admin-configured)
+      try {
+        const scopeData = await getRoleDataScope(data.user.role)
+        setDataScope(scopeData.data_scope)
+      } catch { /* fallback handled in store */ }
       const redirectTo = location.state?.from || '/'
       navigate(redirectTo, { replace: true })
     } catch (err) {

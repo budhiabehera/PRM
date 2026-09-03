@@ -47,3 +47,6 @@ export const PRIORITY_OPTIONS = ['Critical', 'High', 'Medium', 'Low']
 
 export const ROLE_OPTIONS = ['Admin', 'Manager', 'Lead - Manager', 'Lead', 'Developer']
 export const SKILL_OPTIONS = ['Backend', 'Frontend', 'Mobile']
+
+// Statuses that represent future/planning tasks — relaxed validation, excluded from sprint stats
+export const PLANNING_STATUSES = ['Backlog', 'New', 'Unassigned']

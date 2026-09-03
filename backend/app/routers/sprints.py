@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
-from ..deps import require_roles, get_current_user, get_user_project_ids
+from ..deps import PLANNING_STATUSES, require_roles, get_current_user, get_user_project_ids
 from ..deps import MANAGEMENT_EXCLUDED_ROLES
 from ..utils.calculations import net_capacity
 
@@ -10,7 +10,9 @@ router = APIRouter(prefix="/api/sprints", tags=["Sprints"])
 
 
 def _sprint_with_stats(sprint: models.Sprint, db: Session):
-    tasks = sprint.tasks
+    all_tasks = sprint.tasks
+    # Exclude planning/backlog tasks from sprint stats
+    tasks = [t for t in all_tasks if (t.status or '').lower().strip() not in PLANNING_STATUSES]
     alloc_hrs = sum(t.estimated_hours for t in tasks)
 
     # Only count developers assigned to the sprint's project (if sprint has a project)
@@ -48,6 +50,7 @@ def _sprint_with_stats(sprint: models.Sprint, db: Session):
         "status": sprint.status,
         "duration_days": duration,
         "task_count": len(tasks),
+        "backlog_count": len(all_tasks) - len(tasks),
         "allocated_hours": alloc_hrs,
         "net_capacity": round(total_capacity, 1),
         "utilization_pct": util_pct,
@@ -78,7 +81,7 @@ def list_sprints(db: Session = Depends(get_db),
     # Filter sprints: show only sprints for user's projects or global sprints (no project)
     if allowed is not None:
         sq = sq.filter((models.Sprint.project_id.in_(allowed)) | (models.Sprint.project_id.is_(None)))
-    sprints = sq.order_by(models.Sprint.start_date).all()
+    sprints = sq.order_by(models.Sprint.id.asc()).all()
     results = []
     for s in sprints:
         stats = _sprint_with_stats(s, db)

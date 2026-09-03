@@ -60,75 +60,57 @@ def list_time_logs(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     task_id: Optional[int] = Query(None),
-    include_activities: bool = Query(True, description="Include hours from task activity log"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Get time log entries filtered by current user's developer_id."""
+    """Get time entries from task activity log (read-only view).
+    Activity hours are the source of truth — task.actual_hours is the sum."""
     if not current_user.developer_id:
         return []
 
-    query = (
-        db.query(models.TimeLog).options(
-            joinedload(models.TimeLog.task),
-        )
-        .filter(models.TimeLog.developer_id == current_user.developer_id)
+    # Query task activities (the source of truth for hours)
+    act_query = (
+        db.query(models.TaskActivity)
+        .options(joinedload(models.TaskActivity.task))
+        .filter(models.TaskActivity.developer_id == current_user.developer_id)
     )
-
     if date_from:
-        query = query.filter(models.TimeLog.date >= date_from)
+        act_query = act_query.filter(models.TaskActivity.activity_date >= date_from)
     if date_to:
-        query = query.filter(models.TimeLog.date <= date_to)
+        act_query = act_query.filter(models.TaskActivity.activity_date <= date_to)
     if task_id:
-        query = query.filter(models.TimeLog.task_id == task_id)
+        act_query = act_query.filter(models.TaskActivity.task_id == task_id)
 
-    time_logs = query.order_by(models.TimeLog.date.desc(), models.TimeLog.id.desc()).all()
-    result = [_serialize_time_log(tl) for tl in time_logs]
+    activities = act_query.order_by(models.TaskActivity.activity_date.desc()).all()
 
-    # Also include hours from task activity log (PRM_task_activities)
-    if include_activities:
-        act_query = (
-            db.query(models.TaskActivity)
-            .options(joinedload(models.TaskActivity.task))
-            .filter(models.TaskActivity.developer_id == current_user.developer_id)
-        )
-        if date_from:
-            act_query = act_query.filter(models.TaskActivity.activity_date >= date_from)
-        if date_to:
-            act_query = act_query.filter(models.TaskActivity.activity_date <= date_to)
-        if task_id:
-            act_query = act_query.filter(models.TaskActivity.task_id == task_id)
+    # Aggregate by task_id + date (multiple activities on same task+date get summed)
+    from collections import defaultdict
+    grouped = defaultdict(lambda: {"hours": 0, "notes": "", "ids": []})
+    for a in activities:
+        key = (a.task_id, a.activity_date)
+        grouped[key]["hours"] += (a.hours_spent or 0)
+        grouped[key]["ids"].append(a.id)
+        if a.description:
+            grouped[key]["notes"] = a.description[:200]
+        grouped[key]["task"] = a.task
 
-        activities = act_query.all()
+    result = []
+    for (t_id, d), data in grouped.items():
+        task = data["task"]
+        result.append({
+            "id": data["ids"][0] if data["ids"] else None,
+            "task_id": t_id,
+            "developer_id": current_user.developer_id,
+            "date": d,
+            "hours": round(data["hours"], 2),
+            "notes": data["notes"],
+            "created_at": None,
+            "task_code": task.task_code if task else None,
+            "task_description": task.description if task else None,
+            "source": "activity_log",
+        })
 
-        # Aggregate activity hours per task per date (to avoid duplicating with time_logs)
-        # Build a set of (task_id, date) from existing time_logs
-        existing_keys = {(tl.task_id, tl.date) for tl in time_logs}
-
-        # Group activities by (task_id, date)
-        from collections import defaultdict
-        act_grouped = defaultdict(float)
-        for a in activities:
-            key = (a.task_id, a.activity_date)
-            act_grouped[key] += (a.hours_spent or 0)
-
-        # Add activity entries that don't already have time_log entries
-        for (t_id, d), hours in act_grouped.items():
-            if hours > 0:
-                task = db.get(models.Task, t_id)
-                result.append({
-                    "id": None,  # no time_log id — this is from activity log
-                    "task_id": t_id,
-                    "developer_id": current_user.developer_id,
-                    "date": d,
-                    "hours": hours,
-                    "notes": "(from activity log)",
-                    "created_at": None,
-                    "task_code": task.task_code if task else None,
-                    "task_description": task.description if task else None,
-                    "source": "activity_log",
-                })
-
+    result.sort(key=lambda x: (x["date"], x["task_code"] or ""), reverse=True)
     return result
 
 

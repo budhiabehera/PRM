@@ -179,7 +179,7 @@ def _resolve_sprint(
         return db.get(models.Sprint, explicit_id)
 
     # Try to find sprint name in message
-    sprints = db.query(models.Sprint).all()
+    sprints = db.query(models.Sprint).order_by(models.Sprint.id.asc()).all()
     msg_lower = message.lower()
     for s in sprints:
         if s.name.lower() in msg_lower:

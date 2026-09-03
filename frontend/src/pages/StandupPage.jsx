@@ -138,7 +138,7 @@ export default function StandupPage() {
               onChange={(e) => setSelectedDate(e.target.value)}
             />
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
+          <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportPDF} title="Export to PDF">
             📄 Export PDF
           </button>
           {tab === 'my' && (

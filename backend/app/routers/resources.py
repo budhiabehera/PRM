@@ -10,9 +10,12 @@ from ..utils.calculations import utilization_status
 router = APIRouter(prefix="/api/resources", tags=["Resources"])
 
 
-def _dev_with_stats(dev: models.Developer, db: Session):
-    active_tasks = [t for t in dev.tasks if t.status not in ("Completed",)]
-    assigned_hours = sum(t.estimated_hours for t in dev.tasks)
+def _dev_with_stats(dev: models.Developer, db: Session, sprint_id: int | None = None):
+    tasks = dev.tasks
+    if sprint_id:
+        tasks = [t for t in tasks if t.sprint_id == sprint_id]
+    active_tasks = [t for t in tasks if t.status not in ("Completed",)]
+    assigned_hours = sum(t.estimated_hours or 0 for t in tasks)
     pct = round((assigned_hours / dev.base_capacity) * 100) if dev.base_capacity else 0
     return {
         "id": dev.id,
@@ -37,6 +40,7 @@ def list_resources(
     module_id: int | None = None,
     role: str | None = None,
     skill: str | None = None,
+    sprint_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -58,8 +62,10 @@ def list_resources(
         q = q.filter(models.Developer.role == role)
     if skill:
         q = q.filter(models.Developer.skill == skill)
-    devs = q.order_by(func.lower(models.Developer.name)).all()
-    return [_dev_with_stats(d, db) for d in devs]
+    # Exclude management roles (SVP-Product, AVP-Product, Product Manager)
+    q = q.filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))
+    devs = q.order_by(func.lower(func.ltrim(func.rtrim(models.Developer.name)))).all()
+    return [_dev_with_stats(d, db, sprint_id=sprint_id) for d in devs]
 
 
 @router.get("/stats")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db
-from ..deps import get_current_user, get_user_project_ids
+from ..deps import PLANNING_STATUSES, get_current_user, get_user_project_ids
 from ..deps import MANAGEMENT_EXCLUDED_ROLES
 from .sprints import _sprint_with_stats
 
@@ -155,7 +155,7 @@ def sub_module_breakdown(db: Session = Depends(get_db), developer_id: int | None
 def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                         current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    sprint_q = db.query(models.Sprint).order_by(models.Sprint.start_date)
+    sprint_q = db.query(models.Sprint).order_by(models.Sprint.id.asc())
     if sprint_id:
         sprint_q = sprint_q.filter(models.Sprint.id == sprint_id)
     if project_id:

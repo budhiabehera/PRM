@@ -28,7 +28,7 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
         ))
     devs = dev_q.order_by(func.lower(models.Developer.name)).all()
-    sprints = db.query(models.Sprint).order_by(models.Sprint.start_date).all()
+    sprints = db.query(models.Sprint).order_by(models.Sprint.id.asc()).all()
 
     # Pre-fetch all availability records in one query (avoid N*M individual queries)
     dev_ids = [d.id for d in devs]

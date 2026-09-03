@@ -179,7 +179,8 @@ export default function EngineeringDashboard() {
           value={sprintId}
           onChange={setSprintId}
           options={filteredSprints.map((s) => ({ value: s.id, label: s.name }))}
-        />
+        sorted={false}
+          />
         {/* Time range quick buttons */}
         <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Time Range</span>

@@ -29,61 +29,30 @@ def get_today_ist() -> date:
 def get_developer_hours_today(db: Session, developer_id: int, check_date: date) -> dict:
     """
     Get a developer's total logged hours for a specific date.
-    Combines hours from PRM_time_logs and PRM_task_activities.hours_spent.
-
-    Returns dict with developer info, hours breakdown, and task details.
+    Reads from PRM_task_activities.hours_spent ONLY (not PRM_time_logs).
+    Task.actual_hours is the sum of all activities — this function gives per-day granularity.
     """
-    # --- Get developer info ---
     developer = db.query(models.Developer).filter(
         models.Developer.id == developer_id
     ).first()
     if not developer:
         return None
 
-    # Get email from linked User account
     email = None
     if developer.user_account:
         email = developer.user_account.email
 
-    # --- Sum hours from PRM_time_logs ---
-    time_log_result = db.query(
-        func.coalesce(func.sum(models.TimeLog.hours), 0.0)
-    ).filter(
-        models.TimeLog.developer_id == developer_id,
-        models.TimeLog.date == check_date,
-    ).scalar()
-    time_log_hours = float(time_log_result or 0.0)
-
-    # --- Sum hours from PRM_task_activities ---
+    # Sum hours from task activities for this date
     activity_result = db.query(
         func.coalesce(func.sum(models.TaskActivity.hours_spent), 0.0)
     ).filter(
         models.TaskActivity.developer_id == developer_id,
         models.TaskActivity.activity_date == check_date,
     ).scalar()
-    activity_log_hours = float(activity_result or 0.0)
+    total_hours = round(float(activity_result or 0.0), 2)
 
-    total_hours = round(time_log_hours + activity_log_hours, 2)
-
-    # --- Task breakdown from time_logs ---
-    tl_breakdown = (
-        db.query(
-            models.TimeLog.task_id,
-            models.Task.task_code,
-            models.Task.description,
-            func.sum(models.TimeLog.hours).label("hours"),
-        )
-        .join(models.Task, models.TimeLog.task_id == models.Task.id)
-        .filter(
-            models.TimeLog.developer_id == developer_id,
-            models.TimeLog.date == check_date,
-        )
-        .group_by(models.TimeLog.task_id, models.Task.task_code, models.Task.description)
-        .all()
-    )
-
-    # --- Task breakdown from task_activities ---
-    ta_breakdown = (
+    # Task breakdown from task_activities
+    breakdown_rows = (
         db.query(
             models.TaskActivity.task_id,
             models.Task.task_code,
@@ -99,35 +68,18 @@ def get_developer_hours_today(db: Session, developer_id: int, check_date: date) 
         .all()
     )
 
-    # --- Merge breakdowns (combine by task_id) ---
-    task_map = {}
-    for row in tl_breakdown:
-        tid = row.task_id
-        task_map[tid] = {
-            "task_code": row.task_code,
-            "description": (row.description or "")[:100],
-            "hours": float(row.hours or 0),
-        }
-    for row in ta_breakdown:
-        tid = row.task_id
-        if tid in task_map:
-            task_map[tid]["hours"] = round(task_map[tid]["hours"] + float(row.hours or 0), 2)
-        else:
-            task_map[tid] = {
-                "task_code": row.task_code,
-                "description": (row.description or "")[:100],
-                "hours": float(row.hours or 0),
-            }
-
-    task_breakdown = list(task_map.values())
+    task_breakdown = [
+        {"task_code": r.task_code, "description": (r.description or "")[:100], "hours": float(r.hours or 0)}
+        for r in breakdown_rows
+    ]
     task_breakdown.sort(key=lambda x: x["task_code"])
 
     return {
         "developer_id": developer_id,
         "developer_name": developer.name,
         "email": email,
-        "time_log_hours": round(time_log_hours, 2),
-        "activity_hours": round(activity_log_hours, 2),
+        "time_log_hours": 0,  # Deprecated — kept for API compatibility
+        "activity_hours": total_hours,
         "total_hours": total_hours,
         "task_breakdown": task_breakdown,
     }

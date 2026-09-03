@@ -54,7 +54,7 @@ def monthly_allocation(db: Session = Depends(get_db),
     allowed = get_user_project_ids(current_user)
     sprints = db.query(models.Sprint).options(
         joinedload(models.Sprint.tasks).joinedload(models.Task.project),
-    ).order_by(models.Sprint.start_date).all()
+    ).order_by(models.Sprint.id.asc()).all()
     result = []
     for s in sprints:
         by_project: dict[str, float] = {}

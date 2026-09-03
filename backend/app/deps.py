@@ -138,3 +138,6 @@ def filter_operational_developers(query, model=None):
     for role in MANAGEMENT_EXCLUDED_ROLES:
         query = query.filter(M.role.notilike(role))
     return query
+
+# Statuses that represent future/planning tasks — excluded from sprint capacity calculations
+PLANNING_STATUSES = {"backlog", "new", "unassigned"}

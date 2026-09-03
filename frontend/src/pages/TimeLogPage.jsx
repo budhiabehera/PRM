@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getTimeLogs, createTimeLog, updateTimeLog, deleteTimeLog, getTasks, getDailySummary, triggerHoursCheck } from '../services/api'
 import { ChevronLeft, ChevronRight, Save, MessageSquare, X, Clock, Users, Send } from 'lucide-react'
 import useAuthStore, { isManagerOrAbove } from '../store/useAuthStore'
+import LoadingSpinner from '../components/common/LoadingSpinner'
 
-function getMonday(d) {
+function getSunday(d) {
   const date = new Date(d)
   const day = date.getDay()
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1)
+  const diff = date.getDate() - day
   date.setDate(diff)
   date.setHours(0, 0, 0, 0)
   return date
@@ -29,11 +30,24 @@ function formatShortDate(d) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function getSummaryCellStyle(day) {
+  if (day.is_holiday || day.is_on_leave) {
+    return { bg: 'bg-slate-50', text: 'text-slate-400', indicator: '' }
+  }
+  if (day.total_hours >= 8) {
+    return { bg: 'bg-emerald-50/60', text: 'text-emerald-700', indicator: '✓' }
+  }
+  if (day.total_hours > 0) {
+    return { bg: 'bg-amber-50/60', text: 'text-amber-700', indicator: '⚠' }
+  }
+  return { bg: '', text: 'text-slate-400', indicator: '' }
+}
 
 export default function TimeLogPage() {
   const user = useAuthStore((s) => s.user)
-  const [weekStart, setWeekStart] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })
+  const [weekStart, setWeekStart] = useState(() => getSunday(new Date()))
   const [timeLogs, setTimeLogs] = useState([])
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -133,7 +147,7 @@ export default function TimeLogPage() {
   // Navigate weeks
   const prevWeek = () => setWeekStart(addDays(weekStart, -7))
   const nextWeek = () => setWeekStart(addDays(weekStart, 7))
-  const goToday = () => setWeekStart(getMonday(new Date()))
+  const goToday = () => setWeekStart(getSunday(new Date()))
 
   // Grid cell change
   const handleHoursChange = (taskId, dayIndex, value) => {
@@ -263,47 +277,14 @@ export default function TimeLogPage() {
       return [`<strong>${task.task_code}</strong><br><span style="font-size:10px;color:#64748b">${task.description || ''}</span>`, ...dayCells, `<strong>${(totalPerTask[task.id] || 0).toFixed(1)}h</strong>`]
     })
 
-    // Footer: Time Logged
-    const loggedRow = ['<strong>Time Logged</strong>', ...totalPerDay.map(t => `<strong style="color:${t > 8 ? '#d97706' : '#1e293b'}">${t.toFixed(1)}h</strong>`), `<strong>${grandTotal.toFixed(1)}h</strong>`]
-    taskRows.push(loggedRow)
-
-    // Footer: Activity Hours
-    if (totalActivityHours > 0) {
-      const actRow = ['<em style="color:#64748b">Activity Hours</em>', ...activityHoursPerDay.map(h => `<em style="color:#64748b">${h > 0 ? h.toFixed(1) + 'h' : ''}</em>`), `<em style="color:#64748b">${totalActivityHours.toFixed(1)}h</em>`]
-      taskRows.push(actRow)
-    }
-
-    // Daily Total row
-    const dailyTotalRow = ['<strong>Daily Total</strong>', ...totalPerDay.map((t, i) => {
-      const combined = t + activityHoursPerDay[i]
-      const color = combined >= 8 ? '#16a34a' : combined > 0 ? '#1e293b' : '#94a3b8'
-      return `<strong style="color:${color}">${combined.toFixed(1)}h</strong>`
-    }), `<strong style="color:#4f46e5">${(grandTotal + totalActivityHours).toFixed(1)}h</strong>`]
-    taskRows.push(dailyTotalRow)
-
-    // Daily Hours Summary table
-    let summaryHtml = ''
-    if (summaryData.length > 0) {
-      const sumHeaders = ['Resource', ...DAY_LABELS.map((lbl, i) => `${lbl} ${weekDays[i].getDate()}/${weekDays[i].getMonth()+1}`), 'Total']
-      const sumRows = summaryData.map(dev => {
-        const weekTotal = dev.days.reduce((s, d) => s + d.total_hours, 0)
-        const dayCells = dev.days.map(day => {
-          if (day.is_holiday) return '🎉'
-          if (day.is_on_leave) return '🏖️'
-          const color = day.total_hours >= 8 ? '#16a34a' : day.total_hours > 0 ? '#d97706' : '#94a3b8'
-          return `<span style="color:${color};font-weight:600">${day.total_hours > 0 ? day.total_hours.toFixed(1) : '0'}</span>`
-        })
-        return [dev.developer_name, ...dayCells, `<strong>${weekTotal.toFixed(1)}h</strong>`]
-      })
-      summaryHtml = `<div class="section" style="margin-top:24px"><div class="section-title">📊 Daily Hours Summary — Week of ${weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>${buildTable(sumHeaders, sumRows)}</div>`
-    }
+    // Footer: Daily Total
+    const totalRow = ['<strong>Daily Total</strong>', ...totalPerDay.map(t => `<strong style="color:${t > 0 ? '#4f46e5' : '#94a3b8'}">${t.toFixed(1)}h</strong>`), `<strong style="color:#4f46e5">${grandTotal.toFixed(1)}h</strong>`]
+    taskRows.push(totalRow)
 
     const html = `<!DOCTYPE html><html><head><title>Time Logs Report</title><style>
       body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
       h1 { font-size: 20px; margin-bottom: 2px; }
       .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
-      .section { margin-bottom: 24px; }
-      .section-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
       table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
       th { padding: 6px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: center; }
       th:first-child { text-align: left; }
@@ -313,138 +294,120 @@ export default function TimeLogPage() {
       @media print { body { padding: 0; } }
     </style></head><body>
       <h1>Time Logs Report</h1>
-      <div class="subtitle">${weekLabel} | Generated on ${generated}</div>
-      <div class="section"><div class="section-title">Time Log Grid</div>${buildTable(taskHeaders, taskRows)}</div>
-      ${summaryHtml}
+      <div class="subtitle">Week: ${weekLabel} | Generated on ${generated}</div>
+      ${buildTable(taskHeaders, taskRows)}
       <div class="generated">PRM Report — ${generated}</div>
       <script>window.onload = function() { window.print(); }<\/script>
     </body></html>`
 
-    const printWindow = window.open('', '_blank')
-    printWindow.document.write(html)
-    printWindow.document.close()
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close() }
   }
 
-  // Save all
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const promises = []
+  const handleExportSummaryPDF = () => {
+    if (summaryData.length === 0) return
+    const now = new Date()
+    const generated = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const weekLabel = `${formatShortDate(weekDays[0])} — ${formatShortDate(weekDays[6])}`
 
-      // Process each grid cell
-      for (const [key, val] of Object.entries(grid)) {
-        const [taskIdStr, dayIndexStr] = key.split('-')
-        const taskId = parseInt(taskIdStr)
-        const dayIndex = parseInt(dayIndexStr)
-        const dateStr = formatDate(weekDays[dayIndex])
+    const dayHeaders = weekDays.map((d, i) => `${DAY_LABELS[i]}<br>${d.getDate()}/${d.getMonth()+1}`)
+    const headers = ['Resource', ...dayHeaders, 'Total']
 
-        if (val.id && val.hours > 0) {
-          // Update existing
-          promises.push(updateTimeLog(val.id, { date: dateStr, hours: val.hours, notes: val.notes || null, task_id: taskId }))
-        } else if (val.id && val.hours === 0) {
-          // Delete if hours set to 0
-          promises.push(deleteTimeLog(val.id))
-        } else if (!val.id && val.hours > 0) {
-          // Create new
-          promises.push(createTimeLog({ date: dateStr, hours: val.hours, notes: val.notes || null, task_id: taskId }))
-        }
-      }
+    const rows = summaryData.map(dev => {
+      const weekTotal = dev.days.reduce((s, d) => s + d.total_hours, 0)
+      const dayCells = dev.days.map(day => {
+        if (day.is_holiday) return '<span title="Holiday">🎉</span>'
+        if (day.is_on_leave) return '<span title="On Leave">🏖️</span>'
+        const h = day.total_hours
+        if (h >= 8) return `<strong style="color:#059669">${h.toFixed(1)} ✓</strong>`
+        if (h > 0) return `<strong style="color:#d97706">${h.toFixed(1)} ⚠</strong>`
+        return '<span style="color:#cbd5e1">0.0</span>'
+      })
+      const totalStyle = weekTotal >= 40 ? 'color:#059669;font-weight:bold' : 'font-weight:bold'
+      return [`<strong>${dev.developer_name}</strong>`, ...dayCells, `<span style="${totalStyle}">${weekTotal.toFixed(1)}h</span>`]
+    })
 
-      await Promise.all(promises)
-      showToast('success', 'Time logs saved successfully!')
-      await loadTimeLogs()
-      // Refresh daily summary to reflect new saved hours
-      await loadDailySummary()
-    } catch (err) {
-      showToast('error', err.response?.data?.detail || 'Failed to save time logs')
-    }
-    setSaving(false)
-  }
+    // Team total row
+    const teamWeekTotal = teamTotalPerDay.reduce((s, t) => s + t, 0)
+    const teamRow = ['<strong>Team Total</strong>', ...teamTotalPerDay.map(t =>
+      `<strong style="color:${t > 0 ? '#4f46e5' : '#94a3b8'}">${t.toFixed(1)}h</strong>`
+    ), `<strong style="color:#4f46e5">${teamWeekTotal.toFixed(1)}h</strong>`]
+    rows.push(teamRow)
 
-  // Helper: style a summary cell based on hours / leave / holiday
-  const getSummaryCellStyle = (day) => {
-    if (day.is_holiday) return { indicator: '🎉', bg: 'bg-blue-50', text: 'text-blue-600', label: 'Holiday' }
-    if (day.is_on_leave) return { indicator: '🏖️', bg: 'bg-purple-50', text: 'text-purple-600', label: 'On leave' }
-    if (day.total_hours >= 8) return { indicator: '✅', bg: 'bg-emerald-50', text: 'text-emerald-700', label: '' }
-    if (day.total_hours > 0) return { indicator: '⚠️', bg: 'bg-amber-50', text: 'text-amber-700', label: '' }
-    return { indicator: '', bg: '', text: 'text-slate-400', label: '' }
+    const ths = headers.map(h => `<th>${h}</th>`).join('')
+    const trs = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+    const table = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`
+
+    const html = `<!DOCTYPE html><html><head><title>Daily Hours Summary</title><style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      th { padding: 8px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: center; background: #f8fafc; }
+      th:first-child { text-align: left; }
+      td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: center; }
+      td:first-child { text-align: left; }
+      tr:last-child td { border-top: 2px solid #cbd5e1; background: #f8fafc; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+      <h1>📊 Daily Hours Summary</h1>
+      <div class="subtitle">Week: ${weekLabel} | ${summaryData.length} Resources | Generated on ${generated}</div>
+      ${table}
+      <div class="generated">PRM Report — ${generated}</div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body></html>`
+
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close() }
   }
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
-          toast.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {toast.text}
-        </div>
-      )}
-
-      {/* Header */}
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Clock size={22} className="text-indigo-500" />
-            Time Logs
-          </h1>
-          <p className="text-sm text-slate-500 mt-0.5">View hours logged from task activity — read only</p>
+          <h2 className="text-xl font-bold text-slate-900">⏱️ Time Logs</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Hours logged from task activity log — read only</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
-            📄 Export PDF
-          </button>
-          <button
-          onClick={handleSave}
-          disabled={saving}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Save size={15} />
-          {saving ? 'Saving...' : 'Save'}
-          </button>
+          <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportPDF} title="Export to PDF">📄 Export PDF</button>
         </div>
       </div>
 
-      {/* Week navigator */}
-      <div className="card p-4 mb-5">
-        <div className="flex items-center justify-between">
-          <button onClick={prevWeek} className="btn btn-secondary p-2">
-            <ChevronLeft size={16} />
+      {/* Week Navigation */}
+      <div className="card mb-5">
+        <div className="flex items-center justify-between py-3 px-5">
+          <button onClick={() => setWeekStart(prev => addDays(prev, -7))} className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+            <ChevronLeft size={20} className="text-slate-600" />
           </button>
-          <div className="flex items-center gap-3">
+          <div className="text-center">
             <span className="text-sm font-semibold text-slate-700">
               {formatShortDate(weekDays[0])} — {formatShortDate(weekDays[6])}
             </span>
-            <button onClick={goToday} className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-              Today
-            </button>
+            {formatDate(weekStart) === formatDate(new Date()) && <span className="ml-2 text-indigo-600 font-medium text-xs">This Week</span>}
           </div>
-          <button onClick={nextWeek} className="btn btn-secondary p-2">
-            <ChevronRight size={16} />
+          <button onClick={() => setWeekStart(prev => addDays(prev, 7))} className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+            <ChevronRight size={20} className="text-slate-600" />
           </button>
         </div>
       </div>
 
-      {/* Time grid */}
-      <div className="card overflow-x-auto">
+      {/* Time Log Grid */}
+      <div className="card">
         {loading ? (
-          <div className="p-8 text-center text-slate-400">Loading...</div>
-        ) : tasks.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">
-            No active tasks assigned to you. Tasks will appear here once assigned.
-          </div>
+          <LoadingSpinner label="Loading time logs..." />
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="text-left px-4 py-3 font-semibold text-slate-600 min-w-[200px]">Task</th>
                 {weekDays.map((d, i) => (
-                  <th key={i} className="text-center px-2 py-3 font-semibold text-slate-600 min-w-[90px]">
-                    <div className="text-xs text-slate-400">{DAY_LABELS[i]}</div>
-                    <div className="text-[11px] text-slate-500">{d.getDate()}/{d.getMonth() + 1}</div>
+                  <th key={i} className={`text-center px-2 py-3 font-semibold min-w-[65px] ${d.getDay() === 0 || d.getDay() === 6 ? 'text-red-400 bg-red-50/40' : 'text-slate-600'}`}>
+                    <div>{DAY_LABELS[i]}</div>
+                    <div className="text-[10px] font-normal">{d.getDate()}/{d.getMonth()+1}</div>
                   </th>
                 ))}
-                <th className="text-center px-3 py-3 font-semibold text-slate-600 min-w-[70px]">Total</th>
+                <th className="text-center px-3 py-3 font-semibold text-slate-600">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -484,46 +447,17 @@ export default function TimeLogPage() {
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-slate-50 border-t border-slate-200">
-                <td className="px-4 py-3 font-semibold text-slate-700 text-xs">Time Logged</td>
+              <tr className="bg-indigo-50/40 border-t border-slate-200">
+                <td className="px-4 py-3 font-semibold text-slate-700 text-xs">Daily Total</td>
                 {totalPerDay.map((total, i) => (
                   <td key={i} className="px-2 py-3 text-center">
-                    <span className={`font-bold text-xs ${total > 8 ? 'text-amber-600' : 'text-slate-700'}`}>
+                    <span className={`font-bold text-xs ${total >= 8 ? 'text-green-600' : total > 0 ? 'text-indigo-600' : 'text-slate-300'}`}>
                       {total.toFixed(1)}h
                     </span>
                   </td>
                 ))}
                 <td className="px-3 py-3 text-center">
-                  <span className="font-bold text-slate-700 text-xs">{grandTotal.toFixed(1)}h</span>
-                </td>
-              </tr>
-              {totalActivityHours > 0 && (
-                <tr className="bg-slate-50/60">
-                  <td className="px-4 py-2 text-xs text-slate-500 italic">Activity Hours</td>
-                  {activityHoursPerDay.map((h, i) => (
-                    <td key={i} className="px-2 py-2 text-center">
-                      <span className="text-xs text-slate-500 italic">{h > 0 ? `${h.toFixed(1)}h` : ''}</span>
-                    </td>
-                  ))}
-                  <td className="px-3 py-2 text-center">
-                    <span className="text-xs text-slate-500 italic">{totalActivityHours.toFixed(1)}h</span>
-                  </td>
-                </tr>
-              )}
-              <tr className="bg-indigo-50/40 border-t border-slate-200">
-                <td className="px-4 py-3 font-semibold text-slate-700 text-xs">Daily Total</td>
-                {totalPerDay.map((total, i) => {
-                  const combined = total + activityHoursPerDay[i]
-                  return (
-                    <td key={i} className="px-2 py-3 text-center" title={`Logged: ${total.toFixed(1)}h + Activity: ${activityHoursPerDay[i].toFixed(1)}h`}>
-                      <span className={`font-bold text-xs ${combined >= 8 ? 'text-emerald-600' : combined > 0 ? 'text-slate-700' : 'text-slate-400'}`}>
-                        {combined.toFixed(1)}h
-                      </span>
-                    </td>
-                  )
-                })}
-                <td className="px-3 py-3 text-center">
-                  <span className="font-bold text-indigo-600 text-sm">{(grandTotal + totalActivityHours).toFixed(1)}h</span>
+                  <span className="font-bold text-indigo-600 text-sm">{grandTotal.toFixed(1)}h</span>
                 </td>
               </tr>
             </tfoot>
@@ -540,16 +474,23 @@ export default function TimeLogPage() {
               📊 Daily Hours Summary — Week of {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </h2>
           </div>
-          {isManager && (
-            <button
-              onClick={handleCheckHours}
-              disabled={checkingHours}
-              className="btn btn-secondary flex items-center gap-2 text-xs"
-            >
-              <Send size={13} />
-              {checkingHours ? 'Checking...' : 'Check Hours & Send Reminders'}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {summaryData.length > 0 && (
+              <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportSummaryPDF} title="Export Summary to PDF">
+                📄 Export PDF
+              </button>
+            )}
+            {isManager && (
+              <button
+                onClick={handleCheckHours}
+                disabled={checkingHours}
+                className="btn btn-secondary flex items-center gap-2 text-xs"
+              >
+                <Send size={13} />
+                {checkingHours ? 'Checking...' : 'Check Hours & Send Reminders'}
+              </button>
+            )}
+          </div>
         </div>
 
         {loadingSummary ? (
@@ -594,11 +535,7 @@ export default function TimeLogPage() {
                                 <span className={`font-bold text-xs ${style.text}`}>
                                   {day.total_hours.toFixed(1)} {day.total_hours > 0 && style.indicator}
                                 </span>
-                                {(day.time_log_hours > 0 || day.activity_hours > 0) && (
-                                  <span className="text-[10px] text-slate-400 mt-0.5" title={`Logged: ${day.time_log_hours.toFixed(1)}h + Activity: ${day.activity_hours.toFixed(1)}h`}>
-                                    {day.time_log_hours.toFixed(1)}+{day.activity_hours.toFixed(1)}
-                                  </span>
-                                )}
+                                
                               </div>
                             )}
                           </td>
@@ -638,7 +575,7 @@ export default function TimeLogPage() {
           <span>⚠️ &lt; 8h (needs attention)</span>
           <span>🏖️ On leave</span>
           <span>🎉 Holiday</span>
-          <span className="text-slate-400 italic">Breakdown: logged + activity</span>
+          
         </div>
       </div>
 

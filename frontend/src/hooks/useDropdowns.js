@@ -58,7 +58,8 @@ export default function useDropdowns() {
 
   // Sort workTypes, sprints, skills, and taskStatuses alphabetically by name as well
   const sortedWorkTypes = useMemo(() => sortByName(workTypes), [workTypes])
-  const sortedSprints = useMemo(() => sortByName(sprints), [sprints])
+  // Keep sprints in backend order (ordered by id asc) — don't sort alphabetically
+  const sortedSprints = sprints
   const sortedSkills = useMemo(() => sortByName(skills), [skills])
   const sortedTaskStatuses = useMemo(() => sortByName(taskStatuses), [taskStatuses])
 

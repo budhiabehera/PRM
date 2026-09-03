@@ -291,7 +291,7 @@ export default function TasksPage() {
         <FilterSelect label="Priority" value={filters.priority} onChange={setFilter('priority')} options={PRIORITY_OPTIONS} />
         <FilterSelect label="Work Type" value={filters.work_type_id} onChange={setFilter('work_type_id')}
           options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />
-        <FilterSelect label="Sprint" value={filters.sprint_id} onChange={setFilter('sprint_id')}
+        <FilterSelect label="Sprint" value={filters.sprint_id} onChange={setFilter('sprint_id')} sorted={false}
           options={sprints.filter((s) => !filters.project_id || !s.project_id || String(s.project_id) === String(filters.project_id)).map((s) => ({ value: s.id, label: s.name }))} />
         <div className="flex items-center gap-2 ml-auto">
           <PresetBar

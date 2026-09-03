@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { PRIORITY_OPTIONS } from '../../utils/constants'
 import { toDateInput } from '../../utils/formatters'
-import { validateTaskForm } from '../../utils/validators'
+import { validateTaskForm, isPlanningStatus } from '../../utils/validators'
 import { getTaskDependencies, addTaskDependency, removeTaskDependency } from '../../services/api'
 
 export default function TaskForm({
@@ -22,7 +22,7 @@ export default function TaskForm({
     priority: initial?.priority || '',
     status: initial?.status || 'Not Started',
     customer_committed: initial?.customer_committed ?? false,
-    start_date: toDateInput(initial?.start_date) || new Date().toISOString().slice(0, 10),
+    start_date: toDateInput(initial?.start_date) || '',
     end_date: toDateInput(initial?.end_date) || '',
     estimated_hours: initial?.estimated_hours ?? '',
     actual_hours: initial?.actual_hours ?? 0,
@@ -76,12 +76,16 @@ export default function TaskForm({
     [resources, form.project_id]
   )
 
+  const planning = isPlanningStatus(form.status)
+
   const handleSubmit = () => {
     const errs = validateTaskForm(form)
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
     onSubmit({
       ...form,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
       subject: form.subject,
       point_of_contact: form.point_of_contact,
       project_id: form.project_id ? Number(form.project_id) : null,
@@ -133,6 +137,13 @@ export default function TaskForm({
           {errors.project_id && <span className="text-[11px] text-red-500">{errors.project_id}</span>}
         </div>
         <div className="flex flex-col gap-1">
+          <label className="form-label">Status</label>
+          <select className="form-select" value={form.status} onChange={(e) => update('status', e.target.value)}>
+            <option value="">Select Status...</option>
+            {taskStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
           <label className="form-label">Main Module</label>
           <select className="form-select" value={form.main_module_id}
             onChange={(e) => { update('main_module_id', e.target.value); update('sub_module_id', '') }}>
@@ -149,7 +160,7 @@ export default function TaskForm({
           <span className="text-[10px] text-slate-400">Depends on Main Module selection</span>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Resource *</label>
+          <label className="form-label">Resource {!planning && '*'}</label>
           <select className="form-select" value={form.developer_id} onChange={(e) => update('developer_id', e.target.value)} disabled={lockDeveloper}>
             <option value="">Select Developer...</option>
             {filteredResources.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.role}, {d.skill})</option>)}
@@ -158,7 +169,7 @@ export default function TaskForm({
           {errors.developer_id && <span className="text-[11px] text-red-500">{errors.developer_id}</span>}
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Work Type *</label>
+          <label className="form-label">Work Type {!planning && '*'}</label>
           <select className="form-select" value={form.work_type_id} onChange={(e) => update('work_type_id', e.target.value)}>
             <option value="">Select Work Type...</option>
             {workTypes.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -174,13 +185,6 @@ export default function TaskForm({
           {errors.priority && <span className="text-[11px] text-red-500">{errors.priority}</span>}
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Status</label>
-          <select className="form-select" value={form.status} onChange={(e) => update('status', e.target.value)}>
-            <option value="">Select Status...</option>
-            {taskStatuses.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1">
           <label className="form-label">Customer Committed?</label>
           <select className="form-select" value={form.customer_committed ? 'yes' : 'no'}
             onChange={(e) => update('customer_committed', e.target.value === 'yes')}>
@@ -189,17 +193,17 @@ export default function TaskForm({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Start Date *</label>
+          <label className="form-label">Start Date {!planning && '*'}</label>
           <input type="date" className="form-input" value={form.start_date} onChange={(e) => update('start_date', e.target.value)} />
           {errors.start_date && <span className="text-[11px] text-red-500">{errors.start_date}</span>}
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">End Date *</label>
+          <label className="form-label">End Date {!planning && '*'}</label>
           <input type="date" className="form-input" value={form.end_date} onChange={(e) => update('end_date', e.target.value)} />
           {errors.end_date && <span className="text-[11px] text-red-500">{errors.end_date}</span>}
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Estimated Hours *</label>
+          <label className="form-label">Estimated Hours {!planning && '*'}</label>
           <input type="number" className="form-input" placeholder="e.g., 32" value={form.estimated_hours}
             onChange={(e) => update('estimated_hours', e.target.value)} />
           {errors.estimated_hours && <span className="text-[11px] text-red-500">{errors.estimated_hours}</span>}

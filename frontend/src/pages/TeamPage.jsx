@@ -19,11 +19,12 @@ const avatarColor = (name) => {
 
 export default function TeamPage() {
   const { data: stats, loading: l1 } = useApi(getResourceStats, [])
-  const { data: resources, loading: l2 } = useApi(() => getResources({}), [])
-  const { skills, projects } = useDropdowns()
+  const { data: resources, loading: l2, reload: reloadResources } = useApi(() => getResources(sprintFilter ? { sprint_id: sprintFilter } : {}), [sprintFilter])
+  const { skills, projects, sprints } = useDropdowns()
   const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
   const [projectFilter, setProjectFilter] = useState(defaultProjectId)
   const [skillFilter, setSkillFilter] = useState('')
+  const [sprintFilter, setSprintFilter] = useState('')
 
   if (l1 || l2) return <LoadingSpinner label="Loading team..." />
 
@@ -73,7 +74,7 @@ export default function TeamPage() {
     </style></head><body>
       <h1>Team Report</h1>
       <div class="subtitle">Project: ${projectName} | Generated on ${generated}</div>
-      <div class="kpi-row"><div class="kpi-card"><div class="kpi-value">${stats.active_developers}</div><div class="kpi-label">Active Resources</div></div><div class="kpi-card"><div class="kpi-value">${stats.team_capacity}</div><div class="kpi-label">Team Capacity</div></div><div class="kpi-card"><div class="kpi-value">${stats.monthly_hours}</div><div class="kpi-label">Monthly Hrs</div></div><div class="kpi-card"><div class="kpi-value">${formatPercent(stats.avg_utilization)}</div><div class="kpi-label">Avg Utilization</div></div></div>
+      <div class="kpi-row"><div class="kpi-card"><div class="kpi-value">${filtered.length}</div><div class="kpi-label">Active Resources</div></div><div class="kpi-card"><div class="kpi-value">${filtered.reduce((s, d) => s + (d.base_capacity || 0), 0)}</div><div class="kpi-label">Team Capacity</div></div><div class="kpi-card"><div class="kpi-value">${filtered.reduce((s, d) => s + (d.assigned_hours || 0), 0).toFixed(1)}</div><div class="kpi-label">Monthly Hrs</div></div><div class="kpi-card"><div class="kpi-value">${filtered.length > 0 ? ((filtered.reduce((s, d) => s + (d.assigned_hours || 0), 0) / Math.max(filtered.reduce((s, d) => s + (d.base_capacity || 0), 0), 1)) * 100).toFixed(1) + '%' : '0%'}</div><div class="kpi-label">Avg Utilization</div></div></div>
       ${buildTable(headers, rows)}
       <div class="generated">PRM Report — ${generated}</div>
       <script>window.onload = function() { window.print(); }<\/script>
@@ -92,12 +93,15 @@ export default function TeamPage() {
           <p className="text-xs text-slate-500 mt-0.5">Team overview and current workload</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
-            📄 Export PDF
+          <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportPDF} title="Export to PDF">📄 Export PDF
           </button>
           <select className="form-select max-w-[160px]" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
             {showAllOption && <option value="">All Projects</option>}
             {restrictedProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select className="form-select max-w-[160px]" value={sprintFilter} onChange={(e) => setSprintFilter(e.target.value)}>
+            <option value="">All Sprints</option>
+            {(sprints || []).filter(s => !projectFilter || !s.project_id || String(s.project_id) === String(projectFilter)).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <select className="form-select max-w-[140px]" value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)}>
             <option value="">All Skills</option>
@@ -107,10 +111,10 @@ export default function TeamPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-3.5 mb-6">
-        <KPICard label="Active Resources" value={stats.active_developers} tooltip="Total number of active developers assigned to the selected project" />
-        <KPICard label="Team Capacity" value={stats.team_capacity} tooltip="Sum of all developers' base monthly capacity (hrs/month). Each developer has a configured base capacity (e.g., 96h or 192h)" />
-        <KPICard label="Monthly Hrs" value={stats.monthly_hours} tooltip="Total estimated hours from all active (non-completed) tasks assigned to team members" />
-        <KPICard label="Avg Utilization" value={formatPercent(stats.avg_utilization)} tooltip="(Total Assigned Hours ÷ Team Capacity) × 100%&#10;&#10;Red (>100%) = Over-allocated&#10;Green (60-100%) = Healthy&#10;Orange (1-59%) = Under-utilized" />
+        <KPICard label="Active Resources" value={filtered.length} tooltip="Total number of active developers matching current filters" />
+        <KPICard label="Team Capacity" value={filtered.reduce((s, d) => s + (d.base_capacity || 0), 0)} tooltip="Sum of all developers' base monthly capacity (hrs/month)" />
+        <KPICard label="Monthly Hrs" value={filtered.reduce((s, d) => s + (d.assigned_hours || 0), 0).toFixed(1)} tooltip="Total estimated hours from all active tasks assigned to filtered team members" />
+        <KPICard label="Avg Utilization" value={formatPercent(filtered.length > 0 ? Math.round((filtered.reduce((s, d) => s + (d.assigned_hours || 0), 0) / Math.max(filtered.reduce((s, d) => s + (d.base_capacity || 0), 0), 1)) * 1000) / 10 : 0)} tooltip="(Total Assigned Hours ÷ Team Capacity) × 100%" />
       </div>
 
       <div className="grid grid-cols-3 gap-3.5">

@@ -180,7 +180,8 @@ export default function RiskDashboardPage() {
           value={sprintId}
           onChange={setSprintId}
           options={filteredSprints.map((s) => ({ value: s.id, label: s.name }))}
-        />
+        sorted={false}
+          />
         <div className="flex flex-col gap-1">
           <span className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Stale after N days</span>
           <input

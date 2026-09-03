@@ -271,7 +271,7 @@ export default function ResourceCalendarPage() {
             <span title="Hours are from task activity logs. Each cell shows hours logged for that day. Default capacity = 8 hrs/day. Red = exceeded capacity, Green = 50-100%, Grey = under 50%.">Daily time spent per resource — 8 hrs/day capacity. Click a cell to see task details. ⓘ</span>
           </p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
+        <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportPDF} title="Export to PDF">
           📄 Export PDF
         </button>
       </div>

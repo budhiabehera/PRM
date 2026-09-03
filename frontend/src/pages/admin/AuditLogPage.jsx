@@ -159,7 +159,7 @@ export default function AuditLogPage() {
         <h1 className="text-2xl font-bold text-slate-800">Audit Log</h1>
         <p className="text-sm text-slate-500 mt-1">Track all create, update, and delete actions across the system.</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
+        <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportPDF} title="Export to PDF">
           📄 Export PDF
         </button>
       </div>

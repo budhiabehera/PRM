@@ -80,7 +80,7 @@ export default function OverdueTasksPage() {
         <h2 className="text-xl font-bold text-slate-900">Overdue Tasks</h2>
         <p className="text-xs text-slate-500 mt-0.5">Tasks past their end date that aren't marked Completed — what's slipping</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
+        <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportPDF} title="Export to PDF">
           📄 Export PDF
         </button>
       </div>

@@ -276,7 +276,7 @@ export default function PullRequestsPage() {
           <p className="text-xs text-slate-500 mt-0.5">Browse and review pull requests across all linked repositories</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
+          <button className="btn btn-secondary px-5 py-2 text-sm flex items-center gap-2 whitespace-nowrap" onClick={handleExportPDF} title="Export to PDF">
             📄 Export PDF
           </button>
           <button

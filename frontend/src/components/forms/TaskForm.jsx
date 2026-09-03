@@ -209,9 +209,9 @@ export default function TaskForm({
           {errors.estimated_hours && <span className="text-[11px] text-red-500">{errors.estimated_hours}</span>}
         </div>
         <div className="flex flex-col gap-1">
-          <label className="form-label">Actual Hours</label>
-          <input type="number" className="form-input" value={form.actual_hours}
-            onChange={(e) => update('actual_hours', e.target.value)} />
+          <label className="form-label">Actual Hours <span className="text-[10px] text-slate-400 font-normal">(auto-calculated from activities)</span></label>
+          <input type="number" className="form-input bg-slate-50 text-slate-500 cursor-not-allowed" value={form.actual_hours}
+            readOnly disabled title="Auto-calculated from task activity entries" />
         </div>
         <div className="flex flex-col gap-1">
           <label className="form-label">Sprint</label>

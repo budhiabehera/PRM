@@ -232,6 +232,7 @@ def create_task(
         # Force the task to be assigned to themselves
         payload.developer_id = current_user.developer_id
     data = payload.model_dump()
+    data.pop("actual_hours", None)  # auto-calculated from task activities
     task_code = data.pop("task_code", None)
     sprint = db.get(models.Sprint, data["sprint_id"]) if data.get("sprint_id") else None
     if not task_code:
@@ -277,6 +278,7 @@ def update_task(
         raise HTTPException(403, "You don't have permission to edit this task.")
     update_data = payload.model_dump(exclude_unset=True)
     update_data = restrict_fields_for_developer(current_user, update_data)
+    update_data.pop("actual_hours", None)  # actual_hours is auto-calculated from task activities
 
     # Track old values for notification logic and audit
     old_values = {key: getattr(task, key) for key in update_data}

@@ -25,7 +25,7 @@ export function clearPageAccessCache() {
   cachePromise = null
 }
 
-export default function ProtectedRoute({ allowedRoles }) {
+export default function ProtectedRoute() {
   const { token, user } = useAuthStore()
   const location = useLocation()
   const [pageAccess, setPageAccess] = useState(cachedPageAccess)
@@ -46,46 +46,36 @@ export default function ProtectedRoute({ allowedRoles }) {
 
   // Still loading page access rules
   if (loading && !pageAccess) {
-    return null // brief flash, then renders
+    return null
   }
 
-  // If page access rules exist in DB, use them instead of hardcoded allowedRoles
-  if (pageAccess && pageAccess.length > 0 && allowedRoles) {
-    // Admin always has access to all pages
-    if (user?.role === 'Admin') {
-      return <Outlet />
-    }
-    // Find the rule for the current path
+  // Admin always has full access
+  if (user?.role === 'Admin') {
+    return <Outlet />
+  }
+
+  // Check DB-driven page access rules
+  if (pageAccess && pageAccess.length > 0) {
     const currentPath = location.pathname
     const rule = pageAccess.find((r) => currentPath === r.page_key || currentPath.startsWith(r.page_key + '/'))
 
     if (rule) {
-      // Rule exists — check if user's role is in the allowed roles
       if (rule.roles.includes(user?.role)) {
         return <Outlet />
       } else {
         return (
           <div className="p-10 text-center text-slate-500">
             <div className="text-lg font-semibold text-slate-700 mb-1">Access restricted</div>
-            <p className="text-sm">Your role ({user?.role}) doesn't have permission to view this page.</p>
+            <p className="text-sm">Your role ({user?.role}) doesn&apos;t have permission to view this page.</p>
           </div>
         )
       }
     }
 
-    // No specific rule for this path — allow access (page not managed by page access)
+    // No rule for this path — allow access (page not managed by page access)
     return <Outlet />
   }
 
-  // Fallback: use hardcoded allowedRoles (when no page access rules in DB)
-  if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    return (
-      <div className="p-10 text-center text-slate-500">
-        <div className="text-lg font-semibold text-slate-700 mb-1">Access restricted</div>
-        <p className="text-sm">Your role ({user?.role}) doesn't have permission to view this page.</p>
-      </div>
-    )
-  }
-
+  // No DB rules at all — allow everything (admin hasn't configured page access yet)
   return <Outlet />
 }

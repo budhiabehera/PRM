@@ -6,14 +6,19 @@ import LoadingSpinner from '../../components/common/LoadingSpinner'
 const ALL_PAGES = [
   // Overview
   { page_key: '/', page_label: 'Dashboard', section: 'overview' },
+  { page_key: '/my-dashboard', page_label: 'My Dashboard', section: 'overview' },
   { page_key: '/sprint', page_label: 'Sprint View', section: 'overview' },
   { page_key: '/tasks', page_label: 'Tasks', section: 'overview' },
   { page_key: '/team', page_label: 'Team', section: 'overview' },
   { page_key: '/utilization', page_label: 'Utilization', section: 'overview' },
   { page_key: '/availability', page_label: 'Leave Tracker', section: 'overview' },
   { page_key: '/holidays', page_label: 'Holidays', section: 'overview' },
+  { page_key: '/time-logs', page_label: 'Time Logs', section: 'overview' },
   { page_key: '/resource-calendar', page_label: 'Resource Calendar', section: 'overview' },
   { page_key: '/timeline', page_label: 'Timeline', section: 'overview' },
+  { page_key: '/knowledge-base', page_label: 'Knowledge Base', section: 'overview' },
+  { page_key: '/standup', page_label: 'Daily Standup', section: 'overview' },
+  { page_key: '/settings', page_label: 'My Settings', section: 'overview' },
   // Admin
   { page_key: '/admin/projects', page_label: 'Projects', section: 'admin' },
   { page_key: '/admin/modules', page_label: 'Modules', section: 'admin' },
@@ -138,21 +143,21 @@ export default function PageAccessPage() {
     }))
   }
 
-  const selectAllForRole = (role) => {
+  const selectAllForRole = (role, section) => {
     setAccessMap((prev) => {
       const newMap = { ...prev }
-      ALL_PAGES.forEach((p) => {
+      ALL_PAGES.filter(p => p.section === section).forEach((p) => {
         newMap[p.page_key] = { ...newMap[p.page_key], [role]: true }
       })
       return newMap
     })
   }
 
-  const deselectAllForRole = (role) => {
-    if (role === 'Admin') return // can't remove admin from everything
+  const deselectAllForRole = (role, section) => {
+    if (role === 'Admin') return
     setAccessMap((prev) => {
       const newMap = { ...prev }
-      ALL_PAGES.forEach((p) => {
+      ALL_PAGES.filter(p => p.section === section).forEach((p) => {
         newMap[p.page_key] = { ...newMap[p.page_key], [role]: false }
       })
       return newMap
@@ -297,9 +302,9 @@ export default function PageAccessPage() {
                       <th key={role} className="text-center px-2 py-2 text-slate-600 font-semibold min-w-[90px]">
                         <div>{role}</div>
                         <div className="flex gap-1 justify-center mt-1">
-                          <button className="text-[9px] text-indigo-500 hover:underline" onClick={() => selectAllForRole(role)}>All</button>
+                          <button className="text-[9px] text-indigo-500 hover:underline" onClick={() => selectAllForRole(role, section.key)}>All</button>
                           <span className="text-slate-300">|</span>
-                          <button className="text-[9px] text-red-400 hover:underline" onClick={() => deselectAllForRole(role)}>None</button>
+                          <button className="text-[9px] text-red-400 hover:underline" onClick={() => deselectAllForRole(role, section.key)}>None</button>
                         </div>
                       </th>
                     ))}

@@ -15,34 +15,65 @@ def list_main_modules(db: Session = Depends(get_db)):
 
 @router.get("/tree")
 def module_tree(db: Session = Depends(get_db)):
-    """Project → Modules → Sub-Modules hierarchy."""
-    modules = db.query(models.MainModule).order_by(func.lower(models.MainModule.name)).all()
-    projects = db.query(models.Project).order_by(func.lower(models.Project.name)).all()
+    """Project → Modules → Sub-Modules hierarchy. Optimized with batch queries."""
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import func as sqlfunc
 
-    # Build module data
-    def _build_module(m):
-        task_count = db.query(models.Task).filter(models.Task.main_module_id == m.id).count()
+    # 1. Load all modules with sub_modules eagerly in ONE query
+    modules = (
+        db.query(models.MainModule)
+        .options(joinedload(models.MainModule.sub_modules))
+        .order_by(sqlfunc.lower(models.MainModule.name))
+        .all()
+    )
+    projects = db.query(models.Project).order_by(sqlfunc.lower(models.Project.name)).all()
+
+    # 2. Batch: task counts per main_module in ONE query
+    main_task_counts = dict(
+        db.query(models.Task.main_module_id, sqlfunc.count(models.Task.id))
+        .filter(models.Task.main_module_id.isnot(None))
+        .group_by(models.Task.main_module_id)
+        .all()
+    )
+
+    # 3. Batch: task counts + estimated_hours per sub_module in ONE query
+    sub_task_counts = {}
+    sub_est_hours = {}
+    for row in (
+        db.query(
+            models.Task.sub_module_id,
+            sqlfunc.count(models.Task.id),
+            sqlfunc.coalesce(sqlfunc.sum(models.Task.estimated_hours), 0.0),
+        )
+        .filter(models.Task.sub_module_id.isnot(None))
+        .group_by(models.Task.sub_module_id)
+        .all()
+    ):
+        sub_task_counts[row[0]] = row[1]
+        sub_est_hours[row[0]] = float(row[2])
+
+    # 4. Build module data (no more individual queries!)
+    module_list = []
+    for m in modules:
         subs = []
-        for s in m.sub_modules:
-            s_tasks = [t for t in s.tasks]
+        for s in m.sub_modules:  # already loaded via joinedload
             subs.append({
                 "id": s.id,
                 "name": s.name,
-                "tasks": len(s_tasks),
-                "estimated_hours": sum(t.estimated_hours for t in s_tasks),
+                "tasks": sub_task_counts.get(s.id, 0),
+                "estimated_hours": sub_est_hours.get(s.id, 0),
             })
-        return {
+        subs.sort(key=lambda x: (x["name"] or "").lower())
+        module_list.append({
             "id": m.id,
             "name": m.name,
             "project_id": m.project_id,
             "sub_module_count": len(subs),
-            "task_count": task_count,
+            "task_count": main_task_counts.get(m.id, 0),
             "sub_modules": subs,
-        }
+        })
 
-    module_list = [_build_module(m) for m in modules]
-
-    # Build project tree: group modules by their project_id
+    # 5. Group by project
     project_tree = []
     for p in projects:
         p_mods = [m for m in module_list if m["project_id"] == p.id]
@@ -52,7 +83,6 @@ def module_tree(db: Session = Depends(get_db)):
             "modules": p_mods,
         })
 
-    # Modules not linked to any project
     unlinked = [m for m in module_list if not m["project_id"]]
     if unlinked:
         project_tree.append({

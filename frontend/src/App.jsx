@@ -90,7 +90,7 @@ export default function App() {
 
           <Route path="/engineering/pm" element={<PMChatPage />} />
           {/* Not available to Developer role */}
-          <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>
+          <Route element={<ProtectedRoute />}>
             <Route path="/sprint" element={<SprintPage />} />
             <Route path="/team" element={<TeamPage />} />
             <Route path="/engineering" element={<EngineeringDashboard />} />
@@ -102,7 +102,7 @@ export default function App() {
             <Route path="/timeline" element={<TimelinePage />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER} />}>
+          <Route element={<ProtectedRoute />}>
             <Route path="/admin/projects" element={<AdminProjectsPage />} />
             <Route path="/admin/modules" element={<AdminModulesPage />} />
             <Route path="/admin/user-setup" element={<UserSetupPage />} />
@@ -118,7 +118,7 @@ export default function App() {
             <Route path="/engineering/alerts" element={<AlertRulesPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={ADMIN_MANAGER_LEAD} />}>
+          <Route element={<ProtectedRoute />}>
             <Route path="/admin/assignments" element={<AdminTasksPage />} />
 
             <Route path="/reports/salesforce-tasks" element={<SalesforceTasksReportPage />} />
@@ -129,7 +129,7 @@ export default function App() {
           </Route>
 
           <Route path="/admin/availability" element={<AdminAvailabilityPage />} />
-          <Route element={<ProtectedRoute allowedRoles={NON_DEVELOPER} />}>
+          <Route element={<ProtectedRoute />}>
             <Route path="/admin/settings" element={<AdminSettingsPage />} />
           </Route>
         </Route>

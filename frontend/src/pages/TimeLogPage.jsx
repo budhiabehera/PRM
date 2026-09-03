@@ -241,6 +241,90 @@ export default function TimeLogPage() {
 
   const teamGrandTotal = useMemo(() => teamTotalPerDay.reduce((s, v) => s + v, 0), [teamTotalPerDay])
 
+  const handleExportPDF = () => {
+    const now = new Date()
+    const generated = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const weekLabel = `${formatShortDate(weekDays[0])} — ${formatShortDate(weekDays[6])}`
+
+    const buildTable = (headers, rows) => {
+      const ths = headers.map(h => `<th>${h}</th>`).join('')
+      const trs = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+      return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`
+    }
+
+    // Task rows
+    const taskHeaders = ['Task', ...DAY_LABELS.map((lbl, i) => `${lbl} ${weekDays[i].getDate()}/${weekDays[i].getMonth()+1}`), 'Total']
+    const taskRows = tasks.map(task => {
+      const dayCells = weekDays.map((_, i) => {
+        const key = `${task.id}-${i}`
+        const h = grid[key]?.hours || 0
+        return h > 0 ? `<strong>${h}</strong>` : '<span style="color:#cbd5e1">0</span>'
+      })
+      return [`<strong>${task.task_code}</strong><br><span style="font-size:10px;color:#64748b">${task.description || ''}</span>`, ...dayCells, `<strong>${(totalPerTask[task.id] || 0).toFixed(1)}h</strong>`]
+    })
+
+    // Footer: Time Logged
+    const loggedRow = ['<strong>Time Logged</strong>', ...totalPerDay.map(t => `<strong style="color:${t > 8 ? '#d97706' : '#1e293b'}">${t.toFixed(1)}h</strong>`), `<strong>${grandTotal.toFixed(1)}h</strong>`]
+    taskRows.push(loggedRow)
+
+    // Footer: Activity Hours
+    if (totalActivityHours > 0) {
+      const actRow = ['<em style="color:#64748b">Activity Hours</em>', ...activityHoursPerDay.map(h => `<em style="color:#64748b">${h > 0 ? h.toFixed(1) + 'h' : ''}</em>`), `<em style="color:#64748b">${totalActivityHours.toFixed(1)}h</em>`]
+      taskRows.push(actRow)
+    }
+
+    // Daily Total row
+    const dailyTotalRow = ['<strong>Daily Total</strong>', ...totalPerDay.map((t, i) => {
+      const combined = t + activityHoursPerDay[i]
+      const color = combined >= 8 ? '#16a34a' : combined > 0 ? '#1e293b' : '#94a3b8'
+      return `<strong style="color:${color}">${combined.toFixed(1)}h</strong>`
+    }), `<strong style="color:#4f46e5">${(grandTotal + totalActivityHours).toFixed(1)}h</strong>`]
+    taskRows.push(dailyTotalRow)
+
+    // Daily Hours Summary table
+    let summaryHtml = ''
+    if (summaryData.length > 0) {
+      const sumHeaders = ['Resource', ...DAY_LABELS.map((lbl, i) => `${lbl} ${weekDays[i].getDate()}/${weekDays[i].getMonth()+1}`), 'Total']
+      const sumRows = summaryData.map(dev => {
+        const weekTotal = dev.days.reduce((s, d) => s + d.total_hours, 0)
+        const dayCells = dev.days.map(day => {
+          if (day.is_holiday) return '🎉'
+          if (day.is_on_leave) return '🏖️'
+          const color = day.total_hours >= 8 ? '#16a34a' : day.total_hours > 0 ? '#d97706' : '#94a3b8'
+          return `<span style="color:${color};font-weight:600">${day.total_hours > 0 ? day.total_hours.toFixed(1) : '0'}</span>`
+        })
+        return [dev.developer_name, ...dayCells, `<strong>${weekTotal.toFixed(1)}h</strong>`]
+      })
+      summaryHtml = `<div class="section" style="margin-top:24px"><div class="section-title">📊 Daily Hours Summary — Week of ${weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>${buildTable(sumHeaders, sumRows)}</div>`
+    }
+
+    const html = `<!DOCTYPE html><html><head><title>Time Logs Report</title><style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      .section { margin-bottom: 24px; }
+      .section-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      th { padding: 6px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: center; }
+      th:first-child { text-align: left; }
+      td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: center; }
+      td:first-child { text-align: left; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+      <h1>Time Logs Report</h1>
+      <div class="subtitle">${weekLabel} | Generated on ${generated}</div>
+      <div class="section"><div class="section-title">Time Log Grid</div>${buildTable(taskHeaders, taskRows)}</div>
+      ${summaryHtml}
+      <div class="generated">PRM Report — ${generated}</div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body></html>`
+
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
   // Save all
   const handleSave = async () => {
     setSaving(true)
@@ -307,7 +391,7 @@ export default function TimeLogPage() {
           <p className="text-sm text-slate-500 mt-0.5">View hours logged from task activity — read only</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
             📄 Export PDF
           </button>
           <button

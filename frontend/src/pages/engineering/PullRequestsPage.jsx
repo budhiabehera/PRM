@@ -198,6 +198,75 @@ export default function PullRequestsPage() {
   const kpis = data?.kpis || {}
   const totalPages = data?.pages || 1
 
+  const handleExportPDF = () => {
+    const now = new Date()
+    const generated = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const projectName = projectId ? (projects.find(p => String(p.id) === String(projectId))?.name || '') : 'All Projects'
+    const statusLabel = status || 'All'
+
+    const fmtMergeTime = (hrs) => {
+      if (hrs == null || hrs === 0) return '—'
+      if (hrs < 1) return `${Math.round(hrs * 60)}m`
+      return Number.isInteger(hrs) ? `${hrs}h` : `${hrs.toFixed(1)}h`
+    }
+
+    const buildTable = (headers, rows) => {
+      const ths = headers.map(h => `<th>${h}</th>`).join('')
+      const trs = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+      return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`
+    }
+
+    const fmtDate = (dateStr) => {
+      if (!dateStr) return '—'
+      const d = new Date(dateStr)
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
+
+    const statusIcon = { OPEN: '🟢', MERGED: '🟣', DECLINED: '🔴', SUPERSEDED: '⚪' }
+
+    const headers = ['#', 'Title', 'Author', 'Status', 'Branch', 'Created', 'Merged']
+    const rows = items.map(pr => [
+      `<strong>#${pr.pr_number || pr.bitbucket_id}</strong>`,
+      (pr.title || '—').length > 70 ? (pr.title || '').slice(0, 70) + '…' : (pr.title || '—'),
+      pr.author_name || pr.developer_name || '—',
+      `${statusIcon[pr.status] || ''} ${pr.status}`,
+      `${pr.source_branch || '—'} → ${pr.dest_branch || '—'}`,
+      fmtDate(pr.created_at),
+      pr.status === 'MERGED' ? fmtDate(pr.merged_at || pr.updated_at) : '—'
+    ])
+
+    const html = `<!DOCTYPE html><html><head><title>Pull Requests Report</title><style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      .kpi-row { display: flex; gap: 12px; margin-bottom: 24px; }
+      .kpi-card { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; }
+      .kpi-value { font-size: 22px; font-weight: 700; color: #1e293b; }
+      .kpi-label { font-size: 10px; text-transform: uppercase; color: #64748b; margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      th { padding: 6px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: left; }
+      td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+      <h1>Pull Requests Report</h1>
+      <div class="subtitle">Project: ${projectName} | Status: ${statusLabel} | Generated on ${generated}</div>
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-value" style="color:#16a34a">${kpis.open_count || 0}</div><div class="kpi-label">Open</div></div>
+        <div class="kpi-card"><div class="kpi-value" style="color:#9333ea">${kpis.merged_count || 0}</div><div class="kpi-label">Merged</div></div>
+        <div class="kpi-card"><div class="kpi-value" style="color:#dc2626">${kpis.declined_count || 0}</div><div class="kpi-label">Declined</div></div>
+        <div class="kpi-card"><div class="kpi-value">${fmtMergeTime(kpis.avg_merge_time_hr)}</div><div class="kpi-label">Avg Merge Time</div></div>
+      </div>
+      ${buildTable(headers, rows)}
+      <div class="generated">PRM Report — ${generated}</div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body></html>`
+
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
   return (
     <div>
       {/* Header */}
@@ -207,7 +276,7 @@ export default function PullRequestsPage() {
           <p className="text-xs text-slate-500 mt-0.5">Browse and review pull requests across all linked repositories</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
             📄 Export PDF
           </button>
           <button

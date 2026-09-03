@@ -159,6 +159,71 @@ export default function ResourceCalendarPage() {
     return resources
   }, [data, resourceFilter])
 
+  const handleExportPDF = () => {
+    const now = new Date()
+    const generated = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const projectName = projectFilter ? (projects.find(p => String(p.id) === String(projectFilter))?.name || '') : 'All Projects'
+
+    const buildTable = (headers, rows) => {
+      const ths = headers.map(h => `<th>${h}</th>`).join('')
+      const trs = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+      return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`
+    }
+
+    const headers = ['Resource', ...visibleDays.map(d => {
+      const dt = new Date(year, month - 1, d)
+      const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]
+      return `${dow} ${d}`
+    }), 'Total', 'Util %']
+
+    const rows = filteredResources.map(res => {
+      const dayCells = visibleDays.map(d => {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+        const dayData = res.days[dateStr]
+        const hours = dayData?.total_hours || 0
+        const capacity = dayData?.capacity_hours || 0
+        const isWeekend = dayData?.is_weekend
+        if (isWeekend) return '<span style="color:#94a3b8">\u2014</span>'
+        const color = hours > capacity ? '#dc2626' : hours >= capacity * 0.5 ? '#16a34a' : hours > 0 ? '#d97706' : '#94a3b8'
+        return `<span style="color:${color};font-weight:600">${hours}</span>`
+      })
+      const visibleTotal = visibleDays.reduce((sum, d) => {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+        return sum + (res.days[dateStr]?.total_hours || 0)
+      }, 0)
+      const visibleCapacity = visibleDays.reduce((sum, d) => {
+        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+        return sum + (res.days[dateStr]?.capacity_hours || 0)
+      }, 0)
+      const util = visibleCapacity > 0 ? Math.round((visibleTotal / visibleCapacity) * 100) : 0
+      const utilColor = util > 100 ? '#dc2626' : util >= 70 ? '#16a34a' : util >= 40 ? '#d97706' : '#64748b'
+      return [`<strong>${res.developer_name}</strong><br><span style="font-size:10px;color:#64748b">${res.role} · ${res.skill}</span>`, ...dayCells, `<strong>${visibleTotal}h</strong>`, `<span style="color:${utilColor};font-weight:700">${util}%</span>`]
+    })
+
+    const html = `<!DOCTYPE html><html><head><title>Resource Calendar Report</title><style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      th { padding: 6px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: center; }
+      th:first-child { text-align: left; }
+      td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: center; }
+      td:first-child { text-align: left; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+      <h1>Resource Calendar Report</h1>
+      <div class="subtitle">${MONTH_NAMES[month - 1]} ${year} | Project: ${projectName} | Generated on ${generated}</div>
+      ${buildTable(headers, rows)}
+      <div class="generated">PRM Report — ${generated}</div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body></html>`
+
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
   // Week navigation — step by 7 days, switch month if needed
   const prevWeek = () => {
     if (!weekSunday) return
@@ -206,7 +271,7 @@ export default function ResourceCalendarPage() {
             <span title="Hours are from task activity logs. Each cell shows hours logged for that day. Default capacity = 8 hrs/day. Red = exceeded capacity, Green = 50-100%, Grey = under 50%.">Daily time spent per resource — 8 hrs/day capacity. Click a cell to see task details. ⓘ</span>
           </p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+        <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
           📄 Export PDF
         </button>
       </div>

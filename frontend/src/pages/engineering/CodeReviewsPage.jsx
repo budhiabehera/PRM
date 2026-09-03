@@ -118,6 +118,75 @@ export default function CodeReviewsPage() {
     return [...awaitingReview].sort((a, b) => (b.days_waiting || 0) - (a.days_waiting || 0))
   }, [awaitingReview])
 
+  const handleExportPDF = () => {
+    const now = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    const filterParts = []
+    if (reviewerId) { const r = resources.find(d => String(d.id) === String(reviewerId)); if (r) filterParts.push('Reviewer: ' + r.name) }
+    if (projectId) { const p = projects.find(x => String(x.id) === String(projectId)); if (p) filterParts.push('Project: ' + p.name) }
+    if (repoId) { const r = filteredRepos.find(x => String(x.id) === String(repoId)); if (r) filterParts.push('Repo: ' + (r.repo_name || r.repo_slug)) }
+    if (fromDate) filterParts.push('From: ' + fromDate)
+    if (toDate) filterParts.push('To: ' + toDate)
+    const subtitle = (filterParts.length ? filterParts.join(' \u00b7 ') : 'All Data') + ' | Generated on ' + now
+
+    const buildTable = (headers, rows) => {
+      let h = '<table><thead><tr>' + headers.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>'
+      h += rows.map(r => '<tr>' + r.map(c => '<td>' + (c ?? '\u2014') + '</td>').join('') + '</tr>').join('')
+      return h + '</tbody></table>'
+    }
+
+    const kpiHtml = '<div class="kpi-row">'
+      + '<div class="kpi-card"><div class="kpi-value">' + formatNumber(kpis.total_reviews || 0) + '</div><div class="kpi-label">Total Reviews</div></div>'
+      + '<div class="kpi-card"><div class="kpi-value">' + (kpis.avg_turnaround_hr != null ? kpis.avg_turnaround_hr.toFixed(1) + 'h' : '\u2014') + '</div><div class="kpi-label">Avg Turnaround</div></div>'
+      + '<div class="kpi-card"><div class="kpi-value">' + formatNumber(kpis.prs_awaiting_review || 0) + '</div><div class="kpi-label">Awaiting Review</div></div>'
+      + '<div class="kpi-card"><div class="kpi-value">' + (kpis.oldest_pending_days != null ? kpis.oldest_pending_days.toFixed(1) + ' days' : '\u2014') + '</div><div class="kpi-label">Oldest Pending</div></div>'
+      + '</div>'
+
+    const leaderboardTable = buildTable(
+      ['Developer', 'Reviews', 'Approved', 'Changes Req.', 'Avg Time', 'Comments'],
+      sortedLeaderboard.map(d => [
+        d.developer_name || d.reviewer_name || '\u2014', formatNumber(d.reviews || 0),
+        formatNumber(d.approved || 0), formatNumber(d.changes_requested || 0),
+        d.avg_time_hr != null ? d.avg_time_hr.toFixed(1) + 'h' : '\u2014', formatNumber(d.comments || 0),
+      ])
+    )
+
+    const awaitingTable = buildTable(
+      ['PR #', 'Title', 'Author', 'Days Waiting', 'Pending Reviewers'],
+      sortedAwaiting.map(pr => [
+        '#' + (pr.pr_number || pr.bitbucket_id), (pr.title || '\u2014').slice(0, 80),
+        pr.author_name || '\u2014', (pr.days_waiting || 0).toFixed(1),
+        (pr.pending_reviewers || []).join(', ') || '\u2014',
+      ])
+    )
+
+    const content = kpiHtml
+      + '<div class="section"><div class="section-title">Review Activity by Developer</div>' + leaderboardTable + '</div>'
+      + '<div class="section"><div class="section-title">PRs Awaiting Review (' + sortedAwaiting.length + ')</div>' + awaitingTable + '</div>'
+
+    const html = `<!DOCTYPE html><html><head><title>Code Reviews Report</title><style>body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      .kpi-row { display: flex; gap: 12px; margin-bottom: 24px; }
+      .kpi-card { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; }
+      .kpi-value { font-size: 22px; font-weight: 700; }
+      .kpi-label { font-size: 10px; text-transform: uppercase; color: #64748b; margin-top: 4px; }
+      .section { margin-bottom: 24px; }
+      .section-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      th { padding: 6px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: left; }
+      td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+      .badge { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }</style></head><body>'
+      + '<h1>Code Reviews Report</h1><div class="subtitle">${subtitle}</div>'
+      + content
+      + '<div class="generated">PRM Report \u2014 ${now}</div>'
+      + '<script>window.onload = function() { window.print(); }</' + 'script></body></html>`
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+  }
+
   return (
     <div>
       {/* Header */}
@@ -126,7 +195,7 @@ export default function CodeReviewsPage() {
           <h2 className="text-xl font-bold text-slate-900">Code Reviews</h2>
           <p className="text-xs text-slate-500 mt-0.5">Review activity leaderboard and PRs awaiting review</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+        <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
           📄 Export PDF
         </button>
       </div>

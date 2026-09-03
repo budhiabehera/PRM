@@ -27,6 +27,54 @@ export default function TimeVariancePage() {
   const { data: report, loading } = useApi(() => getTimeVarianceReport(params), [JSON.stringify(params)])
   const setFilter = (key) => (value) => setFilters((f) => ({ ...f, [key]: value }))
 
+  const handleExportPDF = () => {
+    const now = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    const filterParts = []
+    if (filters.project_id) { const p = projects.find(x => String(x.id) === String(filters.project_id)); if (p) filterParts.push('Project: ' + p.name) }
+    if (filters.developer_id) { const r = resources.find(x => String(x.id) === String(filters.developer_id)); if (r) filterParts.push('Resource: ' + r.name) }
+    if (filters.status) filterParts.push('Status: ' + filters.status)
+    const subtitle = (filterParts.length ? filterParts.join(' \u00b7 ') : 'All Data') + ' | Generated on ' + now
+
+    const buildTable = (headers, rowData) => {
+      let h = '<table><thead><tr>' + headers.map(h => '<th>' + h + '</th>').join('') + '</tr></thead><tbody>'
+      h += rowData.map(r => '<tr>' + r.map(c => '<td>' + (c ?? '\u2014') + '</td>').join('') + '</tr>').join('')
+      return h + '</tbody></table>'
+    }
+
+    const tasks = report?.tasks || []
+    const tableHtml = buildTable(
+      ['Task', 'Product', 'Resource', 'Status', 'Est Hrs', 'Actual Hrs', 'Variance', 'Variance %'],
+      tasks.map(t => [
+        t.task_code + ' \u2014 ' + (t.description || '').slice(0, 50),
+        t.product || '\u2014', t.developer || '\u2014', t.status || '\u2014',
+        t.estimated_hours, t.actual_hours,
+        (t.variance_hours > 0 ? '+' : '') + t.variance_hours + 'h',
+        (t.variance_pct > 0 ? '+' : '') + t.variance_pct + '%',
+      ])
+    )
+
+    const html = `<!DOCTYPE html><html><head><title>Time Variance Report</title><style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      .section { margin-bottom: 24px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      th { padding: 6px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: left; }
+      td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+      <h1>Time Variance Report</h1>
+      <div class="subtitle">${subtitle}</div>
+      <div class="section">${tableHtml}</div>
+      <div class="generated">PRM Report — ${now}</div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body></html>`
+    const w = window.open('', '_blank')
+    w.document.write(html)
+    w.document.close()
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -34,7 +82,7 @@ export default function TimeVariancePage() {
         <h2 className="text-xl font-bold text-slate-900">Time Variance</h2>
         <p className="text-xs text-slate-500 mt-0.5">Estimated vs. actual hours on tasks with logged time — spot what's running over or under budget</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+        <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
           📄 Export PDF
         </button>
       </div>

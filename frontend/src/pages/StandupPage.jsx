@@ -51,6 +51,64 @@ export default function StandupPage() {
     setExpandedDevs((prev) => ({ ...prev, [devId]: !prev[devId] }))
   }
 
+  const handleExportPDF = () => {
+    const now = new Date()
+    const generated = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const displayDate = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })
+
+    const renderSection = (icon, title, items, isBlocker) => {
+      if (!items || items.length === 0) {
+        return `<div class="section"><div class="section-title">${icon} ${title}</div><p style="color:#94a3b8;font-style:italic">${isBlocker ? 'No blockers 🎉' : 'No items'}</p></div>`
+      }
+      const listItems = items.map(item => {
+        const code = item.task_code || ''
+        const desc = item.subject || item.description || item.task_description || ''
+        const notes = item.notes ? `<br><span style="color:#64748b;margin-left:8px">→ ${item.notes}</span>` : ''
+        const hours = item.hours_spent > 0 ? ` <span style="color:#94a3b8">(${item.hours_spent}h)</span>` : ''
+        const reason = item.reason ? ` <span style="color:#dc2626;font-size:10px">— ${item.reason}</span>` : ''
+        return `<li><strong style="color:#4f46e5">[${code}]</strong> ${desc}${hours}${reason}${notes}</li>`
+      }).join('')
+      return `<div class="section"><div class="section-title">${icon} ${title}</div><ul>${listItems}</ul></div>`
+    }
+
+    const renderDevStandup = (name, data) => {
+      return `<div class="dev-block"><div class="dev-name">${name}</div>${renderSection('🕐', 'Yesterday', data.yesterday, false)}${renderSection('▶️', 'Today', data.today, false)}${renderSection('⚠️', 'Blockers', data.blockers, true)}</div>`
+    }
+
+    let content = ''
+    if (tab === 'my' && myData) {
+      content = renderDevStandup(user?.name || 'My Standup', myData)
+    } else if (tab === 'team' && teamData.length > 0) {
+      content = teamData.map(dev => renderDevStandup(dev.developer_name, dev)).join('')
+    } else {
+      content = '<p style="color:#94a3b8">No standup data available.</p>'
+    }
+
+    const html = `<!DOCTYPE html><html><head><title>Daily Standup Report</title><style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      .dev-block { margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+      .dev-name { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+      .section { margin-bottom: 12px; }
+      .section-title { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+      ul { margin: 0; padding-left: 18px; }
+      li { margin-bottom: 4px; line-height: 1.5; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+      <h1>Daily Standup Report</h1>
+      <div class="subtitle">${displayDate} | ${tab === 'team' ? 'Team View' : 'My Standup'} | Generated on ${generated}</div>
+      ${content}
+      <div class="generated">PRM Report — ${generated}</div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body></html>`
+
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
   if (loading) {
     return (
       <div className="p-6">
@@ -80,7 +138,7 @@ export default function StandupPage() {
               onChange={(e) => setSelectedDate(e.target.value)}
             />
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
             📄 Export PDF
           </button>
           {tab === 'my' && (

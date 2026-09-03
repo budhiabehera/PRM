@@ -161,6 +161,69 @@ export default function CommitsPage() {
   const kpis = data?.kpis || {}
   const totalPages = data?.pages || 1
 
+  const handleExportPDF = () => {
+    const now = new Date()
+    const generated = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const projectName = projectId ? (projects.find(p => String(p.id) === String(projectId))?.name || '') : 'All Projects'
+    const repoName = repoId ? (repos.find(r => String(r.id) === String(repoId))?.repo_name || '') : 'All Repos'
+    const dateRange = (fromDate || toDate) ? `${fromDate || '...'} to ${toDate || '...'}` : 'All Time'
+
+    const buildTable = (headers, rows) => {
+      const ths = headers.map(h => `<th>${h}</th>`).join('')
+      const trs = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')
+      return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`
+    }
+
+    const fmtDate = (dateStr) => {
+      if (!dateStr) return '—'
+      const d = new Date(dateStr)
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
+
+    const headers = ['Hash', 'Message', 'Author', 'Branch', 'Date', '+', '−']
+    const rows = items.map(c => [
+      `<code>${(c.hash || '').slice(0, 7)}</code>`,
+      (c.message || '—').length > 80 ? (c.message || '').slice(0, 80) + '…' : (c.message || '—'),
+      c.author_name || c.developer_name || '—',
+      c.branch || '—',
+      fmtDate(c.committed_at),
+      `<span style="color:#16a34a">+${c.additions ?? c.lines_added ?? 0}</span>`,
+      `<span style="color:#dc2626">-${c.deletions ?? c.lines_deleted ?? 0}</span>`
+    ])
+
+    const html = `<!DOCTYPE html><html><head><title>Engineering Commits Report</title><style>
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; color: #1e293b; font-size: 12px; }
+      h1 { font-size: 20px; margin-bottom: 2px; }
+      .subtitle { font-size: 12px; color: #64748b; margin-bottom: 20px; }
+      .kpi-row { display: flex; gap: 12px; margin-bottom: 24px; }
+      .kpi-card { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; }
+      .kpi-value { font-size: 22px; font-weight: 700; color: #1e293b; }
+      .kpi-label { font-size: 10px; text-transform: uppercase; color: #64748b; margin-top: 4px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+      th { padding: 6px 10px; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; color: #475569; text-align: left; }
+      td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+      code { font-family: monospace; color: #4f46e5; font-weight: 600; }
+      .generated { margin-top: 24px; font-size: 10px; color: #94a3b8; }
+      @media print { body { padding: 0; } }
+    </style></head><body>
+      <h1>Engineering Commits Report</h1>
+      <div class="subtitle">Project: ${projectName} | Repo: ${repoName} | ${dateRange} | Generated on ${generated}</div>
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-value">${kpis.total_commits || data?.total || 0}</div><div class="kpi-label">Total Commits</div></div>
+        <div class="kpi-card"><div class="kpi-value">${kpis.unique_authors || 0}</div><div class="kpi-label">Unique Authors</div></div>
+        <div class="kpi-card"><div class="kpi-value" style="color:#16a34a">+${kpis.lines_added || 0}</div><div class="kpi-label">Lines Added</div></div>
+        <div class="kpi-card"><div class="kpi-value" style="color:#dc2626">-${kpis.lines_deleted || 0}</div><div class="kpi-label">Lines Deleted</div></div>
+      </div>
+      ${buildTable(headers, rows)}
+      <div class="generated">PRM Report — ${generated}</div>
+      <script>window.onload = function() { window.print(); }<\/script>
+    </body></html>`
+
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(html)
+    printWindow.document.close()
+  }
+
   return (
     <div>
       {/* Header */}
@@ -170,7 +233,7 @@ export default function CommitsPage() {
           <p className="text-xs text-slate-500 mt-0.5">Browse and search repository commits across all linked projects</p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} title="Export to PDF">
+          <button className="btn btn-secondary btn-sm" onClick={handleExportPDF} title="Export to PDF">
             📄 Export PDF
           </button>
           <button

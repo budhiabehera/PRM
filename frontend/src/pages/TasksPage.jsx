@@ -562,7 +562,7 @@ export default function TasksPage() {
           taskStatuses={taskStatuses}
           onSubmit={handleCreate}
           onCancel={() => setCreatingTask(false)}
-          lockDeveloper={isDeveloper}
+          
         />
       </Modal>
 
@@ -580,7 +580,7 @@ export default function TasksPage() {
             taskStatuses={taskStatuses}
             onSubmit={handleSave}
             onCancel={() => setEditingTask(null)}
-            lockDeveloper={isDeveloper}
+            
           />
         )}
       </Modal>

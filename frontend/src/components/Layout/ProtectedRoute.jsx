@@ -54,6 +54,12 @@ export default function ProtectedRoute() {
     return <Outlet />
   }
 
+  // Universal pages — always accessible (DashboardOrRedirect handles routing)
+  const universalPaths = ['/', '/my-dashboard', '/login', '/change-password', '/settings']
+  if (universalPaths.includes(location.pathname)) {
+    return <Outlet />
+  }
+
   // Check DB-driven page access rules
   if (pageAccess && pageAccess.length > 0) {
     const currentPath = location.pathname

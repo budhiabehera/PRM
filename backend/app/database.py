@@ -120,6 +120,14 @@ _NEW_COLUMNS = [
     ("PRM_projects", "hours_check_enabled", "BIT DEFAULT 0"),
     ("PRM_tasks", "reporting_to_id", "INTEGER NULL"),
 ]
+_NEW_COLUMNS += [
+    ("PRM_integration_settings", "default_password", "VARCHAR(100) DEFAULT 'Ids@1001'"),
+    ("PRM_integration_settings", "default_role", "VARCHAR(50) DEFAULT 'Developer'"),
+    ("PRM_integration_settings", "default_skill", "VARCHAR(50) DEFAULT 'Backend'"),
+    ("PRM_integration_settings", "daily_hours_threshold", "FLOAT DEFAULT 8.0"),
+    ("PRM_integration_settings", "hours_check_time", "VARCHAR(10) DEFAULT '22:00'"),
+    ("PRM_integration_settings", "management_excluded_roles", "VARCHAR(500) DEFAULT 'SVP-Product,AVP-Product,Product Manager'"),
+]
 
 
 def run_lightweight_migrations():

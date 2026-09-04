@@ -8,7 +8,9 @@ from datetime import date, datetime, timedelta
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, require_roles
-from ..deps import MANAGEMENT_EXCLUDED_ROLES
+from ..deps import get_management_excluded_roles
+from ..deps import (STATUS_COMPLETED, STATUS_IN_PROGRESS, STATUS_ON_HOLD,
+                    STATUS_CANCELLED, CLOSED_STATUSES, IN_PROGRESS_VARIANTS, ON_HOLD_VARIANTS)
 
 router = APIRouter(prefix="/api/standup", tags=["Standup"])
 
@@ -72,7 +74,7 @@ def _build_developer_summary(developer_id: int, db: Session, target_date: date |
         db.query(models.Task)
         .filter(
             models.Task.developer_id == developer_id,
-            models.Task.status == "In Progress",
+            models.Task.status == STATUS_IN_PROGRESS,
         )
         .order_by(models.Task.priority.desc(), models.Task.end_date.asc())
         .all()
@@ -95,7 +97,7 @@ def _build_developer_summary(developer_id: int, db: Session, target_date: date |
         db.query(models.Task)
         .filter(
             models.Task.developer_id == developer_id,
-            models.Task.status == "On Hold",
+            models.Task.status == STATUS_ON_HOLD,
         )
         .all()
     )
@@ -110,8 +112,8 @@ def _build_developer_summary(developer_id: int, db: Session, target_date: date |
         )
         .filter(
             models.Task.developer_id == developer_id,
-            models.Task.status != "Completed",
-            models.Task.status != "On Hold",
+            models.Task.status != STATUS_COMPLETED,
+            models.Task.status != STATUS_ON_HOLD,
         )
         .all()
     )
@@ -122,7 +124,7 @@ def _build_developer_summary(developer_id: int, db: Session, target_date: date |
         .join(models.Task, models.TaskDependency.task_id == models.Task.id)
         .filter(
             models.Task.developer_id == developer_id,
-            models.Task.status.notin_(["Completed", "Cancelled"]),
+            models.Task.status.notin_(list(CLOSED_STATUSES)),
         )
         .all()
     )
@@ -130,7 +132,7 @@ def _build_developer_summary(developer_id: int, db: Session, target_date: date |
     blocked_task_ids = set()
     for dep in dev_tasks_with_deps:
         depends_on_task = db.query(models.Task).filter(models.Task.id == dep.depends_on_id).first()
-        if depends_on_task and depends_on_task.status not in ("Completed", "Cancelled"):
+        if depends_on_task and depends_on_task.status not in CLOSED_STATUSES:
             blocked_task_ids.add(dep.task_id)
 
     blocked_tasks = (
@@ -292,7 +294,7 @@ def get_team_standup(
 
     # 1. Get developers list
     if current_user.role == "Admin":
-        developers = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES)).all()
+        developers = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db))).all()
     else:
         project_ids = [p.id for p in current_user.projects]
         if not project_ids and current_user.developer_id:
@@ -347,7 +349,7 @@ def get_team_standup(
         db.query(models.Task)
         .filter(
             models.Task.developer_id.in_(dev_ids),
-            models.Task.status.in_(["In Progress", "Inprogress"]),
+            models.Task.status.in_(list(IN_PROGRESS_VARIANTS)),
         )
         .order_by(models.Task.priority.desc(), models.Task.end_date.asc())
         .all()
@@ -358,7 +360,7 @@ def get_team_standup(
         db.query(models.Task)
         .filter(
             models.Task.developer_id.in_(dev_ids),
-            models.Task.status.in_(["On Hold", "OnHold"]),
+            models.Task.status.in_(list(ON_HOLD_VARIANTS)),
         )
         .all()
     )

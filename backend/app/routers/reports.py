@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
+from ..deps import STATUS_COMPLETED, STATUS_IN_PROGRESS, STATUS_NOT_STARTED
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
@@ -157,9 +158,9 @@ def project_progress_report(db: Session = Depends(get_db),
     for p in projects:
         tasks = p.tasks
         total = len(tasks)
-        completed = sum(1 for t in tasks if t.status == "Completed")
-        in_progress = sum(1 for t in tasks if t.status == "In Progress")
-        not_started = sum(1 for t in tasks if t.status == "Not Started")
+        completed = sum(1 for t in tasks if t.status == STATUS_COMPLETED)
+        in_progress = sum(1 for t in tasks if t.status == STATUS_IN_PROGRESS)
+        not_started = sum(1 for t in tasks if t.status == STATUS_NOT_STARTED)
         other = total - completed - in_progress - not_started
         est = sum(t.estimated_hours for t in tasks)
         act = sum(t.actual_hours for t in tasks)
@@ -193,7 +194,7 @@ def overdue_tasks_report(
     q = db.query(models.Task).filter(
         models.Task.end_date.isnot(None),
         models.Task.end_date < today,
-        models.Task.status != "Completed",
+        models.Task.status != STATUS_COMPLETED,
     )
     q, _ = _apply_project_access(q, current_user, db)
     if project_id:
@@ -244,7 +245,7 @@ def customer_summary_report(db: Session = Depends(get_db),
             "actual_hours": 0.0,
         })
         b["total_tasks"] += 1
-        if t.status == "Completed":
+        if t.status == STATUS_COMPLETED:
             b["completed"] += 1
         if t.customer_committed:
             b["committed_tasks"] += 1

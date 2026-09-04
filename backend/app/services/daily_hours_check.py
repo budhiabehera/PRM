@@ -18,7 +18,16 @@ from ..integrations.email_service import send_hours_reminder_email
 # IST timezone
 IST = timezone(timedelta(hours=5, minutes=30))
 
-MIN_HOURS = 8  # minimum expected daily hours
+MIN_HOURS = 8  # fallback minimum expected daily hours
+
+
+def _get_daily_hours_threshold(db: Session) -> float:
+    """Read configurable daily hours threshold from IntegrationSettings.
+    Falls back to MIN_HOURS (8) if not configured."""
+    settings = db.query(models.IntegrationSettings).first()
+    if settings and getattr(settings, "daily_hours_threshold", None) is not None:
+        return float(settings.daily_hours_threshold)
+    return float(MIN_HOURS)
 
 
 def get_today_ist() -> date:
@@ -202,6 +211,9 @@ def run_daily_hours_check(db: Session, check_date: date = None) -> dict:
     if check_date is None:
         check_date = get_today_ist()
 
+    # Read configurable threshold from IntegrationSettings
+    threshold = _get_daily_hours_threshold(db)
+
     result = {
         "date": str(check_date),
         "checked": 0,
@@ -269,7 +281,7 @@ def run_daily_hours_check(db: Session, check_date: date = None) -> dict:
         detail["time_log_hours"] = hours_data["time_log_hours"]
         detail["activity_hours"] = hours_data["activity_hours"]
 
-        if hours_data["total_hours"] >= MIN_HOURS:
+        if hours_data["total_hours"] >= threshold:
             detail["status"] = "ok"
             result["details"].append(detail)
             continue
@@ -288,7 +300,7 @@ def run_daily_hours_check(db: Session, check_date: date = None) -> dict:
                     check_date=str(check_date),
                     total_hours=hours_data["total_hours"],
                     task_breakdown=hours_data["task_breakdown"],
-                    min_hours=MIN_HOURS,
+                    min_hours=threshold,
                     smtp_host=smtp["smtp_host"],
                     smtp_port=smtp["smtp_port"],
                     smtp_username=smtp["smtp_username"],
@@ -323,10 +335,10 @@ def get_all_developers_daily_summary(db: Session, check_date: date, current_user
     """
     holiday_flag, holiday_name = is_holiday(db, check_date)
 
-    EXCLUDED_ROLES = {
-        "svp product", "svp-product", "avp product", "avp-product",
-        "product manager", "product-manager",
-    }
+    # Read configurable excluded roles and hours threshold from IntegrationSettings
+    from ..deps import get_management_excluded_roles
+    EXCLUDED_ROLES = get_management_excluded_roles(db)
+    threshold = _get_daily_hours_threshold(db)
 
     # --- 1. Get developers in ONE query (with user_account for email) ---
     from sqlalchemy.orm import joinedload as jl
@@ -341,14 +353,15 @@ def get_all_developers_daily_summary(db: Session, check_date: date, current_user
         user_role = (current_user.role or "").strip()
         if user_role == "Admin":
             pass
-        elif user_role == "Developer":
-            if current_user.developer_id:
-                dev_query = dev_query.filter(models.Developer.id == current_user.developer_id)
-            else:
-                return {"date": str(check_date), "is_holiday": holiday_flag,
-                        "holiday_name": holiday_name, "developers": []}
         else:
-            user_project_ids = [p.id for p in current_user.projects] if current_user.projects else []
+            # Use admin-configured data scope for all non-Admin roles
+            from ..deps import get_visible_developer_ids
+            visible_ids = get_visible_developer_ids(current_user, db=db)
+            if visible_ids is not None:
+                dev_query = dev_query.filter(models.Developer.id.in_(visible_ids))
+            else:
+                # full/team scope: filter by project access only
+                user_project_ids = [p.id for p in current_user.projects] if current_user.projects else []
             if user_project_ids:
                 dev_query = dev_query.filter(
                     models.Developer.projects.any(models.Project.id.in_(user_project_ids))
@@ -412,7 +425,7 @@ def get_all_developers_daily_summary(db: Session, check_date: date, current_user
             status = "on_leave"
         elif holiday_flag:
             status = "holiday"
-        elif total >= MIN_HOURS:
+        elif total >= threshold:
             status = "ok"
         else:
             status = "under_hours"
@@ -425,6 +438,7 @@ def get_all_developers_daily_summary(db: Session, check_date: date, current_user
             "activity_hours": activity_h,
             "status": status,
             "on_leave": on_leave,
+            "is_on_leave": on_leave,
             "task_breakdown": [],  # skip breakdown for list view (saves queries)
         })
 

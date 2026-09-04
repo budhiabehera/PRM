@@ -84,8 +84,13 @@ def create_user(
     _admin=Depends(require_roles("Admin", "Manager")),
 ):
     """Create a Developer record AND a linked User login in one step."""
-    # Default password is Ids@1001 if none provided
-    raw_pw = payload.password if payload.password else "Ids@1001"
+    # Read configurable defaults from IntegrationSettings
+    settings_row = db.query(models.IntegrationSettings).first()
+    default_password = settings_row.default_password if settings_row and getattr(settings_row, "default_password", None) else "Ids@1001"
+    default_role = settings_row.default_role if settings_row and getattr(settings_row, "default_role", None) else "Developer"
+    default_skill = settings_row.default_skill if settings_row and getattr(settings_row, "default_skill", None) else "Backend"
+
+    raw_pw = payload.password if payload.password else default_password
 
     # Auto-generate dev_code if not provided
     dev_code = payload.dev_code.strip() if payload.dev_code else ""
@@ -95,11 +100,13 @@ def create_user(
         raise HTTPException(400, "Username already exists")
     
     # Create Developer record
+    # Use configurable defaults: if the caller sent the schema defaults ("Developer"/"Backend"),
+    # override with the admin-configured defaults from IntegrationSettings.
     dev = models.Developer(
         dev_code=dev_code,
         name=payload.full_name,
-        role=payload.role,
-        skill=payload.skill,
+        role=payload.role if payload.role != "Developer" else default_role,
+        skill=payload.skill if payload.skill != "Backend" else default_skill,
         base_capacity=payload.base_capacity,
         active=payload.active,
         reporting_to_id=payload.reporting_to_id,

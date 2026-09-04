@@ -443,6 +443,13 @@ class IntegrationSettingsIn(BaseModel):
     smtp_from_name: str = "PRM System"
     smtp_use_tls: bool = True
 
+    default_password: Optional[str] = "Ids@1001"
+    default_role: Optional[str] = "Developer"
+    default_skill: Optional[str] = "Backend"
+    daily_hours_threshold: Optional[float] = 8.0
+    hours_check_time: Optional[str] = "22:00"
+    management_excluded_roles: Optional[str] = "SVP-Product,AVP-Product,Product Manager"
+
 
 class IntegrationSettingsOut(IntegrationSettingsIn):
     model_config = ConfigDict(from_attributes=True)

@@ -73,7 +73,7 @@ export default function ProjectForm({ initial, onSubmit, onCancel }) {
             onChange={(e) => update('hours_check_enabled', e.target.checked)}
           />
           <label htmlFor="hours_check_enabled" className="text-sm text-slate-700">
-            Enable daily hours check email <span className="text-slate-400">(sends reminder at 10 PM IST if resource logs &lt; 8 hours)</span>
+            Enable daily hours check email <span className="text-slate-400">(sends reminder per configured schedule if resource logs below threshold — see Settings)</span>
           </label>
         </div>
       </div>

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db
 from ..deps import PLANNING_STATUSES, get_current_user, get_user_project_ids
-from ..deps import MANAGEMENT_EXCLUDED_ROLES
+from ..deps import get_management_excluded_roles
 from .sprints import _sprint_with_stats
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
@@ -34,7 +34,7 @@ def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int |
 def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
          current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    dev_q = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))  # noqa: E712
+    dev_q = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db)))  # noqa: E712
     if allowed is not None:
         from ..models import developer_projects as dp1
         dev_q = dev_q.filter(models.Developer.id.in_(
@@ -164,7 +164,7 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
     result = []
     dev_q = db.query(models.Developer).options(
         joinedload(models.Developer.tasks),
-    ).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))  # noqa: E712
+    ).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db)))  # noqa: E712
     if developer_id:
         dev_q = dev_q.filter(models.Developer.id == developer_id)
     # Filter developers to user's projects

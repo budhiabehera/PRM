@@ -43,7 +43,7 @@ export default function TeamPage() {
       return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`
     }
 
-    const headers = ['Name', 'Module', 'Skill', 'Role', 'Active Tasks', 'Assigned Hrs', 'Capacity', 'Utilization']
+    const headers = ['Name', 'Module', 'Skill', 'Role', 'Reports To', 'Active Tasks', 'Assigned Hrs', 'Capacity', 'Utilization']
     const rows = filtered.map(dev => {
       const utilColor = dev.utilization_pct > 100 ? '#dc2626' : dev.utilization_pct >= 60 ? '#16a34a' : '#d97706'
       return [
@@ -51,6 +51,7 @@ export default function TeamPage() {
         dev.home_module || 'Unassigned',
         dev.skill || '—',
         dev.role || '—',
+        dev.reporting_to_name || '—',
         String(dev.active_tasks || 0),
         `${dev.assigned_hours || 0}h`,
         `${dev.base_capacity || 0}h`,
@@ -130,6 +131,7 @@ export default function TeamPage() {
               <div>
                 <div className="font-semibold text-[13px]">{dev.name}</div>
                 <div className="text-[11px] text-slate-500">{dev.home_module || 'Unassigned'} · {dev.skill}</div>
+                {dev.reporting_to_name && <div className="text-[10px] text-indigo-500">→ {dev.reporting_to_name}</div>}
               </div>
             </div>
             <div className="flex items-center gap-2 mb-1">

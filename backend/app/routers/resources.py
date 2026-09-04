@@ -3,8 +3,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
-from ..deps import require_roles, get_current_user, get_user_project_ids
-from ..deps import MANAGEMENT_EXCLUDED_ROLES
+from ..deps import require_roles, get_current_user, get_user_project_ids, get_visible_developer_ids
+from ..deps import get_management_excluded_roles
+from ..deps import DONE_STATUSES
 from ..utils.calculations import utilization_status
 
 router = APIRouter(prefix="/api/resources", tags=["Resources"])
@@ -14,7 +15,7 @@ def _dev_with_stats(dev: models.Developer, db: Session, sprint_id: int | None = 
     tasks = dev.tasks
     if sprint_id:
         tasks = [t for t in tasks if t.sprint_id == sprint_id]
-    active_tasks = [t for t in tasks if t.status not in ("Completed",)]
+    active_tasks = [t for t in tasks if t.status not in DONE_STATUSES]
     assigned_hours = sum(t.estimated_hours or 0 for t in tasks)
     pct = round((assigned_hours / dev.base_capacity) * 100) if dev.base_capacity else 0
     return {
@@ -32,6 +33,8 @@ def _dev_with_stats(dev: models.Developer, db: Session, sprint_id: int | None = 
         "assigned_hours": assigned_hours,
         "utilization_pct": pct,
         "utilization_status": utilization_status(pct),
+        "reporting_to_id": dev.reporting_to_id,
+        "reporting_to_name": dev.reporting_to.name if dev.reporting_to else None,
     }
 
 
@@ -48,6 +51,7 @@ def list_resources(
         joinedload(models.Developer.home_module),
         joinedload(models.Developer.tasks),
         joinedload(models.Developer.projects),
+        joinedload(models.Developer.reporting_to),
     )
     # Filter developers by user's project access
     allowed = get_user_project_ids(current_user)
@@ -56,6 +60,10 @@ def list_resources(
         q = q.filter(models.Developer.id.in_(
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
         ))
+    # Hierarchy filter: Development Lead sees only direct reports
+    visible_dev_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_dev_ids is not None:
+        q = q.filter(models.Developer.id.in_(visible_dev_ids))
     if module_id:
         q = q.filter(models.Developer.home_module_id == module_id)
     if role:
@@ -63,7 +71,7 @@ def list_resources(
     if skill:
         q = q.filter(models.Developer.skill == skill)
     # Exclude management roles (SVP-Product, AVP-Product, Product Manager)
-    q = q.filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))
+    q = q.filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db)))
     devs = q.order_by(func.lower(func.ltrim(func.rtrim(models.Developer.name)))).all()
     return [_dev_with_stats(d, db, sprint_id=sprint_id) for d in devs]
 
@@ -74,7 +82,8 @@ def resource_stats(db: Session = Depends(get_db),
     allowed = get_user_project_ids(current_user)
     dev_q = db.query(models.Developer).options(
         joinedload(models.Developer.tasks),
-    ).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))  # noqa: E712
+        joinedload(models.Developer.reporting_to),
+    ).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db)))  # noqa: E712
     if allowed is not None:
         from ..models import developer_projects
         dev_q = dev_q.filter(models.Developer.id.in_(

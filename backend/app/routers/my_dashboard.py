@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user
+from ..deps import STATUS_COMPLETED
 
 router = APIRouter(prefix="/api/dashboard", tags=["My Dashboard"])
 
@@ -34,17 +35,20 @@ def my_summary(db: Session = Depends(get_db), current_user: models.User = Depend
 
     # --- Summary Cards ---
     total = len(tasks)
+    # Case-insensitive "inprogress" check — handles legacy "Inprogress" variants in DB
     in_progress = sum(1 for t in tasks if t.status and t.status.lower().replace(' ', '') == "inprogress")
-    completed = sum(1 for t in tasks if t.status and t.status.lower() == "completed")
+    completed = sum(1 for t in tasks if t.status and t.status.lower() == STATUS_COMPLETED.lower())
     overdue = sum(
         1 for t in tasks
-        if t.end_date is not None and t.end_date < today and (not t.status or t.status.lower() != "completed")
+        if t.end_date is not None and t.end_date < today
+        and (not t.status or t.status.lower() != STATUS_COMPLETED.lower())
     )
 
     # --- Upcoming Deadlines (next 7 days) ---
     upcoming = [
         t for t in tasks
-        if t.end_date is not None and today <= t.end_date <= seven_days and (not t.status or t.status.lower() != "completed")
+        if t.end_date is not None and today <= t.end_date <= seven_days
+        and (not t.status or t.status.lower() != STATUS_COMPLETED.lower())
     ]
     upcoming.sort(key=lambda t: t.end_date)
     upcoming_deadlines = [
@@ -63,7 +67,7 @@ def my_summary(db: Session = Depends(get_db), current_user: models.User = Depend
     # --- Workload by Project (estimated_hours grouped by project) ---
     project_hours: dict[str, float] = {}
     for t in tasks:
-        if t.status and t.status.lower() == "completed":
+        if t.status and t.status.lower() == STATUS_COMPLETED.lower():
             continue
         pname = t.project.name if t.project else "Unassigned"
         project_hours[pname] = project_hours.get(pname, 0) + t.estimated_hours

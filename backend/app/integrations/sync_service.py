@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from sqlalchemy.orm import Session
 from .. import models
+from ..deps import STATUS_QA_WIP
 from .bitbucket_service import BitbucketClient
 
 logger = logging.getLogger(__name__)
@@ -460,9 +461,9 @@ def sync_prs_for_repo(repo: models.Repository, db: Session,
         if task and task.status and task.status.lower().replace(" ", "") in (
             "inprogress", "in progress", "notstarted", "not started"
         ):
-            task.status = "QA-WIP"
+            task.status = STATUS_QA_WIP
             stats["tasks_moved_to_qa"] = stats.get("tasks_moved_to_qa", 0) + 1
-            logger.info(f"Task {task.task_code} auto-moved to QA-WIP (PR #{pr.pr_number} merged)")
+            logger.info(f"Task {task.task_code} auto-moved to {STATUS_QA_WIP} (PR #{pr.pr_number} merged)")
 
     db.commit()
     return stats

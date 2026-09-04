@@ -4,7 +4,7 @@ import useDropdowns from '../../hooks/useDropdowns'
 import useProjectDefault from '../../hooks/useProjectDefault'
 import FilterSelect from '../../components/common/FilterSelect'
 import useAppStore from '../../store/useAppStore'
-import { getUserSetupList, createUserSetup, updateUserSetup, deleteUserSetup, getSkills, getRoleCapacities, getCapacityByRole, resendWelcomeEmail, getNextResourceCode } from '../../services/api'
+import { getUserSetupList, createUserSetup, updateUserSetup, deleteUserSetup, getSkills, getRoleCapacities, getCapacityByRole, resendWelcomeEmail, getNextResourceCode, getIntegrationSettings } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import RoleBadge from '../../components/common/RoleBadge'
 import Modal from '../../components/common/Modal'
@@ -20,6 +20,12 @@ export default function UserSetupPage() {
   const { data: skillsList } = useApi(getSkills, [])
   const { data: roleCapacities } = useApi(getRoleCapacities, [])
   const [editing, setEditing] = useState(null)
+
+  // Fetch integration settings for configurable defaults
+  const [sysDefaults, setSysDefaults] = useState(null)
+  useEffect(() => {
+    getIntegrationSettings().then(setSysDefaults).catch(() => {})
+  }, [])
 
   // Role options come exclusively from the Role Capacity page
   const allRoleOptions = useMemo(() => {
@@ -81,7 +87,20 @@ export default function UserSetupPage() {
     setEditing(null)
     setForm(emptyForm)
     setErrors({})
+    // Apply configurable defaults from integration settings
+    setForm((f) => ({
+      ...f,
+      pw: sysDefaults?.default_password || 'Ids@1001',
+      role: sysDefaults?.default_role || 'Developer',
+      skill: sysDefaults?.default_skill || 'Backend',
+    }))
     setShowForm(true)
+    // Auto-fill capacity for the default role
+    const defaultRole = sysDefaults?.default_role || 'Developer'
+    const match = (roleCapacities || []).find((rc) => rc.role === defaultRole)
+    if (match) {
+      setForm((f) => ({ ...f, base_capacity: match.capacity_hours }))
+    }
     // Auto-fetch next resource code
     try {
       const res = await getNextResourceCode()

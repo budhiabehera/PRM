@@ -7,6 +7,7 @@ from ..database import get_db
 from ..database import SessionLocal
 from ..services.notification_service import create_notification
 from ..deps import get_current_user, can_edit_task, can_delete_task, restrict_fields_for_developer
+from ..deps import STATUS_COMPLETED
 from ..services.audit_service import log_audit
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
@@ -17,7 +18,7 @@ def _get_blocked_by(task: models.Task) -> list[str]:
     blocked = []
     for dep in task.dependencies:
         blocking_task = dep.depends_on
-        if blocking_task and blocking_task.status != "Completed":
+        if blocking_task and blocking_task.status != STATUS_COMPLETED:
             blocked.append(blocking_task.task_code)
     return blocked
 
@@ -55,6 +56,8 @@ def _to_detail(t: models.Task) -> dict:
         "created_at": t.created_at,
         "salesforce_case_id": t.salesforce_case_id,
         "blocked_by": _get_blocked_by(t),
+        "reporting_to_id": t.reporting_to_id,
+        "reporting_to_name": t.reporting_to.name if t.reporting_to else (t.developer.reporting_to.name if t.developer and t.developer.reporting_to else None),
     }
 
 
@@ -177,9 +180,10 @@ def list_tasks(
         joinedload(models.Task.work_type),
         joinedload(models.Task.sprint),
         joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on),
+        joinedload(models.Task.reporting_to),
     )
     # Enforce project-based access
-    from ..deps import get_user_project_ids
+    from ..deps import get_user_project_ids, get_visible_developer_ids
     allowed_project_ids = get_user_project_ids(current_user)
     if allowed_project_ids is not None:
         q = q.filter(models.Task.project_id.in_(allowed_project_ids))
@@ -189,6 +193,11 @@ def list_tasks(
         q = q.filter(models.Task.main_module_id == main_module_id)
     if sub_module_id:
         q = q.filter(models.Task.sub_module_id == sub_module_id)
+    # Hierarchy filter: Development Lead sees only their team's tasks
+    if not developer_id:
+        visible_dev_ids = get_visible_developer_ids(current_user, db=db)
+        if visible_dev_ids is not None:
+            q = q.filter(models.Task.developer_id.in_(visible_dev_ids))
     if developer_id:
         q = q.filter(models.Task.developer_id == developer_id)
     if work_type_id:
@@ -213,6 +222,7 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
         joinedload(models.Task.work_type),
         joinedload(models.Task.sprint),
         joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on),
+        joinedload(models.Task.reporting_to),
     ).first()
     if not t:
         raise HTTPException(404, "Task not found")

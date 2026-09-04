@@ -6,6 +6,27 @@ from . import models
 from .database import get_db
 from .auth import decode_access_token
 
+# ── Canonical task status strings — single source of truth ──────────────
+# These must match the values stored in PRM_task_statuses / PRM_tasks.status.
+# Import these instead of sprinkling string literals across routers/services.
+STATUS_COMPLETED = "Completed"
+STATUS_NOT_STARTED = "Not Started"
+STATUS_IN_PROGRESS = "In Progress"
+STATUS_QA_WIP = "QA-WIP"
+STATUS_QA_STAGING = "QA-Staging"
+STATUS_DEPLOYED = "Deployed"
+STATUS_ON_HOLD = "On Hold"
+STATUS_CANCELLED = "Cancelled"
+
+# Grouped sets for common comparisons
+DONE_STATUSES = {STATUS_COMPLETED, STATUS_DEPLOYED}
+ACTIVE_STATUSES = {STATUS_IN_PROGRESS, STATUS_QA_WIP, STATUS_QA_STAGING}
+CLOSED_STATUSES = DONE_STATUSES | {STATUS_CANCELLED}
+
+# Also accept variant spellings found in legacy data
+IN_PROGRESS_VARIANTS = {"In Progress", "Inprogress"}
+ON_HOLD_VARIANTS = {"On Hold", "OnHold"}
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 ROLE_HIERARCHY = {"Admin": 4, "Manager": 3, "Lead": 2, "Developer": 1}
@@ -123,6 +144,7 @@ def get_user_project_ids(user: models.User) -> list[int] | None:
 # --- Management roles to exclude from operational views ---
 # These roles (SVP-Product, AVP-Product, Product Manager) should not appear in
 # time logs, sprint tracking, utilization, standup, or any developer-level views.
+# Kept as fallback; prefer get_management_excluded_roles(db) for DB-driven config.
 MANAGEMENT_EXCLUDED_ROLES = {
     "svp product", "svp-product",
     "avp product", "avp-product",
@@ -130,14 +152,94 @@ MANAGEMENT_EXCLUDED_ROLES = {
 }
 
 
-def filter_operational_developers(query, model=None):
+def get_management_excluded_roles(db: Session | None = None) -> set[str]:
+    """Read management_excluded_roles from IntegrationSettings (DB).
+    Falls back to the hardcoded MANAGEMENT_EXCLUDED_ROLES constant."""
+    if db is not None:
+        try:
+            settings = db.get(models.IntegrationSettings, 1)
+            if settings and settings.management_excluded_roles:
+                raw = settings.management_excluded_roles  # comma-separated string
+                roles = set()
+                for r in raw.split(","):
+                    stripped = r.strip()
+                    if stripped:
+                        roles.add(stripped.lower())
+                return roles
+        except Exception:
+            pass  # table may not exist yet on fresh deploy
+    return set(MANAGEMENT_EXCLUDED_ROLES)
+
+
+def filter_operational_developers(query, model=None, db: Session | None = None):
     """Apply the management role exclusion filter to a Developer query.
     Usage: query = filter_operational_developers(db.query(Developer).filter(...))
     """
     M = model or models.Developer
-    for role in MANAGEMENT_EXCLUDED_ROLES:
+    for role in get_management_excluded_roles(db):
         query = query.filter(M.role.notilike(role))
     return query
 
 # Statuses that represent future/planning tasks — excluded from sprint capacity calculations
 PLANNING_STATUSES = {"backlog", "new", "unassigned"}
+
+
+def _get_role_data_scope(user: models.User, db) -> str:
+    """Look up admin-configured data scope for the user's role.
+    Returns: 'self_only', 'team_reports', 'team', or 'full'."""
+    if not db or not user:
+        return "full" if user and user.role == "Admin" else "self_only"
+    scope_row = db.query(models.RoleDataScope).filter(
+        models.RoleDataScope.role == user.role
+    ).first()
+    if scope_row:
+        return scope_row.data_scope
+    # Default: Admin=full, others=self_only
+    return "full" if user.role == "Admin" else "self_only"
+
+
+def get_visible_developer_ids(user: models.User, project_id: int = None, db=None) -> list[int] | None:
+    """Return developer IDs that a user can see based on admin-configured data scope.
+    Returns None for full/team-access users (no filter needed).
+    Returns list of IDs for team_reports/self_only users.
+    
+    Data scopes (configured in Page Access > Data Scope per Role):
+    - full:         None (see all developers in project)
+    - team:         None (see all developers in project)
+    - team_reports: self + direct reports (from OrgHierarchy + Developer.reporting_to_id)
+    - self_only:    only themselves
+    """
+    if not user:
+        return None
+    
+    scope = _get_role_data_scope(user, db) if db else "self_only"
+    
+    # Full or team scope: no developer-level filter
+    if scope in ("full", "team"):
+        return None
+    
+    dev_id = user.developer_id
+    if not dev_id:
+        return []
+    
+    # team_reports: self + direct reports
+    if scope == "team_reports" and db:
+        direct_report_ids = set()
+        
+        # Source 1: Developer.reporting_to_id (set in User Setup)
+        from_dev_table = db.query(models.Developer.id).filter(
+            models.Developer.reporting_to_id == dev_id,
+            models.Developer.active == True,
+        ).all()
+        direct_report_ids.update(r[0] for r in from_dev_table)
+        
+        # Source 2: OrgHierarchy table (set in Org Hierarchy page)
+        from_org_table = db.query(models.OrgHierarchy.developer_id).filter(
+            models.OrgHierarchy.reports_to_id == dev_id,
+        ).all()
+        direct_report_ids.update(r[0] for r in from_org_table)
+        
+        return [dev_id] + list(direct_report_ids)
+    
+    # self_only: only themselves
+    return [dev_id]

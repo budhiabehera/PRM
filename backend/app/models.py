@@ -60,6 +60,14 @@ class IntegrationSettings(Base):
     smtp_from_name = Column(String(100), default="PRM System")
     smtp_use_tls = Column(Boolean, default=True)
 
+    # Configurable defaults & operational settings
+    default_password = Column(String(100), default="Ids@1001")
+    default_role = Column(String(50), default="Developer")
+    default_skill = Column(String(50), default="Backend")
+    daily_hours_threshold = Column(Float, default=8.0)
+    hours_check_time = Column(String(10), default="22:00")
+    management_excluded_roles = Column(Text, default="SVP-Product,AVP-Product,Product Manager")
+
 class User(Base):
     """Login account. Roles: Admin, Manager, Lead, Developer.
     Optionally linked to a Developer record (so a Lead/Developer's task
@@ -688,3 +696,16 @@ class OrgHierarchy(Base):
     project = relationship("Project", backref="org_hierarchy")
     developer = relationship("Developer", foreign_keys=[developer_id], backref="org_hierarchy_entries")
     reports_to = relationship("Developer", foreign_keys=[reports_to_id])
+
+
+class PageAccessAudit(Base):
+    """Audit trail for Page Access & Data Scope changes. Stores full snapshot before each save."""
+    __tablename__ = "PRM_page_access_audit"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String(30), nullable=False)  # "page_access_save", "data_scope_save"
+    changed_by = Column(String(100), nullable=False)  # username
+    changed_at = Column(DateTime(timezone=True), default=_now_ist)
+    snapshot_before = Column(Text, nullable=False)  # JSON snapshot of data BEFORE the change
+    snapshot_after = Column(Text, nullable=False)   # JSON snapshot of data AFTER the change
+    summary = Column(String(500), default="")       # Human-readable diff summary

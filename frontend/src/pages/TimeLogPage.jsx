@@ -78,7 +78,7 @@ export default function TimeLogPage() {
   const loadTasks = useCallback(async () => {
     try {
       const data = await getTasks({ developer_id: user?.developer_id })
-      setTasks(data.filter(t => t.status !== 'Completed' && t.status !== 'Cancelled'))
+      setTasks(data)
     } catch {
       setTasks([])
     }
@@ -216,6 +216,7 @@ export default function TimeLogPage() {
     const devMap = {}
     dailySummary.forEach((dayData, dayIndex) => {
       if (!dayData?.developers) return
+      const dayIsHoliday = dayData.is_holiday || false
       dayData.developers.forEach(dev => {
         if (!devMap[dev.developer_id]) {
           devMap[dev.developer_id] = {
@@ -232,7 +233,7 @@ export default function TimeLogPage() {
           time_log_hours: dev.time_log_hours || 0,
           activity_hours: dev.activity_hours || 0,
           is_on_leave: dev.is_on_leave || false,
-          is_holiday: dev.is_holiday || false
+          is_holiday: dayIsHoliday
         }
       })
     })

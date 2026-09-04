@@ -42,7 +42,7 @@ export const isAdmin = (user) => user?.role === 'Admin'
 
 /**
  * Data scope helpers — driven by Admin-configured role data scopes.
- * dataScope values: "self_only" | "team" | "full"
+ * dataScope values: "self_only" | "team_reports" | "team" | "full"
  * Fallback (before config is loaded): Admin="full", others="self_only"
  */
 export const getDataScope = () => {
@@ -53,18 +53,19 @@ export const getDataScope = () => {
 }
 
 export const isSelfOnly = () => getDataScope() === 'self_only'
+export const isTeamReports = () => getDataScope() === 'team_reports'
 
 // Legacy helpers — now driven by dataScope
 export const isManagerOrAbove = (user) => {
   if (!user) return false
   const scope = getDataScope()
-  return scope === 'team' || scope === 'full'
+  return scope === 'team_reports' || scope === 'team' || scope === 'full'
 }
 
 export const isLeadOrAbove = (user) => {
   if (!user) return false
   const scope = getDataScope()
-  return scope === 'team' || scope === 'full'
+  return scope === 'team_reports' || scope === 'team' || scope === 'full'
 }
 
 export const isRestrictedRole = (user) => {

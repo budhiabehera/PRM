@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user, require_roles
+from ..deps import (STATUS_COMPLETED, STATUS_IN_PROGRESS, STATUS_DEPLOYED,
+                    STATUS_QA_STAGING, DONE_STATUSES)
 from ..integrations.teams import send_teams_message
 
 logger = logging.getLogger(__name__)
@@ -456,7 +458,7 @@ def _check_task_no_activity(db: Session, rule: models.AlertRule, now: datetime) 
     triggered, resolved = 0, 0
 
     # In-progress tasks
-    in_progress_q = db.query(models.Task).filter(models.Task.status == "In Progress")
+    in_progress_q = db.query(models.Task).filter(models.Task.status == STATUS_IN_PROGRESS)
     if rule.project_id:
         in_progress_q = in_progress_q.filter(models.Task.project_id == rule.project_id)
     in_progress_tasks = in_progress_q.all()
@@ -531,7 +533,7 @@ def _check_task_overdue(db: Session, rule: models.AlertRule, now: datetime) -> t
     grace_date = (now - timedelta(days=rule.threshold)).date()
     triggered, resolved = 0, 0
 
-    done_statuses = {"Completed", "Deployed", "QA-Staging"}
+    done_statuses = DONE_STATUSES | {STATUS_QA_STAGING}
 
     overdue_q = (
         db.query(models.Task)

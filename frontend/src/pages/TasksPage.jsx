@@ -318,6 +318,7 @@ export default function TasksPage() {
                 <th>Property</th>
                 <th>Task</th>
                 {!isDeveloper && <th>Resource</th>}
+                    {!isDeveloper && <th>Reports To</th>}
                 <th>Work Type</th>
                 <th>Priority</th>
                 <th>Status</th>
@@ -342,6 +343,7 @@ export default function TasksPage() {
                       <td>{t.property_client || '—'}</td>
                       <td className="max-w-[220px] truncate">{t.description}</td>
                       {!isDeveloper && <td>{t.developer_name || '—'}</td>}
+                    {!isDeveloper && <td className="text-xs text-slate-500">{t.reporting_to_name || '—'}</td>}
                       <td>{t.work_type_name || '—'}</td>
                       <td><PriorityBadge priority={t.priority} /></td>
                       <td><StatusBadge status={t.status} /></td>
@@ -359,7 +361,7 @@ export default function TasksPage() {
                     {/* Expanded "More" row */}
                     {isExpanded && (
                       <tr key={`${t.id}-more`} className="bg-slate-50/70">
-                        <td colSpan={isDeveloper ? 10 : 11} className="px-6 py-3">
+                        <td colSpan={isDeveloper ? 10 : 12} className="px-6 py-3">
                           <div className="grid grid-cols-4 gap-4 text-xs">
                             <div>
                               <span className="text-slate-400 font-medium">Module</span>
@@ -388,6 +390,10 @@ export default function TasksPage() {
                             <div>
                               <span className="text-slate-400 font-medium">% Complete</span>
                               <div className="text-slate-700 mt-0.5">{t.percent_complete}%</div>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 font-medium">Reports To</span>
+                              <div className="text-indigo-600 mt-0.5">{t.reporting_to_name || '—'}</div>
                             </div>
                             <div>
                               <span className="text-slate-400 font-medium">Cross-Month</span>

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 from .. import models
 from ..database import get_db
-from ..deps import get_current_user, get_user_project_ids
+from ..deps import get_current_user, get_user_project_ids, get_visible_developer_ids
 
 router = APIRouter(prefix="/api/timeline", tags=["Timeline"])
 
@@ -24,6 +24,11 @@ def gantt_data(
         q = q.filter(models.Task.project_id.in_(allowed))
     if project_id:
         q = q.filter(models.Task.project_id == project_id)
+    # Hierarchy filter: Development Lead sees only their team's tasks
+    if not developer_id:
+        visible_ids = get_visible_developer_ids(current_user, db=db)
+        if visible_ids is not None:
+            q = q.filter(models.Task.developer_id.in_(visible_ids))
     if developer_id:
         q = q.filter(models.Task.developer_id == developer_id)
     tasks = q.order_by(models.Task.start_date).all()

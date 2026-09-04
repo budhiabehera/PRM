@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getIntegrationSettings, updateIntegrationSettings, testTeamsIntegration, testSalesforceIntegration } from '../../services/api'
+import { getIntegrationSettings, updateIntegrationSettings, testTeamsIntegration, testSalesforceIntegration,
+  getRoleCapacities, getSkills
+} from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 
 export default function AdminSettingsPage() {
@@ -8,8 +10,13 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null) // { type: 'success'|'error', text }
 
+  const [roleOptions, setRoleOptions] = useState([])
+  const [skillOptions, setSkillOptions] = useState([])
+
   useEffect(() => {
     getIntegrationSettings().then(setSettings).finally(() => setLoading(false))
+    getRoleCapacities().then((caps) => setRoleOptions((caps || []).map((rc) => rc.role))).catch(() => {})
+    getSkills().then((skills) => setSkillOptions((skills || []).map((s) => s.name))).catch(() => {})
   }, [])
 
   const update = (key, value) => setSettings((s) => ({ ...s, [key]: value }))
@@ -239,6 +246,83 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center gap-2 col-span-2">
                   <input type="checkbox" checked={settings.smtp_use_tls ?? true} onChange={(e) => update('smtp_use_tls', e.target.checked)} />
                   <span className="text-sm text-slate-600">Use TLS (recommended for port 587)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* System Defaults */}
+            <div className="border border-slate-200 rounded-lg p-5 mt-5">
+              <h3 className="text-[15px] font-semibold text-slate-800 mb-1">⚙️ System Defaults</h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Default values used when creating new users, daily hours checks, and management views.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Default Password</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Ids@1001"
+                    value={settings.default_password || ''}
+                    onChange={(e) => update('default_password', e.target.value)}
+                  />
+                  <span className="text-[10px] text-slate-400">Temp password shown when creating new users</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Default Role</label>
+                  <select
+                    className="form-select"
+                    value={settings.default_role || ''}
+                    onChange={(e) => update('default_role', e.target.value)}
+                  >
+                    <option value="">Select Role</option>
+                    {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Default Skill</label>
+                  <select
+                    className="form-select"
+                    value={settings.default_skill || ''}
+                    onChange={(e) => update('default_skill', e.target.value)}
+                  >
+                    <option value="">Select Skill</option>
+                    {skillOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Daily Hours Threshold</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    className="form-input"
+                    placeholder="8.0"
+                    value={settings.daily_hours_threshold ?? ''}
+                    onChange={(e) => update('daily_hours_threshold', e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                  <span className="text-[10px] text-slate-400">Minimum hours/day before reminder email is sent</span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="form-label">Hours Check Time (IST)</label>
+                  <input
+                    type="time"
+                    className="form-input"
+                    value={settings.hours_check_time || '22:00'}
+                    onChange={(e) => update('hours_check_time', e.target.value)}
+                  />
+                  <span className="text-[10px] text-slate-400">Time of day (IST) to send daily hours check emails</span>
+                </div>
+                <div className="flex flex-col gap-1 col-span-2">
+                  <label className="form-label">Management Excluded Roles</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g., Manager, Lead, Director"
+                    value={settings.management_excluded_roles || ''}
+                    onChange={(e) => update('management_excluded_roles', e.target.value)}
+                  />
+                  <span className="text-[10px] text-slate-400">Comma-separated. Roles hidden from Team, Utilization, Standup, etc.</span>
                 </div>
               </div>
             </div>

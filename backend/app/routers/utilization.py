@@ -4,7 +4,7 @@ from sqlalchemy import func
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
-from ..deps import MANAGEMENT_EXCLUDED_ROLES
+from ..deps import get_management_excluded_roles
 from ..utils.calculations import net_capacity, utilization_status
 
 router = APIRouter(prefix="/api/utilization", tags=["Utilization"])
@@ -18,7 +18,7 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
     dev_q = db.query(models.Developer).options(
         joinedload(models.Developer.home_module),
         joinedload(models.Developer.tasks),
-    ).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))  # noqa: E712
+    ).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db)))  # noqa: E712
     if developer_id:
         dev_q = dev_q.filter(models.Developer.id == developer_id)
     # Filter developers to only those in user's projects

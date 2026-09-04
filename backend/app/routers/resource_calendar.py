@@ -5,8 +5,8 @@ from sqlalchemy import func
 from datetime import date
 from .. import models
 from ..database import get_db
-from ..deps import get_current_user
-from ..deps import MANAGEMENT_EXCLUDED_ROLES
+from ..deps import get_current_user, get_visible_developer_ids
+from ..deps import get_management_excluded_roles
 
 router = APIRouter(prefix="/api/resource-calendar", tags=["Resource Calendar"])
 
@@ -33,11 +33,16 @@ def get_resource_calendar(
         end_date = date(year, month + 1, 1)
 
     # Get developers (optionally filtered by project)
-    dev_query = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(MANAGEMENT_EXCLUDED_ROLES))
+    dev_query = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db)))
     if developer_id:
         dev_query = dev_query.filter(models.Developer.id == developer_id)
     if project_id:
         dev_query = dev_query.join(models.Developer.projects).filter(models.Project.id == project_id)
+    # Hierarchy filter: Development Lead sees only direct reports
+    if not developer_id:
+        visible_ids = get_visible_developer_ids(current_user, db=db)
+        if visible_ids is not None:
+            dev_query = dev_query.filter(models.Developer.id.in_(visible_ids))
     developers = dev_query.order_by(func.lower(func.ltrim(func.rtrim(models.Developer.name)))).all()
 
     if not developers:

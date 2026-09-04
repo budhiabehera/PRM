@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getReleases, getLinkedRepositories } from '../../services/api'
 import useDropdowns from '../../hooks/useDropdowns'
+import useProjectDefault from '../../hooks/useProjectDefault'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import FilterSelect from '../../components/common/FilterSelect'
 import KPICard from '../../components/common/KPICard'
@@ -165,9 +166,10 @@ function ReleaseCard({ release }) {
 
 export default function ReleasesPage() {
   const { projects } = useDropdowns()
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
 
   // --- Filter state ---
-  const [projectId, setProjectId] = useState('')
+  const [projectId, setProjectId] = useState(defaultProjectId)
   const [repoId, setRepoId] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
@@ -317,7 +319,7 @@ export default function ReleasesPage() {
           label="Project"
           value={projectId}
           onChange={setProjectId}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))}
         />
         <FilterSelect
           label="Repository"

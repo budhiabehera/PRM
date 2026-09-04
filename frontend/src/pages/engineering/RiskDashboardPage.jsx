@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getRiskAnalysis } from '../../services/api'
 import useDropdowns from '../../hooks/useDropdowns'
+import useProjectDefault from '../../hooks/useProjectDefault'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import FilterSelect from '../../components/common/FilterSelect'
 import KPICard from '../../components/common/KPICard'
@@ -94,9 +95,10 @@ function Th({ children, className = '' }) {
 
 export default function RiskDashboardPage() {
   const { projects, sprints } = useDropdowns()
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
 
   // --- Filter state ---
-  const [projectId, setProjectId] = useState('')
+  const [projectId, setProjectId] = useState(defaultProjectId)
   const [sprintId, setSprintId] = useState('')
   const [staleDays, setStaleDays] = useState(3)
   const [prThreshold, setPrThreshold] = useState(24)
@@ -173,7 +175,7 @@ export default function RiskDashboardPage() {
           label="Project"
           value={projectId}
           onChange={setProjectId}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))}
         />
         <FilterSelect
           label="Sprint"

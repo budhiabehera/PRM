@@ -108,8 +108,8 @@ def get_user_project_ids(user: models.User) -> list[int] | None:
     """Return list of project IDs the user has access to.
     Returns None for Admin (meaning 'all projects' — no filter needed).
     Returns empty list if user has no assigned projects (sees nothing)."""
-    if user.role == "Admin" or _has_admin_page_access(user.role):
-        return None  # Admin sees everything
+    if user.role == "Admin":
+        return None  # Only Admin sees everything
     # For Manager/Lead/Developer — check their user.projects (many-to-many)
     project_ids = [p.id for p in user.projects]
     if not project_ids and user.developer_id:

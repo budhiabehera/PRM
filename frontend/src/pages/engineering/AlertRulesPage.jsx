@@ -9,6 +9,7 @@ import {
   resolveAlert,
 } from '../../services/api'
 import useDropdowns from '../../hooks/useDropdowns'
+import useProjectDefault from '../../hooks/useProjectDefault'
 import FilterSelect from '../../components/common/FilterSelect'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
@@ -84,6 +85,7 @@ export default function AlertRulesPage() {
   const [message, setMessage] = useState(null)
 
   const { projects } = useDropdowns()
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
 
   const projectMap = useMemo(() => {
     const m = {}
@@ -92,8 +94,8 @@ export default function AlertRulesPage() {
   }, [projects])
 
   const projectOptions = useMemo(
-    () => projects.map((p) => ({ value: String(p.id), label: p.name })),
-    [projects]
+    () => restrictedProjects.map((p) => ({ value: String(p.id), label: p.name })),
+    [restrictedProjects]
   )
 
   // --- Load rules ---

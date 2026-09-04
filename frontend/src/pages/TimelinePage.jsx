@@ -28,7 +28,7 @@ export default function TimelinePage() {
       </div>
 
       <div className="flex gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl">
-        <FilterSelect label="Project" onChange={setFilter('project_id')}
+        <FilterSelect label="Project" value={filters.project_id || ''} onChange={setFilter('project_id')}
           options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
         <FilterSelect label="Resource" onChange={setFilter('developer_id')}
           options={resources.map((d) => ({ value: d.id, label: d.name }))} />

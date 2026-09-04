@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getCommits, getLinkedRepositories, syncAllRepos } from '../../services/api'
 import useDropdowns from '../../hooks/useDropdowns'
+import useProjectDefault from '../../hooks/useProjectDefault'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import FilterSelect from '../../components/common/FilterSelect'
 import KPICard from '../../components/common/KPICard'
@@ -64,9 +65,10 @@ function renderMessage(msg, maxLen = 100) {
 
 export default function CommitsPage() {
   const { projects, resources } = useDropdowns()
+  const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
 
   // --- Filter state ---
-  const [projectId, setProjectId] = useState('')
+  const [projectId, setProjectId] = useState(defaultProjectId)
   const [repoId, setRepoId] = useState('')
   const [developerId, setDeveloperId] = useState('')
   const [fromDate, setFromDate] = useState('')
@@ -260,7 +262,7 @@ export default function CommitsPage() {
           label="Project"
           value={projectId}
           onChange={setProjectId}
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))}
         />
         <FilterSelect
           label="Repository"

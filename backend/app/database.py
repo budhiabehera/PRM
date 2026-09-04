@@ -118,6 +118,7 @@ _NEW_COLUMNS = [
     ("PRM_kb_categories", "project_id", "INTEGER"),
     ("projects", "hours_check_enabled", "BOOLEAN DEFAULT 0"),
     ("PRM_projects", "hours_check_enabled", "BIT DEFAULT 0"),
+    ("PRM_tasks", "reporting_to_id", "INTEGER NULL"),
 ]
 
 

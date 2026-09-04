@@ -114,9 +114,10 @@ class FilterPreset(Base):
 
 class MainModule(Base):
     __tablename__ = "PRM_main_modules"
+    __table_args__ = (UniqueConstraint('name', 'project_id', name='uq_module_name_project'),)
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False)
+    name = Column(String(100), nullable=False)
     description = Column(String(255), default="")
     project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True, index=True)
 
@@ -169,7 +170,7 @@ class Developer(Base):
 
     home_module = relationship("MainModule", back_populates="developers")
     projects = relationship("Project", secondary=developer_projects, backref="assigned_developers")
-    tasks = relationship("Task", back_populates="developer")
+    tasks = relationship("Task", back_populates="developer", foreign_keys="[Task.developer_id]")
     availabilities = relationship("Availability", back_populates="developer", cascade="all, delete-orphan")
     user_account = relationship("User", back_populates="developer", uselist=False)
     reporting_to = relationship("Developer", remote_side=[id], foreign_keys=[reporting_to_id])
@@ -225,6 +226,7 @@ class Task(Base):
     developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
     work_type_id = Column(Integer, ForeignKey("PRM_work_types.id"), nullable=True)
     sprint_id = Column(Integer, ForeignKey("PRM_sprints.id"), nullable=True, index=True)
+    reporting_to_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True)
 
     priority = Column(String(20), default="Medium")  # Critical, High, Medium, Low
     status = Column(String(30), default="Not Started")
@@ -249,7 +251,8 @@ class Task(Base):
     project = relationship("Project", back_populates="tasks")
     main_module = relationship("MainModule", back_populates="tasks")
     sub_module = relationship("SubModule", back_populates="tasks")
-    developer = relationship("Developer", back_populates="tasks")
+    developer = relationship("Developer", back_populates="tasks", foreign_keys=[developer_id])
+    reporting_to = relationship("Developer", foreign_keys=[reporting_to_id])
     work_type = relationship("WorkType", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
 
@@ -671,3 +674,17 @@ class RoleDataScope(Base):
     role = Column(String(100), nullable=False, unique=True)
     data_scope = Column(String(20), nullable=False, default="self_only")  # self_only | team | full
     created_at = Column(DateTime(timezone=True), default=_now_ist)
+
+class OrgHierarchy(Base):
+    """Project-level org hierarchy — who reports to whom within a project."""
+    __tablename__ = "PRM_org_hierarchy"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=False, index=True)
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=False, index=True)
+    reports_to_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), default=_now_ist)
+
+    project = relationship("Project", backref="org_hierarchy")
+    developer = relationship("Developer", foreign_keys=[developer_id], backref="org_hierarchy_entries")
+    reports_to = relationship("Developer", foreign_keys=[reports_to_id])

@@ -2,9 +2,8 @@ import { useState } from 'react'
 import useApi from '../../hooks/useApi'
 import useAppStore from '../../store/useAppStore'
 import useAuthStore from '../../store/useAuthStore'
-import useDropdowns from '../../hooks/useDropdowns'
 import {
-  getModuleTree, getMainModules, createMainModule, createSubModule, deleteMainModule, deleteSubModule, deleteProject,
+  getModuleTree, getMainModules, createMainModule, createSubModule, deleteMainModule, deleteSubModule, deleteProject, getAllProjects,
 } from '../../services/api'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import KPICard from '../../components/common/KPICard'
@@ -15,7 +14,7 @@ import { ChevronDown, ChevronRight, FolderOpen, Boxes, FileText, ChevronsUpDown 
 export default function AdminModulesPage() {
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
   const user = useAuthStore((s) => s.user)
-  const { projects } = useDropdowns()
+  const { data: projects = [], reload: reloadProjects } = useApi(getAllProjects, [])
   const { data: treeData, loading: l1, reload: reloadTree } = useApi(getModuleTree, [])
   const { data: mainModules, loading: l2, reload: reloadModules } = useApi(getMainModules, [])
   const [showForm, setShowForm] = useState(false)
@@ -25,7 +24,7 @@ export default function AdminModulesPage() {
   const [toDeleteModule, setToDeleteModule] = useState(null)
   const [toDeleteProject, setToDeleteProject] = useState(null)
 
-  const refreshAll = () => { reloadTree(); reloadModules(); bumpRefresh() }
+  const refreshAll = () => { reloadTree(); reloadModules(); reloadProjects(); bumpRefresh() }
 
   const handleSubmitMain = async (data, projectId) => {
     const created = await createMainModule(data, projectId)

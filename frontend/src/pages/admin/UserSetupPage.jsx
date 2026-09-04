@@ -183,11 +183,23 @@ export default function UserSetupPage() {
     }
   }
 
+  // Exclude the user being edited (can't report to yourself)
+  const reportingOptions = useMemo(() => {
+    const selectedProjects = form.project_ids || []
+    return (users || []).filter((u) => {
+      // Exclude self when editing
+      if (editing && u.id === editing.id) return false
+      // If no projects selected yet, show all users
+      if (selectedProjects.length === 0) return true
+      // Show users who share at least one project
+      const uProjects = u.project_ids || []
+      return uProjects.some((pid) => selectedProjects.includes(pid))
+    })
+  }, [users, form.project_ids, editing])
+
   if (loading) return <LoadingSpinner label="Loading users..." />
 
-  // Build a lookup for reporting_to names (from the same list)
-  const reportingOptions = (users || []).filter((u) => ['Admin', 'Manager', 'Lead - Manager', 'Lead'].includes(u.role))
-
+  // Build reporting options: users who share at least one project with the user being created/edited
   return (
     <div>
       <div className="flex items-center justify-between mb-6">

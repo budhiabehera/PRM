@@ -239,6 +239,16 @@ def create_task(
         task_code = _generate_task_code(db, sprint)
     task = models.Task(task_code=task_code, **data)
     db.add(task)
+
+    # Auto-fill reporting_to from org hierarchy
+    if task.developer_id and task.project_id and not task.reporting_to_id:
+        org_entry = db.query(models.OrgHierarchy).filter(
+            models.OrgHierarchy.project_id == task.project_id,
+            models.OrgHierarchy.developer_id == task.developer_id,
+        ).first()
+        if org_entry and org_entry.reports_to_id:
+            task.reporting_to_id = org_entry.reports_to_id
+
     db.commit()
     db.refresh(task)
 

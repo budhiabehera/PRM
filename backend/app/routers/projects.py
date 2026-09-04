@@ -18,6 +18,13 @@ def list_projects(db: Session = Depends(get_db),
     return q.order_by(func.lower(models.Project.name)).all()
 
 
+@router.get("/all", response_model=list[schemas.Project])
+def list_all_projects(db: Session = Depends(get_db),
+                      _user=Depends(require_roles("Admin", "Manager", "Development Manager"))):
+    """Return ALL projects (no user filter). For admin config pages like Modules."""
+    return db.query(models.Project).order_by(func.lower(models.Project.name)).all()
+
+
 @router.get("/stats")
 def project_stats(db: Session = Depends(get_db)):
     total = db.query(models.Project).count()

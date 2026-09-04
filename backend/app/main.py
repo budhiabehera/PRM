@@ -17,6 +17,7 @@ from .routers import role_capacities
 from .routers import resource_calendar
 from .routers import task_statuses
 from .routers import page_access
+from .routers import org_hierarchy
 from .routers import time_logs
 from .routers import notifications
 from .routers import my_dashboard
@@ -101,6 +102,7 @@ app.include_router(user_settings.preset_router, dependencies=[protected])
 app.include_router(alerts.router, dependencies=[protected])
 
 app.include_router(pm_chat.router, dependencies=[protected])
+app.include_router(org_hierarchy.router, dependencies=[protected])
 
 
 @app.on_event("startup")

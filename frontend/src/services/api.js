@@ -43,6 +43,7 @@ export const changePassword = (data) => api.post('/auth/change-password', data).
 
 // ---------- Projects ----------
 export const getProjects = () => api.get('/projects').then(r => r.data)
+export const getAllProjects = () => api.get('/projects/all').then(r => r.data)
 export const getProjectStats = () => api.get('/projects/stats').then(r => r.data)
 export const createProject = (data) => api.post('/projects', data).then(r => r.data)
 export const updateProject = (id, data) => api.put(`/projects/${id}`, data).then(r => r.data)
@@ -319,3 +320,8 @@ export default api
 export const getDataScopes = () => api.get('/page-access/data-scopes').then(r => r.data)
 export const getRoleDataScope = (role) => api.get(`/page-access/data-scope/${encodeURIComponent(role)}`).then(r => r.data)
 export const bulkSaveDataScopes = (data) => api.post('/page-access/data-scopes/bulk', data).then(r => r.data)
+
+// Org Hierarchy
+export const getOrgHierarchy = (project_id) => api.get('/org-hierarchy', { params: { project_id } }).then(r => r.data)
+export const saveOrgHierarchy = (data) => api.post('/org-hierarchy/bulk', data).then(r => r.data)
+export const getReportingTo = (developer_id, project_id) => api.get(`/org-hierarchy/reporting-to/${developer_id}`, { params: { project_id } }).then(r => r.data)

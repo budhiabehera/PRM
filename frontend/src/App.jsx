@@ -27,6 +27,7 @@ import AdminTasksPage from './pages/admin/AdminTasksPage'
 import RoleCapacityPage from './pages/admin/RoleCapacityPage'
 import TaskStatusPage from './pages/admin/TaskStatusPage'
 import PageAccessPage from './pages/admin/PageAccessPage'
+import OrgHierarchyPage from './pages/admin/OrgHierarchyPage'
 import AdminAvailabilityPage from './pages/admin/AdminAvailabilityPage'
 import AdminSettingsPage from './pages/admin/AdminSettingsPage'
 import AuditLogPage from './pages/admin/AuditLogPage'
@@ -115,6 +116,7 @@ export default function App() {
             <Route path="/admin/kb-categories" element={<AdminKBCategoriesPage />} />
             <Route path="/engineering/settings" element={<BitbucketSettingsPage />} />
             <Route path="/admin/audit-log" element={<AuditLogPage />} />
+            <Route path="/admin/org-hierarchy" element={<OrgHierarchyPage />} />
             <Route path="/engineering/alerts" element={<AlertRulesPage />} />
           </Route>
 

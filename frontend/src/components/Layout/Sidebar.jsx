@@ -56,6 +56,7 @@ const ADMIN_ITEMS = [
   { to: '/admin/assignments', label: 'Assignments', icon: ClipboardList, roles: ['Admin', 'Manager', 'Lead'] },
   { to: '/admin/kb-categories', label: 'KB Categories', icon: BookOpen, roles: ['Admin', 'Manager'] },
   { to: '/admin/page-access', label: 'Page Access', icon: Lock, roles: ['Admin'] },
+  { to: '/admin/org-hierarchy', label: 'Org Hierarchy', icon: Users, roles: ['Admin', 'Manager'] },
   { to: '/admin/audit-log', label: 'Audit Log', icon: FileText, roles: ['Admin', 'Manager'] },
 ]
 

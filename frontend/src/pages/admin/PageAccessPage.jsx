@@ -31,6 +31,7 @@ const ALL_PAGES = [
   { page_key: '/admin/assignments', page_label: 'Assignments', section: 'admin' },
   { page_key: '/admin/settings', page_label: 'Settings', section: 'admin' },
   { page_key: '/admin/page-access', page_label: 'Page Access', section: 'admin' },
+  { page_key: '/admin/org-hierarchy', page_label: 'Org Hierarchy', section: 'admin' },
   { page_key: '/admin/audit-log', page_label: 'Audit Log', section: 'admin' },
 
   { page_key: '/reports/salesforce-tasks', page_label: 'Salesforce Tasks', section: 'reports' },

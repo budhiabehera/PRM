@@ -57,10 +57,10 @@ export default function AdminProjectsPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-3.5 mb-6">
-        <KPICard label="Total Projects" value={stats.total_projects} />
-        <KPICard label="Active" value={stats.active_projects} />
-        <KPICard label="Total Tasks" value={stats.total_tasks} />
-        <KPICard label="Total Hours" value={formatNumber(stats.total_hours)} />
+        <KPICard label="Total Projects" value={stats?.total_projects ?? 0} />
+        <KPICard label="Active" value={stats?.active_projects ?? 0} />
+        <KPICard label="Total Tasks" value={stats?.total_tasks ?? 0} />
+        <KPICard label="Total Hours" value={formatNumber(stats?.total_hours ?? 0)} />
       </div>
 
       {showForm && (

@@ -49,7 +49,17 @@ def _serialize(dev: models.Developer, db: Session):
 
 @router.get("")
 def list_users(db: Session = Depends(get_db)):
-    devs = db.query(models.Developer).order_by(models.Developer.dev_code.desc()).all()
+    from sqlalchemy.orm import joinedload
+    devs = (
+        db.query(models.Developer)
+        .options(
+            joinedload(models.Developer.user_account),
+            joinedload(models.Developer.projects),
+            joinedload(models.Developer.reporting_to),
+        )
+        .order_by(models.Developer.dev_code.desc())
+        .all()
+    )
     return [_serialize(d, db) for d in devs]
 
 

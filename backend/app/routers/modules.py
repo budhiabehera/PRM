@@ -98,8 +98,14 @@ def module_tree(db: Session = Depends(get_db)):
 def create_main_module(payload: schemas.MainModuleCreate, project_id: int | None = None,
                         db: Session = Depends(get_db),
                         _user=Depends(require_roles("Admin", "Manager"))):
-    if db.query(models.MainModule).filter(models.MainModule.name == payload.name).first():
-        raise HTTPException(400, "Main module already exists")
+    # Check duplicate within the same project only (allow same name in different projects)
+    dup_query = db.query(models.MainModule).filter(models.MainModule.name == payload.name)
+    if project_id:
+        dup_query = dup_query.filter(models.MainModule.project_id == project_id)
+    else:
+        dup_query = dup_query.filter(models.MainModule.project_id.is_(None))
+    if dup_query.first():
+        raise HTTPException(400, "Module already exists in this project")
     module = models.MainModule(
         name=payload.name,
         description=payload.description or "",

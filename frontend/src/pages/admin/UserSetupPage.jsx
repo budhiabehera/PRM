@@ -10,12 +10,14 @@ import RoleBadge from '../../components/common/RoleBadge'
 import Modal from '../../components/common/Modal'
 import ConfirmDialog from '../../components/common/ConfirmDialog'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 
 export default function UserSetupPage() {
   const { projects } = useDropdowns()
   const { defaultProjectId, showAllOption, restrictedProjects } = useProjectDefault()
   const [projectFilter, setProjectFilter] = useState(defaultProjectId)
   const bumpRefresh = useAppStore((s) => s.bumpRefresh)
+  const [searchQuery, setSearchQuery] = useState('')
   const { data: users, loading, reload } = useApi(getUserSetupList, [])
   const { data: skillsList } = useApi(getSkills, [])
   const { data: roleCapacities } = useApi(getRoleCapacities, [])
@@ -216,6 +218,28 @@ export default function UserSetupPage() {
     })
   }, [users, form.project_ids, editing])
 
+  // Filter users by project + search query
+  const filteredUsers = useMemo(() => {
+    let list = users || []
+    // Project filter
+    if (projectFilter) {
+      list = list.filter(u => (u.project_ids || []).includes(Number(projectFilter)))
+    }
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      list = list.filter(u =>
+        (u.full_name || '').toLowerCase().includes(q) ||
+        (u.dev_code || '').toLowerCase().includes(q) ||
+        (u.role || '').toLowerCase().includes(q) ||
+        (u.skill || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.username || '').toLowerCase().includes(q)
+      )
+    }
+    return list
+  }, [users, projectFilter, searchQuery])
+
   if (loading) return <LoadingSpinner label="Loading users..." />
 
   // Build reporting options: users who share at least one project with the user being created/edited
@@ -237,15 +261,34 @@ export default function UserSetupPage() {
       )}
 
       {/* Project Filter */}
-      <div className="flex gap-3 mb-5 p-3.5 bg-white border border-slate-200 rounded-xl">
+      <div className="flex gap-3 items-end mb-5 p-3.5 bg-white border border-slate-200 rounded-xl">
         <FilterSelect label="Project" value={projectFilter} onChange={setProjectFilter}
           options={restrictedProjects.map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
+        <div className="flex flex-col gap-1 flex-1 max-w-xs">
+          <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Search</label>
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              className="form-input !pl-9 pr-8 text-sm"
+              placeholder="Name, code, role, skill..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Users Table */}
       <div className="card">
         <div className="text-[15px] font-semibold mb-3.5">
-          {projectFilter ? `Project Users` : 'All Users'} ({(projectFilter ? users?.filter(u => (u.project_ids || []).includes(Number(projectFilter))) : users)?.length ?? 0})
+          {projectFilter || searchQuery ? 'Filtered Users' : 'All Users'} ({filteredUsers.length})
         </div>
         <div className="overflow-x-auto">
           <table className="data-table">
@@ -263,7 +306,7 @@ export default function UserSetupPage() {
               </tr>
             </thead>
             <tbody>
-              {(projectFilter ? users?.filter(u => (u.project_ids || []).includes(Number(projectFilter))) : users)?.map((u) => {
+              {filteredUsers.map((u) => {
                 const isExpanded = expandedRow === u.id
                 const projNames = (u.project_ids || [])
                   .map((pid) => projects.find((p) => p.id === pid)?.name)

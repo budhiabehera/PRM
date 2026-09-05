@@ -176,7 +176,7 @@ export default function OrgHierarchyPage() {
 
       <div className="flex gap-3 mb-4 p-3 bg-white border border-slate-200 rounded-xl">
         <FilterSelect label="Project" value={projectId} onChange={setProjectId}
-          options={projectOptions.map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
+          options={(projectOptions || []).map((p) => ({ value: p.id, label: p.name }))} showAll={showAllOption} />
       </div>
 
       {!projectId ? (

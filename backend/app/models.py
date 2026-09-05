@@ -235,6 +235,7 @@ class Task(Base):
     work_type_id = Column(Integer, ForeignKey("PRM_work_types.id"), nullable=True, index=True)
     sprint_id = Column(Integer, ForeignKey("PRM_sprints.id"), nullable=True, index=True)
     reporting_to_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True)
+    repository_id = Column(Integer, ForeignKey("PRM_repositories.id"), nullable=True, index=True)
 
     priority = Column(String(20), default="Medium")  # Critical, High, Medium, Low
     status = Column(String(30), default="Not Started")
@@ -271,6 +272,7 @@ class Task(Base):
     reporting_to = relationship("Developer", foreign_keys=[reporting_to_id])
     work_type = relationship("WorkType", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
+    repository = relationship("Repository", backref="tasks")
 
     @property
     def percent_complete(self):

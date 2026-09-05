@@ -377,9 +377,11 @@ def create_branch_for_task(
     repo_id = payload.get("repo_id")
     source_branch = payload.get("source_branch")
 
-    # Find the repo — use specified repo_id or first repo linked to task's project
+    # Find the repo — priority: payload repo_id > task.repository_id > first project repo
     if repo_id:
         repo = db.get(models.Repository, repo_id)
+    elif task.repository_id:
+        repo = db.get(models.Repository, task.repository_id)
     else:
         repo = (
             db.query(models.Repository)

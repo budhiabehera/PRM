@@ -119,6 +119,7 @@ _NEW_COLUMNS = [
     ("projects", "hours_check_enabled", "BOOLEAN DEFAULT 0"),
     ("PRM_projects", "hours_check_enabled", "BIT DEFAULT 0"),
     ("PRM_tasks", "reporting_to_id", "INTEGER NULL"),
+    ("PRM_tasks", "repository_id", "INTEGER NULL"),
 ]
 _NEW_COLUMNS += [
     ("PRM_integration_settings", "default_password", "VARCHAR(100) DEFAULT 'Ids@1001'"),

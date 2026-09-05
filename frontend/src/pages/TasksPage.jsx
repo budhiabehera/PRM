@@ -4,7 +4,7 @@ import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { isSelfOnly, canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
-import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests, createBranchForTask } from '../services/api'
+import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests, createBranchForTask, getLinkedRepositories } from '../services/api'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -16,7 +16,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog'
 import TaskForm from '../components/forms/TaskForm'
 import { formatShortDate } from '../utils/formatters'
 import { PRIORITY_OPTIONS } from '../utils/constants'
-import { ChevronDown, ChevronRight, Search, Filter } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, Filter, Calendar, X } from 'lucide-react'
 import TaskActivityPanel from '../components/TaskActivityPanel'
 import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
 import TaskEngineeringPanel from '../components/TaskEngineeringPanel'
@@ -57,6 +57,8 @@ export default function TasksPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [taskSearch, setTaskSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const showToast = (type, text) => {
     setToast({ type, text })
@@ -64,7 +66,7 @@ export default function TasksPage() {
   }
 
   // Reset page when filters or search changes
-  useEffect(() => { setPage(1) }, [filters, taskSearch])
+  useEffect(() => { setPage(1) }, [filters, taskSearch, dateFrom, dateTo])
 
   const params = useMemo(() => {
     const p = {}
@@ -77,14 +79,38 @@ export default function TasksPage() {
   }, [filters, user?.developer_id, isDeveloper])
 
   const { data: tasks, loading, reload } = useApi(() => getTasks(params), [JSON.stringify(params)])
+  const { data: linkedRepos } = useApi(getLinkedRepositories, [])
 
-  // Client-side task ID search + pagination
+  // Client-side task ID search + date filter + sort by date desc
   const filteredTasks = useMemo(() => {
     if (!tasks) return []
-    if (!taskSearch.trim()) return tasks
-    const q = taskSearch.trim().toLowerCase()
-    return tasks.filter((t) => (t.task_code || '').toLowerCase().includes(q))
-  }, [tasks, taskSearch])
+    let list = [...tasks]
+    // Search filter
+    if (taskSearch.trim()) {
+      const q = taskSearch.trim().toLowerCase()
+      list = list.filter((t) => (t.task_code || '').toLowerCase().includes(q))
+    }
+    // Date range filter (uses created_at or start_date)
+    if (dateFrom) {
+      list = list.filter((t) => {
+        const d = t.created_at || t.start_date
+        return d && d >= dateFrom
+      })
+    }
+    if (dateTo) {
+      list = list.filter((t) => {
+        const d = t.created_at || t.start_date
+        return d && d <= dateTo + 'T23:59:59'
+      })
+    }
+    // Sort by created_at descending (most recent first)
+    list.sort((a, b) => {
+      const da = a.created_at || a.start_date || ''
+      const db = b.created_at || b.start_date || ''
+      return db.localeCompare(da)
+    })
+    return list
+  }, [tasks, taskSearch, dateFrom, dateTo])
 
   const totalPages = Math.max(1, Math.ceil(filteredTasks.length / pageSize))
   const paginatedTasks = filteredTasks.slice((page - 1) * pageSize, page * pageSize)
@@ -254,6 +280,32 @@ export default function TasksPage() {
             onChange={(e) => setTaskSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <Calendar size={14} className="text-slate-400" />
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="px-2.5 py-[7px] border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500"
+              title="From date"
+            />
+            <span className="text-slate-400 text-xs">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="px-2.5 py-[7px] border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500"
+              title="To date"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <button onClick={() => { setDateFrom(''); setDateTo('') }}
+              className="text-slate-400 hover:text-slate-600" title="Clear dates">
+              <X size={14} />
+            </button>
+          )}
         </div>
         <button
           onClick={() => setFiltersOpen((o) => !o)}
@@ -566,6 +618,7 @@ export default function TasksPage() {
           workTypes={workTypes}
           sprints={sprints}
           taskStatuses={taskStatuses}
+          repositories={linkedRepos || []}
           onSubmit={handleCreate}
           onCancel={() => setCreatingTask(false)}
           
@@ -584,6 +637,7 @@ export default function TasksPage() {
             workTypes={workTypes}
             sprints={sprints}
             taskStatuses={taskStatuses}
+            repositories={linkedRepos || []}
             onSubmit={handleSave}
             onCancel={() => setEditingTask(null)}
             

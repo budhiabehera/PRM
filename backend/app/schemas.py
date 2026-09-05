@@ -200,6 +200,7 @@ class TaskBase(BaseModel):
     developer_id: Optional[int] = None
     work_type_id: Optional[int] = None
     sprint_id: Optional[int] = None
+    repository_id: Optional[int] = None
     priority: str = "Medium"
     status: str = "Not Started"
     customer_committed: bool = False

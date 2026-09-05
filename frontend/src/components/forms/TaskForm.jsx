@@ -5,7 +5,7 @@ import { validateTaskForm, isPlanningStatus } from '../../utils/validators'
 import { getTaskDependencies, addTaskDependency, removeTaskDependency } from '../../services/api'
 
 export default function TaskForm({
-  initial, projects = [], mainModules = [], subModules = [], resources = [], workTypes = [], sprints = [], taskStatuses = [],
+  initial, projects = [], mainModules = [], subModules = [], resources = [], workTypes = [], sprints = [], taskStatuses = [], repositories = [],
   onSubmit, onCancel, lockDeveloper = false,
 }) {
   const [form, setForm] = useState({
@@ -27,6 +27,7 @@ export default function TaskForm({
     estimated_hours: initial?.estimated_hours ?? '',
     actual_hours: initial?.actual_hours ?? 0,
     sprint_id: initial?.sprint_id || '',
+    repository_id: initial?.repository_id || '',
   })
   const [errors, setErrors] = useState({})
   const [dependencies, setDependencies] = useState([])
@@ -76,6 +77,14 @@ export default function TaskForm({
     [resources, form.project_id]
   )
 
+  // Filter repositories by selected project
+  const filteredRepos = useMemo(
+    () => form.project_id
+      ? repositories.filter((r) => r.project_id === Number(form.project_id))
+      : repositories,
+    [repositories, form.project_id]
+  )
+
   const planning = isPlanningStatus(form.status)
 
   const handleSubmit = () => {
@@ -94,6 +103,7 @@ export default function TaskForm({
       developer_id: form.developer_id ? Number(form.developer_id) : null,
       work_type_id: form.work_type_id ? Number(form.work_type_id) : null,
       sprint_id: form.sprint_id ? Number(form.sprint_id) : null,
+      repository_id: form.repository_id ? Number(form.repository_id) : null,
       estimated_hours: Number(form.estimated_hours) || 0,
       actual_hours: Number(form.actual_hours) || 0,
     })
@@ -220,6 +230,16 @@ export default function TaskForm({
             {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </div>
+        {filteredRepos.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label className="form-label">Repository</label>
+            <select className="form-select" value={form.repository_id} onChange={(e) => update('repository_id', e.target.value)}>
+              <option value="">Select Repository...</option>
+              {filteredRepos.map((r) => <option key={r.id} value={r.id}>{r.repo_name || r.repo_slug}</option>)}
+            </select>
+            <span className="text-[10px] text-slate-400">Branch will be created in this repo</span>
+          </div>
+        )}
       </div>
 
       {/* Dependencies Section (only for existing tasks) */}

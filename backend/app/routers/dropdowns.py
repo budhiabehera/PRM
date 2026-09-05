@@ -66,7 +66,7 @@ def get_all_dropdowns(
     if visible_dev_ids is not None:
         dev_q = dev_q.filter(models.Developer.id.in_(visible_dev_ids))
     resources = [
-        {"id": d.id, "name": d.name, "project_ids": [p.id for p in d.projects]}
+        {"id": d.id, "name": d.name, "role": d.role, "skill": d.skill, "project_ids": [p.id for p in d.projects]}
         for d in dev_q.order_by(func.lower(func.ltrim(func.rtrim(models.Developer.name)))).all()
     ]
 

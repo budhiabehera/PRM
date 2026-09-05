@@ -38,6 +38,7 @@ def _to_detail(t: models.Task) -> dict:
         "developer_id": t.developer_id,
         "work_type_id": t.work_type_id,
         "sprint_id": t.sprint_id,
+        "repository_id": t.repository_id,
         "priority": t.priority,
         "status": t.status,
         "customer_committed": t.customer_committed,
@@ -51,6 +52,8 @@ def _to_detail(t: models.Task) -> dict:
         "developer_name": t.developer.name if t.developer else None,
         "work_type_name": t.work_type.name if t.work_type else None,
         "sprint_name": t.sprint.name if t.sprint else None,
+        "repository_name": (t.repository.repo_name or t.repository.repo_slug) if t.repository else None,
+        "repository_slug": t.repository.repo_slug if t.repository else None,
         "percent_complete": t.percent_complete,
         "is_cross_month": t.is_cross_month,
         "created_at": t.created_at,
@@ -181,6 +184,7 @@ def list_tasks(
         joinedload(models.Task.sprint),
         joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on),
         joinedload(models.Task.reporting_to),
+        joinedload(models.Task.repository),
     )
     # Enforce project-based access
     from ..deps import get_user_project_ids, get_visible_developer_ids
@@ -223,6 +227,7 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
         joinedload(models.Task.sprint),
         joinedload(models.Task.dependencies).joinedload(models.TaskDependency.depends_on),
         joinedload(models.Task.reporting_to),
+        joinedload(models.Task.repository),
     ).first()
     if not t:
         raise HTTPException(404, "Task not found")

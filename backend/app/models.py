@@ -246,13 +246,14 @@ class Task(Base):
     estimated_hours = Column(Float, default=0)
     actual_hours = Column(Float, default=0)
 
+    percentage = Column(Float, default=0)  # task completion % (updated from activity log)
+
     __table_args__ = (
         Index("ix_prm_tasks_status", "status"),
         Index("ix_prm_tasks_sprint_dev", "sprint_id", "developer_id"),
         Index("ix_prm_tasks_sprint_status", "sprint_id", "status"),
         Index("ix_prm_tasks_project_status", "project_id", "status"),
     )
-
 
     # When this task record was actually created in PRM (distinct from start_date,
     # which is the planned work date and can be set in the future/past). Powers

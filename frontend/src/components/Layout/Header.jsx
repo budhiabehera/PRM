@@ -5,16 +5,19 @@ import useAuthStore from '../../store/useAuthStore'
 import useUIStore from '../../store/useUIStore'
 import NotificationBell from '../NotificationBell'
 import { changePassword, getIntegrationSettings } from '../../services/api'
+import { isManagerOrAbove } from '../../store/useAuthStore'
 
 export default function Header() {
   const { user, logout } = useAuthStore()
   const [companyLogo, setCompanyLogo] = useState(null)
 
-  // Fetch company logo from settings (once)
+  // Fetch company logo from settings (Admin/Manager only — Developer role gets 403)
   useEffect(() => {
-    getIntegrationSettings()
-      .then(s => setCompanyLogo(s?.company_logo_url || null))
-      .catch(() => {})
+    if (isManagerOrAbove(user)) {
+      getIntegrationSettings()
+        .then(s => setCompanyLogo(s?.company_logo_url || null))
+        .catch(() => {})
+    }
   }, [])
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
   const navigate = useNavigate()

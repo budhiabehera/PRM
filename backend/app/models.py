@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime, Table, UniqueConstraint
+    Column, Integer, String, Float, Boolean, Date, ForeignKey, Text, DateTime, Table, UniqueConstraint, Index
 )
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import relationship
@@ -229,10 +229,10 @@ class Task(Base):
     description = Column(Text, nullable=False)
 
     project_id = Column(Integer, ForeignKey("PRM_projects.id"), nullable=True, index=True)
-    main_module_id = Column(Integer, ForeignKey("PRM_main_modules.id"), nullable=True)
-    sub_module_id = Column(Integer, ForeignKey("PRM_sub_modules.id"), nullable=True)
+    main_module_id = Column(Integer, ForeignKey("PRM_main_modules.id"), nullable=True, index=True)
+    sub_module_id = Column(Integer, ForeignKey("PRM_sub_modules.id"), nullable=True, index=True)
     developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True, index=True)
-    work_type_id = Column(Integer, ForeignKey("PRM_work_types.id"), nullable=True)
+    work_type_id = Column(Integer, ForeignKey("PRM_work_types.id"), nullable=True, index=True)
     sprint_id = Column(Integer, ForeignKey("PRM_sprints.id"), nullable=True, index=True)
     reporting_to_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=True)
 
@@ -245,7 +245,14 @@ class Task(Base):
     end_date = Column(Date, nullable=True)
     estimated_hours = Column(Float, default=0)
     actual_hours = Column(Float, default=0)
-    percentage = Column(Float, default=0)  # task completion % (updated from activity log)
+
+    __table_args__ = (
+        Index("ix_prm_tasks_status", "status"),
+        Index("ix_prm_tasks_sprint_dev", "sprint_id", "developer_id"),
+        Index("ix_prm_tasks_sprint_status", "sprint_id", "status"),
+        Index("ix_prm_tasks_project_status", "project_id", "status"),
+    )
+
 
     # When this task record was actually created in PRM (distinct from start_date,
     # which is the planned work date and can be set in the future/past). Powers
@@ -285,8 +292,8 @@ class Availability(Base):
     __tablename__ = "PRM_availabilities"
 
     id = Column(Integer, primary_key=True, index=True)
-    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=False)
-    sprint_id = Column(Integer, ForeignKey("PRM_sprints.id"), nullable=False)
+    developer_id = Column(Integer, ForeignKey("PRM_developers.id"), nullable=False, index=True)
+    sprint_id = Column(Integer, ForeignKey("PRM_sprints.id"), nullable=False, index=True)
     leave_days = Column(Float, default=0)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -294,6 +301,10 @@ class Availability(Base):
 
     developer = relationship("Developer", back_populates="availabilities")
     sprint = relationship("Sprint")
+
+    __table_args__ = (
+        Index("ix_prm_avail_dev_sprint", "developer_id", "sprint_id"),
+    )
 
 
 class TaskActivity(Base):

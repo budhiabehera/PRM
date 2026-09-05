@@ -183,6 +183,12 @@ export const getWorkTypeBreakdown = (params) => api.get('/dashboard/work-type-br
 export const getModuleBreakdown = (params) => api.get('/dashboard/module-breakdown', { params }).then(r => r.data)
 export const getSubModuleBreakdown = (params) => api.get('/dashboard/sub-module-breakdown', { params }).then(r => r.data)
 export const getMonthlyUtilization = (params) => api.get('/dashboard/monthly-utilization', { params }).then(r => r.data)
+
+// Consolidated dashboard endpoint — fetches all breakdowns in a single call
+export const getDashboardAll = (params) => api.get('/dashboard/all', { params }).then(r => r.data)
+
+// Consolidated dropdowns endpoint — fetches all reference/lookup data in a single call
+export const getDropdowns = () => api.get('/dropdowns').then(r => r.data)
 export const getMyDashboardSummary = () => api.get('/dashboard/my-summary').then(r => r.data)
 
 // ---------- Utilization ----------

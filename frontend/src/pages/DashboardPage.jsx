@@ -3,10 +3,7 @@ import useApi from '../hooks/useApi'
 import useAuthStore, { isSelfOnly } from '../store/useAuthStore'
 import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
-import {
-  getKpis, getStatusBreakdown, getProjectBreakdown, getWorkTypeBreakdown,
-  getModuleBreakdown, getSubModuleBreakdown, getMonthlyUtilization,
-} from '../services/api'
+import { getDashboardAll } from '../services/api'
 import KPICard from '../components/common/KPICard'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import StatusDonut from '../components/charts/StatusDonut'
@@ -44,17 +41,19 @@ export default function DashboardPage() {
     return Object.keys(p).length > 0 ? p : undefined
   }, [isDeveloper, user?.developer_id, selectedProject, selectedSprint])
 
-  const depsKey = `${user?.developer_id || ''}-${selectedProject}-${selectedSprint}`
+  // Fetch all dashboard data in a single consolidated API call
+  const { data: dashData, loading: dashLoading } = useApi(() => getDashboardAll(params), [`${user?.developer_id || ''}-${selectedProject}-${selectedSprint}`])
 
-  const { data: kpis, loading: l1 } = useApi(() => getKpis(params), [depsKey])
-  const { data: statusData, loading: l2 } = useApi(() => getStatusBreakdown(params), [depsKey])
-  const { data: projectData, loading: l3 } = useApi(() => getProjectBreakdown(params), [depsKey])
-  const { data: workTypeData, loading: l4 } = useApi(() => getWorkTypeBreakdown(params), [depsKey])
-  const { data: moduleData, loading: l5 } = useApi(() => getModuleBreakdown(params), [depsKey])
-  const { data: subModuleData, loading: l6 } = useApi(() => getSubModuleBreakdown(params), [depsKey])
-  const { data: monthlyData, loading: l7 } = useApi(() => getMonthlyUtilization(params), [depsKey])
+  // Destructure consolidated response
+  const kpis = dashData?.kpis
+  const statusData = dashData?.status_breakdown
+  const projectData = dashData?.project_breakdown
+  const workTypeData = dashData?.work_type_breakdown
+  const moduleData = dashData?.module_breakdown
+  const subModuleData = dashData?.sub_module_breakdown
+  const monthlyData = dashData?.monthly_utilization
 
-  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7
+  const loading = dashLoading
   if (loading || !kpis) return <LoadingSpinner label="Loading dashboard..." />
 
   // Ensure arrays have fallback
@@ -317,8 +316,8 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Status</th><th>Count</th><th>Est Hrs</th></tr></thead>
             <tbody>
-              {safeStatus.map((row) => (
-                <tr key={row.status}>
+              {safeStatus.map((row, i) => (
+                <tr key={`${row.status}-${i}`}>
                   <td><StatusBadge status={row.status} /></td>
                   <td>{row.count}</td>
                   <td>{formatNumber(row.estimated_hours)}</td>
@@ -339,8 +338,8 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Project</th><th>Tasks</th><th>Est Hrs</th><th>Remaining</th></tr></thead>
             <tbody>
-              {safeProject.map((row) => (
-                <tr key={row.project}>
+              {safeProject.map((row, i) => (
+                <tr key={`${row.project}-${i}`}>
                   <td className="font-medium">{row.project}</td>
                   <td>{row.tasks}</td>
                   <td>{formatNumber(row.estimated_hours)}</td>
@@ -355,8 +354,8 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Work Type</th><th>Committed?</th><th>Tasks</th><th>Est</th><th>Actual</th></tr></thead>
             <tbody>
-              {safeWorkType.map((row) => (
-                <tr key={row.work_type}>
+              {safeWorkType.map((row, i) => (
+                <tr key={`${row.work_type}-${i}`}>
                   <td className="font-medium">{row.work_type}</td>
                   <td>{row.customer_committed ? <span className="badge bg-green-100 text-green-700">Yes</span> : <span className="badge bg-slate-100 text-slate-500">No</span>}</td>
                   <td>{row.tasks}</td>
@@ -375,8 +374,8 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Module</th><th>Devs</th><th>Tasks</th><th>Est Hrs</th></tr></thead>
             <tbody>
-              {safeModule.map((row) => (
-                <tr key={row.module}>
+              {safeModule.map((row, i) => (
+                <tr key={`${row.module}-${i}`}>
                   <td className="font-medium">{row.module}</td>
                   <td>{row.developers}</td>
                   <td>{row.tasks}</td>
@@ -391,8 +390,8 @@ export default function DashboardPage() {
           <table className="data-table">
             <thead><tr><th>Sub Module</th><th>Main Module</th><th>Tasks</th><th>Est Hrs</th></tr></thead>
             <tbody>
-              {safeSubModule.map((row) => (
-                <tr key={row.sub_module}>
+              {safeSubModule.map((row, i) => (
+                <tr key={`${row.sub_module}-${i}`}>
                   <td className="font-medium">{row.sub_module}</td>
                   <td>{row.main_module}</td>
                   <td>{row.tasks}</td>

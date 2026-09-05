@@ -1,13 +1,13 @@
 import { create } from 'zustand'
-import {
-  getProjects, getMainModules, getSubModules, getResources,
-  getWorkTypes, getSprints, getSkills, getTaskStatuses,
-} from '../services/api'
+import { getDropdowns } from '../services/api'
 
 /**
  * Central Zustand store. Holds shared dropdown/reference data so pages don't
  * each re-fetch the same lists, plus a global "refresh" counter admin pages
  * bump after a mutation so dependent views (dashboard, tasks) can refetch.
+ *
+ * Dropdowns are fetched in a SINGLE API call via GET /api/dropdowns
+ * instead of 8 separate requests.
  */
 const useAppStore = create((set, get) => ({
   projects: [],
@@ -19,6 +19,7 @@ const useAppStore = create((set, get) => ({
   skills: [],
   taskStatuses: [],
   loadingDropdowns: false,
+
   refreshToken: 0,
   _dropdownsLoaded: false,
   _dropdownsPromise: null,
@@ -34,11 +35,24 @@ const useAppStore = create((set, get) => ({
 
     const promise = (async () => {
       set({ loadingDropdowns: true })
-      const [projects, mainModules, subModules, resources, workTypes, sprints, skills, taskStatuses] = await Promise.all([
-        getProjects(), getMainModules(), getSubModules(), getResources(), getWorkTypes(), getSprints(), getSkills(), getTaskStatuses(),
-      ])
-      set({ projects, mainModules, subModules, resources, workTypes, sprints, skills, taskStatuses, _dropdownsLoaded: true })
-      set({ loadingDropdowns: false, _dropdownsPromise: null })
+      try {
+        const data = await getDropdowns()
+        set({
+          projects: data.projects || [],
+          mainModules: data.main_modules || [],
+          subModules: data.sub_modules || [],
+          resources: data.resources || [],
+          workTypes: data.work_types || [],
+          sprints: data.sprints || [],
+          skills: data.skills || [],
+          taskStatuses: data.task_statuses || [],
+          _dropdownsLoaded: true,
+          loadingDropdowns: false,
+          _dropdownsPromise: null,
+        })
+      } catch (err) {
+        set({ loadingDropdowns: false, _dropdownsPromise: null })
+      }
     })()
 
     set({ _dropdownsPromise: promise })

@@ -5,7 +5,8 @@ from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
 from ..deps import get_management_excluded_roles
-from ..utils.calculations import net_capacity, utilization_status
+from ..deps import get_visible_developer_ids
+from ..utils.calculations import net_capacity, utilization_status, get_working_days_for_sprint
 
 router = APIRouter(prefix="/api/utilization", tags=["Utilization"])
 
@@ -27,8 +28,18 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
         ))
+    # Apply role-based visibility filter
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_ids is not None:
+        dev_q = dev_q.filter(models.Developer.id.in_(visible_ids))
+
     devs = dev_q.order_by(func.lower(models.Developer.name)).all()
-    sprints = db.query(models.Sprint).order_by(models.Sprint.id.asc()).all()
+
+    # Filter sprints to only those linked to the user's accessible projects (or global sprints)
+    sprint_q = db.query(models.Sprint)
+    if allowed is not None:
+        sprint_q = sprint_q.filter((models.Sprint.project_id.in_(allowed)) | (models.Sprint.project_id.is_(None)))
+    sprints = sprint_q.order_by(models.Sprint.id.asc()).all()
 
     # Pre-fetch all availability records in one query (avoid N*M individual queries)
     dev_ids = [d.id for d in devs]
@@ -42,12 +53,15 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
         for av in avail_rows:
             all_avail[(av.developer_id, av.sprint_id)] = av.leave_days or 0
 
+    # Pre-calculate working days per sprint
+    sprint_working_days = {s.id: get_working_days_for_sprint(s.start_date, s.end_date, db) for s in sprints}
+
     rows = []
     for d in devs:
         cells = []
         for s in sprints:
             leave_days = all_avail.get((d.id, s.id), 0)
-            cap = net_capacity(d.base_capacity, leave_days)
+            cap = net_capacity(d.base_capacity, leave_days, sprint_working_days[s.id])
             sprint_tasks = [t for t in d.tasks if t.sprint_id == s.id]
             if allowed is not None:
                 sprint_tasks = [t for t in sprint_tasks if t.project_id in allowed]

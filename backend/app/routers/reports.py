@@ -6,6 +6,7 @@ from .. import models
 from ..database import get_db
 from ..deps import get_current_user, get_user_project_ids
 from ..deps import STATUS_COMPLETED, STATUS_IN_PROGRESS, STATUS_NOT_STARTED
+from ..deps import get_visible_developer_ids
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
@@ -37,11 +38,15 @@ def _to_row(t: models.Task) -> dict:
     }
 
 
-def _apply_project_access(q, current_user, db):
-    """Apply project-based filtering to a Task query."""
+def _apply_project_access(q, current_user, db, apply_visibility=True):
+    """Apply project-based and role-based visibility filtering to a Task query."""
     allowed = get_user_project_ids(current_user)
     if allowed is not None:
         q = q.filter(models.Task.project_id.in_(allowed))
+    if apply_visibility:
+        visible_ids = get_visible_developer_ids(current_user, db=db)
+        if visible_ids is not None:
+            q = q.filter(models.Task.developer_id.in_(visible_ids))
     return q, allowed
 
 
@@ -118,11 +123,14 @@ def salesforce_tasks_report(
 def list_customers(db: Session = Depends(get_db),
                    current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
     q = db.query(models.Task.property_client).filter(
         models.Task.property_client.isnot(None), models.Task.property_client != ""
     )
     if allowed is not None:
         q = q.filter(models.Task.project_id.in_(allowed))
+    if visible_ids is not None:
+        q = q.filter(models.Task.developer_id.in_(visible_ids))
     rows = q.distinct().order_by(models.Task.property_client).all()
     return [r[0] for r in rows]
 
@@ -131,12 +139,15 @@ def list_customers(db: Session = Depends(get_db),
 def daily_created_counts(days: int = 14, db: Session = Depends(get_db),
                          current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
     since = datetime.combine(date.today() - timedelta(days=days - 1), datetime.min.time())
     q = db.query(func.date(models.Task.created_at).label("day"), func.count(models.Task.id)).filter(
         models.Task.created_at >= since
     )
     if allowed is not None:
         q = q.filter(models.Task.project_id.in_(allowed))
+    if visible_ids is not None:
+        q = q.filter(models.Task.developer_id.in_(visible_ids))
     rows = q.group_by("day").order_by("day").all()
     counts = {day: count for day, count in rows}
     result = []
@@ -150,6 +161,7 @@ def daily_created_counts(days: int = 14, db: Session = Depends(get_db),
 def project_progress_report(db: Session = Depends(get_db),
                             current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
     pq = db.query(models.Project)
     if allowed is not None:
         pq = pq.filter(models.Project.id.in_(allowed))
@@ -157,6 +169,9 @@ def project_progress_report(db: Session = Depends(get_db),
     rows = []
     for p in projects:
         tasks = p.tasks
+        # Apply role-based visibility to project tasks
+        if visible_ids is not None:
+            tasks = [t for t in tasks if t.developer_id in visible_ids]
         total = len(tasks)
         completed = sum(1 for t in tasks if t.status == STATUS_COMPLETED)
         in_progress = sum(1 for t in tasks if t.status == STATUS_IN_PROGRESS)
@@ -227,11 +242,14 @@ def overdue_tasks_report(
 def customer_summary_report(db: Session = Depends(get_db),
                             current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
     q = db.query(models.Task).filter(
         models.Task.property_client.isnot(None), models.Task.property_client != ""
     )
     if allowed is not None:
         q = q.filter(models.Task.project_id.in_(allowed))
+    if visible_ids is not None:
+        q = q.filter(models.Task.developer_id.in_(visible_ids))
     tasks = q.all()
 
     buckets: dict[str, dict] = {}

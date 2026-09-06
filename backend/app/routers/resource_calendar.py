@@ -122,8 +122,8 @@ def get_resource_calendar(
                 "is_holiday": is_holiday,
                 "holiday_name": holiday_dates.get(date_str),
                 "total_hours": total_hours,
-                "capacity_hours": 0 if (is_weekend or is_holiday) else 8,
-                "utilization_pct": round((total_hours / 8) * 100, 1) if not (is_weekend or is_holiday) and total_hours > 0 else 0,
+                "capacity_hours": 8 if (not is_weekend and not is_holiday) or total_hours > 0 else 0,
+                "utilization_pct": round((total_hours / 8) * 100, 1) if total_hours > 0 else 0,
                 "tasks": tasks_worked,
             }
 

@@ -7,14 +7,16 @@ from .. import models
 from ..database import get_db
 from ..deps import PLANNING_STATUSES, get_current_user, get_user_project_ids
 from ..deps import get_management_excluded_roles
-from ..utils.calculations import net_capacity
+from ..deps import get_visible_developer_ids
+from ..utils.calculations import net_capacity, get_working_days_for_sprint
 from .sprints import _sprint_with_stats
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 
 def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int | None = None,
-                  project_ids: list[int] | None = None, project_id: int | None = None):
+                  project_ids: list[int] | None = None, project_id: int | None = None,
+                  visible_dev_ids: list[int] | None = None):
     """Base task query filtered by optional developer, sprint, and project access.
     Eagerly loads related objects to avoid N+1 queries over the network."""
     q = db.query(models.Task).options(
@@ -32,6 +34,8 @@ def _filter_tasks(db: Session, developer_id: int | None = None, sprint_id: int |
         q = q.filter(models.Task.developer_id == developer_id)
     if sprint_id:
         q = q.filter(models.Task.sprint_id == sprint_id)
+    if visible_dev_ids is not None:
+        q = q.filter(models.Task.developer_id.in_(visible_dev_ids))
     return q.all()
 
 
@@ -63,8 +67,12 @@ def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(dp2.c.developer_id).filter(dp2.c.project_id == project_id)
         ))
+    # Apply role-based visibility
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_ids is not None:
+        dev_q = dev_q.filter(models.Developer.id.in_(visible_ids))
     total_devs = dev_q.count()
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id, visible_dev_ids=visible_ids)
     total_hours = sum(t.estimated_hours for t in tasks)
     committed = sum(1 for t in tasks if t.customer_committed)
     cross_month = sum(1 for t in tasks if t.is_cross_month)
@@ -81,7 +89,8 @@ def kpis(db: Session = Depends(get_db), developer_id: int | None = None, sprint_
 def status_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                      current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id, visible_dev_ids=visible_ids)
     buckets: dict[str, dict] = {}
     for t in tasks:
         b = buckets.setdefault(t.status, {"status": t.status, "count": 0, "estimated_hours": 0})
@@ -94,7 +103,8 @@ def status_breakdown(db: Session = Depends(get_db), developer_id: int | None = N
 def project_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                       current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id, visible_dev_ids=visible_ids)
     buckets: dict[str, dict] = {}
     for t in tasks:
         pname = t.project.name if t.project else "Unassigned"
@@ -109,7 +119,8 @@ def project_breakdown(db: Session = Depends(get_db), developer_id: int | None = 
 def work_type_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                         current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id, visible_dev_ids=visible_ids)
     buckets: dict[str, dict] = {}
     for t in tasks:
         wt = t.work_type
@@ -130,7 +141,8 @@ def work_type_breakdown(db: Session = Depends(get_db), developer_id: int | None 
 def module_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                      current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id, visible_dev_ids=visible_ids)
     buckets: dict[str, dict] = {}
     for t in tasks:
         mname = t.main_module.name if t.main_module else "Unassigned"
@@ -157,7 +169,8 @@ def module_breakdown(db: Session = Depends(get_db), developer_id: int | None = N
 def sub_module_breakdown(db: Session = Depends(get_db), developer_id: int | None = None, sprint_id: int | None = None, project_id: int | None = None,
                          current_user: models.User = Depends(get_current_user)):
     allowed = get_user_project_ids(current_user)
-    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    tasks = _filter_tasks(db, developer_id, sprint_id, allowed, project_id, visible_dev_ids=visible_ids)
     buckets: dict[str, dict] = {}
     for t in tasks:
         sname = t.sub_module.name if t.sub_module else "Unassigned"
@@ -177,6 +190,8 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
         sprint_q = sprint_q.filter(models.Sprint.id == sprint_id)
     if project_id:
         sprint_q = sprint_q.filter((models.Sprint.project_id == project_id) | (models.Sprint.project_id.is_(None)))
+    elif allowed is not None:
+        sprint_q = sprint_q.filter((models.Sprint.project_id.in_(allowed)) | (models.Sprint.project_id.is_(None)))
     sprints = sprint_q.all()
     result = []
     dev_q = db.query(models.Developer).options(
@@ -196,6 +211,10 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(dp.c.developer_id).filter(dp.c.project_id == project_id)
         ))
+    # Apply role-based visibility
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_ids is not None:
+        dev_q = dev_q.filter(models.Developer.id.in_(visible_ids))
     devs = dev_q.all()
     for s in sprints:
         stats = _sprint_with_stats(s, db)
@@ -250,6 +269,9 @@ def dashboard_all(
     allowed = get_user_project_ids(current_user)
     excluded_roles = get_management_excluded_roles(db)  # fetch ONCE
 
+    # Compute visibility ONCE for the entire consolidated endpoint
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+
     t0 = time.perf_counter()
 
     # ── Helper: apply common task filters to any query on Task table ──
@@ -262,6 +284,8 @@ def dashboard_all(
             q = q.filter(models.Task.developer_id == developer_id)
         if sprint_id:
             q = q.filter(models.Task.sprint_id == sprint_id)
+        if visible_ids is not None:
+            q = q.filter(models.Task.developer_id.in_(visible_ids))
         return q
 
     # ── 1. KPIs (single SQL query) ──────────────────────────────────
@@ -300,6 +324,10 @@ def dashboard_all(
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(models.developer_projects.c.developer_id).filter(models.developer_projects.c.project_id == project_id)
         ))
+    # Apply role-based visibility
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_ids is not None:
+        dev_q = dev_q.filter(models.Developer.id.in_(visible_ids))
     total_devs = dev_q.scalar() or 0
 
     kpis_data = {
@@ -426,6 +454,8 @@ def dashboard_all(
         sprint_q = sprint_q.filter(models.Sprint.id == sprint_id)
     if project_id:
         sprint_q = sprint_q.filter((models.Sprint.project_id == project_id) | (models.Sprint.project_id.is_(None)))
+    elif allowed is not None:
+        sprint_q = sprint_q.filter((models.Sprint.project_id.in_(allowed)) | (models.Sprint.project_id.is_(None)))
     all_sprints = sprint_q.all()
 
     if not all_sprints:
@@ -469,6 +499,10 @@ def dashboard_all(
             dev_q = dev_q.filter(models.Developer.id.in_(
                 db.query(models.developer_projects.c.developer_id).filter(models.developer_projects.c.project_id == project_id)
             ))
+        # Apply role-based visibility
+        visible_ids = get_visible_developer_ids(current_user, db=db)
+        if visible_ids is not None:
+            dev_q = dev_q.filter(models.Developer.id.in_(visible_ids))
         devs = dev_q.all()
         dev_ids = [d.id for d in devs]
         total_base_capacity = sum(d.base_capacity for d in devs)
@@ -518,9 +552,10 @@ def dashboard_all(
             alloc_hrs = float(alloc_by_sprint.get(s.id, 0))
 
             # Net capacity for this sprint (adjusted for leave)
+            working_days = get_working_days_for_sprint(s.start_date, s.end_date, db)
             sprint_avail = avail_map.get(s.id, {})
             total_cap = sum(
-                net_capacity(dev_capacity[did], sprint_avail.get(did, 0))
+                net_capacity(dev_capacity[did], sprint_avail.get(did, 0), working_days)
                 for did in dev_ids
             )
 

@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from .. import models, schemas
 from ..database import get_db
 from ..deps import get_current_user, require_roles, get_user_project_ids
+from ..deps import get_visible_developer_ids
 
 router = APIRouter(prefix="/api/availability", tags=["Availability"])
 
@@ -63,6 +64,10 @@ def list_availability(
         allowed_dev_ids = [row[0] for row in db.query(developer_projects.c.developer_id).filter(
             developer_projects.c.project_id.in_(allowed)).all()]
         q = q.filter(models.Availability.developer_id.in_(allowed_dev_ids))
+    # Apply role-based visibility
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_ids is not None:
+        q = q.filter(models.Availability.developer_id.in_(visible_ids))
     if sprint_id:
         q = q.filter(models.Availability.sprint_id == sprint_id)
     if developer_id:

@@ -358,16 +358,17 @@ def get_all_developers_daily_summary(db: Session, check_date: date, current_user
             from ..deps import get_visible_developer_ids
             visible_ids = get_visible_developer_ids(current_user, db=db)
             if visible_ids is not None:
+                # team_reports or self_only scope: filter to visible IDs
                 dev_query = dev_query.filter(models.Developer.id.in_(visible_ids))
             else:
                 # full/team scope: filter by project access only
                 user_project_ids = [p.id for p in current_user.projects] if current_user.projects else []
-            if user_project_ids:
-                dev_query = dev_query.filter(
-                    models.Developer.projects.any(models.Project.id.in_(user_project_ids))
-                )
-            elif current_user.developer_id:
-                dev_query = dev_query.filter(models.Developer.id == current_user.developer_id)
+                if user_project_ids:
+                    dev_query = dev_query.filter(
+                        models.Developer.projects.any(models.Project.id.in_(user_project_ids))
+                    )
+                elif current_user.developer_id:
+                    dev_query = dev_query.filter(models.Developer.id == current_user.developer_id)
 
     developers = dev_query.order_by(models.Developer.name).all()
     developers = [d for d in developers if not d.role or d.role.strip().lower() not in EXCLUDED_ROLES]

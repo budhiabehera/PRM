@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 import calendar
 
 
@@ -17,8 +17,64 @@ def utilization_status(pct: float) -> str:
     return "under"
 
 
+def count_working_days(start: date, end: date, holiday_dates: set = None) -> int:
+    """Count weekdays (Mon-Fri) between start and end (inclusive), excluding holidays.
+    
+    Args:
+        start: Start date (inclusive)
+        end: End date (inclusive)
+        holiday_dates: Set of date objects that are holidays. If None, only weekends excluded.
+    
+    Returns:
+        Number of working days
+    """
+    if not start or not end or end < start:
+        return 0
+    if holiday_dates is None:
+        holiday_dates = set()
+    count = 0
+    current = start
+    while current <= end:
+        # weekday(): 0=Mon, 4=Fri, 5=Sat, 6=Sun
+        if current.weekday() < 5 and current not in holiday_dates:
+            count += 1
+        current += timedelta(days=1)
+    return count
+
+
+def get_working_days_for_sprint(sprint_start: date, sprint_end: date, db) -> int:
+    """Calculate actual working days for a sprint period by querying holidays from the DB.
+    
+    Args:
+        sprint_start: Sprint start date
+        sprint_end: Sprint end date
+        db: SQLAlchemy session
+    
+    Returns:
+        Number of working days (weekdays minus holidays)
+    """
+    from ..models import Holiday
+    holidays = (
+        db.query(Holiday.date)
+        .filter(Holiday.date >= sprint_start, Holiday.date <= sprint_end)
+        .all()
+    )
+    holiday_set = {h[0] for h in holidays}
+    return count_working_days(sprint_start, sprint_end, holiday_set)
+
+
 def net_capacity(base_capacity: float, leave_days: float, working_days: int = 22) -> float:
-    """Reduce base monthly capacity by leave taken (assumes ~22 working days/month)."""
+    """Reduce base monthly capacity by leave taken.
+    
+    Args:
+        base_capacity: Developer's monthly base capacity (e.g. 192 hrs)
+        leave_days: Number of leave days taken
+        working_days: Actual working days in the month (weekdays - holidays).
+                      Pass the result of get_working_days_for_sprint() for accuracy.
+    
+    Returns:
+        Net capacity in hours after deducting leave
+    """
     if working_days <= 0:
         return base_capacity
     per_day = base_capacity / working_days

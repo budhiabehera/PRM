@@ -3,17 +3,16 @@ from sqlalchemy.orm import Session, joinedload
 from .. import models, schemas
 from ..database import get_db
 from ..deps import PLANNING_STATUSES, require_roles, get_current_user, get_user_project_ids
-from ..deps import get_management_excluded_roles
-from ..utils.calculations import net_capacity
+from ..deps import get_management_excluded_roles, get_visible_developer_ids
+from ..utils.calculations import net_capacity, get_working_days_for_sprint
 
 router = APIRouter(prefix="/api/sprints", tags=["Sprints"])
 
 
-def _sprint_with_stats(sprint: models.Sprint, db: Session):
+def _sprint_with_stats(sprint: models.Sprint, db: Session, current_user: models.User = None):
     all_tasks = sprint.tasks
     # Exclude planning/backlog tasks from sprint stats
     tasks = [t for t in all_tasks if (t.status or '').lower().strip() not in PLANNING_STATUSES]
-    alloc_hrs = sum(t.estimated_hours for t in tasks)
 
     # Only count developers assigned to the sprint's project (if sprint has a project)
     dev_q = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db)))  # noqa: E712
@@ -22,9 +21,24 @@ def _sprint_with_stats(sprint: models.Sprint, db: Session):
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id == sprint.project_id)
         ))
+
+    # Apply role-based visibility filter
+    visible_ids = None
+    if current_user:
+        visible_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_ids is not None:
+        dev_q = dev_q.filter(models.Developer.id.in_(visible_ids))
+
     devs = dev_q.all()
-    # Batch-fetch all availability for this sprint (avoid per-developer queries)
     dev_ids = [d.id for d in devs]
+
+    # Filter tasks to only those assigned to visible developers
+    if visible_ids is not None:
+        tasks = [t for t in tasks if t.developer_id in dev_ids]
+
+    alloc_hrs = sum(t.estimated_hours for t in tasks)
+
+    # Batch-fetch all availability for this sprint (avoid per-developer queries)
     avail_map = {}
     if dev_ids:
         avail_rows = db.query(models.Availability).filter(
@@ -33,9 +47,13 @@ def _sprint_with_stats(sprint: models.Sprint, db: Session):
         ).all()
         avail_map = {a.developer_id: a.leave_days or 0 for a in avail_rows}
     total_capacity = 0
+
+    # Calculate actual working days for this sprint (weekdays minus holidays)
+    working_days = get_working_days_for_sprint(sprint.start_date, sprint.end_date, db)
+
     for d in devs:
         leave_days = avail_map.get(d.id, 0)
-        total_capacity += net_capacity(d.base_capacity, leave_days)
+        total_capacity += net_capacity(d.base_capacity, leave_days, working_days)
 
     duration = (sprint.end_date - sprint.start_date).days + 1
     util_pct = round((alloc_hrs / total_capacity) * 100, 1) if total_capacity else 0
@@ -84,10 +102,14 @@ def list_sprints(db: Session = Depends(get_db),
     sprints = sq.order_by(models.Sprint.id.asc()).all()
     results = []
     for s in sprints:
-        stats = _sprint_with_stats(s, db)
+        stats = _sprint_with_stats(s, db, current_user)
         # If user has project access restriction, recalculate task stats
         if allowed is not None:
-            filtered_tasks = [t for t in s.tasks if t.project_id in allowed]
+            visible_ids = get_visible_developer_ids(current_user, db=db)
+            filtered_tasks = [t for t in s.tasks
+                              if t.project_id in allowed
+                              and (t.status or '').lower().strip() not in PLANNING_STATUSES
+                              and (visible_ids is None or t.developer_id in (visible_ids or []))]
             stats["task_count"] = len(filtered_tasks)
             stats["allocated_hours"] = sum(t.estimated_hours for t in filtered_tasks)
             stats["utilization_pct"] = round((stats["allocated_hours"] / stats["net_capacity"]) * 100, 1) if stats["net_capacity"] else 0
@@ -97,11 +119,12 @@ def list_sprints(db: Session = Depends(get_db),
 
 
 @router.get("/{sprint_id}")
-def get_sprint(sprint_id: int, db: Session = Depends(get_db)):
+def get_sprint(sprint_id: int, db: Session = Depends(get_db),
+               current_user: models.User = Depends(get_current_user)):
     sprint = db.get(models.Sprint, sprint_id)
     if not sprint:
         raise HTTPException(404, "Sprint not found")
-    return _sprint_with_stats(sprint, db)
+    return _sprint_with_stats(sprint, db, current_user)
 
 
 @router.post("", response_model=schemas.Sprint, status_code=201)

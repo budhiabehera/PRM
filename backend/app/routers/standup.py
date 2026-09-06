@@ -9,6 +9,7 @@ from .. import models
 from ..database import get_db
 from ..deps import get_current_user, require_roles
 from ..deps import get_management_excluded_roles
+from ..deps import get_visible_developer_ids
 from ..deps import (STATUS_COMPLETED, STATUS_IN_PROGRESS, STATUS_ON_HOLD,
                     STATUS_CANCELLED, CLOSED_STATUSES, IN_PROGRESS_VARIANTS, ON_HOLD_VARIANTS)
 
@@ -296,6 +297,7 @@ def get_team_standup(
     if current_user.role == "Admin":
         developers = db.query(models.Developer).filter(models.Developer.active == True).filter(models.Developer.role.notin_(get_management_excluded_roles(db))).all()
     else:
+        # Project-scoped list
         project_ids = [p.id for p in current_user.projects]
         if not project_ids and current_user.developer_id:
             dev = current_user.developer
@@ -313,6 +315,12 @@ def get_team_standup(
             .distinct()
             .all()
         )
+
+    # Apply role-based visibility (Lead sees self + reports, Developer sees self)
+    visible_ids = get_visible_developer_ids(current_user, db=db)
+    if visible_ids is not None:
+        visible_set = set(visible_ids)
+        developers = [d for d in developers if d.id in visible_set]
 
     dev_ids = [d.id for d in developers]
     if not dev_ids:

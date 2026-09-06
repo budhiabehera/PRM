@@ -184,7 +184,8 @@ export default function ResourceCalendarPage() {
         const hours = dayData?.total_hours || 0
         const capacity = dayData?.capacity_hours || 0
         const isWeekend = dayData?.is_weekend
-        if (isWeekend) return '<span style="color:#94a3b8">\u2014</span>'
+        if (isWeekend && hours === 0) return '<span style="color:#94a3b8">\u2014</span>'
+        if (isWeekend && hours > 0) return `<span style="color:#6366f1;font-weight:600">${hours}</span>`
         const color = hours > capacity ? '#dc2626' : hours >= capacity * 0.5 ? '#16a34a' : hours > 0 ? '#d97706' : '#94a3b8'
         return `<span style="color:${color};font-weight:600">${hours}</span>`
       })
@@ -399,19 +400,23 @@ export default function ResourceCalendarPage() {
                             } ${isSelected ? 'ring-2 ring-indigo-400 rounded' : ''}`}
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (!isWeekend && !isHoliday) {
+                              if (!isWeekend && !isHoliday || hours > 0) {
                                 setSelectedCell({ devId: res.developer_id, dateStr })
                                 setExpandedResource(res.developer_id)
                               }
                             }}
                             title={
-                              isWeekend ? 'Weekend' :
+                              isWeekend ? (hours > 0 ? `Weekend: ${hours}h logged` : 'Weekend') :
                               isHoliday ? `Holiday: ${dayData.holiday_name}` :
                               `${hours}h / ${capacity}h`
                             }
                           >
-                            {isWeekend || isHoliday ? (
+                            {(isWeekend || isHoliday) && hours === 0 ? (
                               <span className="text-[9px] text-slate-300">—</span>
+                            ) : (isWeekend || isHoliday) && hours > 0 ? (
+                              <span className="text-[10px] font-semibold text-indigo-500">
+                                {hours}
+                              </span>
                             ) : hours > 0 ? (
                               <div className="flex flex-col items-center">
                                 <span className={`text-[10px] font-bold ${

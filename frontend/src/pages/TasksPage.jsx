@@ -127,7 +127,26 @@ export default function TasksPage() {
   }
 
   const handleSave = async (data) => {
-    await updateTask(editingTask.id, data)
+    const updated = await updateTask(editingTask.id, data)
+    // Show new task code if it changed (sprint was reassigned)
+    if (updated && updated.task_code && updated.task_code !== editingTask.task_code) {
+      showToast('success', `Task code updated: ${editingTask.task_code} → ${updated.task_code}`)
+    }
+    setEditingTask(null)
+    refreshAll()
+  }
+
+  const handleSaveAndNotify = async (data) => {
+    try {
+      const updated = await updateTask(editingTask.id, data)
+      await notifyTeamsForTask(editingTask.id)
+      const codeMsg = (updated && updated.task_code && updated.task_code !== editingTask.task_code)
+        ? ` Task code updated: ${editingTask.task_code} → ${updated.task_code}`
+        : ''
+      showToast('success', `Task saved & Teams notification sent!${codeMsg}`)
+    } catch (err) {
+      showToast('error', err.response?.data?.detail || 'Failed to save or notify')
+    }
     setEditingTask(null)
     refreshAll()
   }
@@ -639,6 +658,7 @@ export default function TasksPage() {
             taskStatuses={taskStatuses}
             repositories={linkedRepos || []}
             onSubmit={handleSave}
+            onSaveAndNotify={handleSaveAndNotify}
             onCancel={() => setEditingTask(null)}
             
           />

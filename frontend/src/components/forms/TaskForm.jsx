@@ -6,7 +6,7 @@ import { getTaskDependencies, addTaskDependency, removeTaskDependency } from '..
 
 export default function TaskForm({
   initial, projects = [], mainModules = [], subModules = [], resources = [], workTypes = [], sprints = [], taskStatuses = [], repositories = [],
-  onSubmit, onCancel, lockDeveloper = false,
+  onSubmit, onCancel, onSaveAndNotify, lockDeveloper = false,
 }) {
   const [form, setForm] = useState({
     case_ref: initial?.case_ref || '',
@@ -87,11 +87,11 @@ export default function TaskForm({
 
   const planning = isPlanningStatus(form.status)
 
-  const handleSubmit = () => {
+  const getValidatedData = () => {
     const errs = validateTaskForm(form)
     setErrors(errs)
-    if (Object.keys(errs).length > 0) return
-    onSubmit({
+    if (Object.keys(errs).length > 0) return null
+    return {
       ...form,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
@@ -106,7 +106,20 @@ export default function TaskForm({
       repository_id: form.repository_id ? Number(form.repository_id) : null,
       estimated_hours: Number(form.estimated_hours) || 0,
       actual_hours: Number(form.actual_hours) || 0,
-    })
+    }
+  }
+
+  const handleSubmit = () => {
+    const data = getValidatedData()
+    if (!data) return
+    onSubmit(data)
+  }
+
+  const handleSaveAndNotify = () => {
+    if (!onSaveAndNotify) return
+    const data = getValidatedData()
+    if (!data) return
+    onSaveAndNotify(data)
   }
 
   return (
@@ -283,6 +296,9 @@ export default function TaskForm({
 
       <div className="flex gap-2 mt-5">
         <button className="btn btn-primary" onClick={handleSubmit}>Save Task</button>
+        {onSaveAndNotify && (
+          <button className="btn btn-primary bg-blue-600 hover:bg-blue-700" onClick={handleSaveAndNotify}>💬 Save & Notify Teams</button>
+        )}
         <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
       </div>
     </div>

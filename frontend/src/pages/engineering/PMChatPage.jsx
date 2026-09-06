@@ -148,7 +148,7 @@ export default function PMChatPage() {
           <div className="flex-1 overflow-y-auto px-5 py-4 bg-slate-50/50">
             {messages.length === 0 ? (
               /* Starter questions */
-              <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="flex flex-col items-center justify-center min-h-full text-center py-6">
                 <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center mb-4">
                   <Bot size={28} className="text-indigo-600" />
                 </div>

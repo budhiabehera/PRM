@@ -50,21 +50,18 @@ def get_all_dropdowns(
         for s in db.query(models.SubModule).order_by(func.lower(models.SubModule.name)).all()
     ]
 
-    # --- Resources (developers — lightweight, no task joins) ---
+    # --- Resources (ALL active developers — no role/hierarchy exclusion) ---
+    # Task assignment needs full list; frontend filters by project_id
     dev_q = (
         db.query(models.Developer)
         .options(joinedload(models.Developer.projects))
         .filter(models.Developer.active == True)  # noqa: E712
-        .filter(models.Developer.role.notin_(get_management_excluded_roles(db)))
     )
     if allowed is not None:
         from ..models import developer_projects
         dev_q = dev_q.filter(models.Developer.id.in_(
             db.query(developer_projects.c.developer_id).filter(developer_projects.c.project_id.in_(allowed))
         ))
-    visible_dev_ids = get_visible_developer_ids(current_user, db=db)
-    if visible_dev_ids is not None:
-        dev_q = dev_q.filter(models.Developer.id.in_(visible_dev_ids))
     resources = [
         {"id": d.id, "name": d.name, "role": d.role, "skill": d.skill, "project_ids": [p.id for p in d.projects]}
         for d in dev_q.order_by(func.lower(func.ltrim(func.rtrim(models.Developer.name)))).all()

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import useApi from '../hooks/useApi'
 import useAuthStore from '../store/useAuthStore'
@@ -43,10 +43,27 @@ export default function MyDashboardPage() {
 
     let activityHtml = ''
     if (recent_activity.length > 0) {
-      activityHtml = `<div class="section"><div class="section-title">Recent Activity</div>${buildTable(
-        ['Date', 'Task', 'Description', 'Hours'],
-        recent_activity.map(a => [fmtDate(a.activity_date), a.task_code, a.description || '—', `${a.hours_spent}h`])
-      )}</div>`
+      // Group activities by task_code for print
+      const groupMap = {}
+      for (const a of recent_activity) {
+        const key = a.task_code || 'Unknown'
+        if (!groupMap[key]) groupMap[key] = { task_code: key, task_description: a.task_description || '', activities: [], total: 0 }
+        groupMap[key].activities.push(a)
+        groupMap[key].total += a.hours_spent || 0
+      }
+      const groups = Object.values(groupMap)
+      activityHtml = `<div class="section"><div class="section-title">Recent Activity</div>`
+      for (const g of groups) {
+        activityHtml += `<div style="margin-bottom:12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">`
+        activityHtml += `<div style="background:#f8fafc;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;">`
+        activityHtml += `<span><b style="color:#4f46e5;font-family:monospace;">${g.task_code}</b> &nbsp; ${g.task_description}</span>`
+        activityHtml += `<span><b>${g.total}h</b> (${g.activities.length} ${g.activities.length === 1 ? 'entry' : 'entries'})</span></div>`
+        activityHtml += buildTable(['Date', 'Description', 'Hours'],
+          g.activities.map(a => [fmtDate(a.activity_date), a.description || '—', `${a.hours_spent}h`])
+        )
+        activityHtml += `</div>`
+      }
+      activityHtml += `</div>`
     }
 
     const html = `<!DOCTYPE html><html><head><title>My Dashboard Report</title><style>
@@ -181,40 +198,97 @@ export default function MyDashboardPage() {
       </div>
 
       {/* Recent Activity */}
-      <div className="card">
-        <div className="text-[15px] font-semibold mb-3.5">Recent Activity</div>
-        {recent_activity.length === 0 ? (
-          <p className="text-sm text-slate-400">No recent activity entries</p>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Task</th>
-                <th>Description</th>
-                <th>Hours</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recent_activity.map((a) => (
-                <tr key={a.id}>
-                  <td className="text-xs whitespace-nowrap">{formatDate(a.activity_date)}</td>
-                  <td className="font-mono text-xs font-medium">{a.task_code}</td>
-                  <td className="max-w-[300px] truncate" title={a.description}>
-                    {a.description}
-                  </td>
-                  <td className="font-mono text-xs">{a.hours_spent}h</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <GroupedActivity activities={recent_activity} />
     </div>
   )
 }
 
 // --- Helper Components ---
+
+function GroupedActivity({ activities }) {
+  const [expanded, setExpanded] = useState({})
+
+  // Group activities by task_code
+  const grouped = useMemo(() => {
+    const map = {}
+    for (const a of activities) {
+      const key = a.task_code || 'Unknown'
+      if (!map[key]) {
+        map[key] = {
+          task_code: key,
+          task_description: a.task_description || a.description || '',
+          activities: [],
+          total_hours: 0,
+        }
+      }
+      map[key].activities.push(a)
+      map[key].total_hours += a.hours_spent || 0
+    }
+    // Sort groups by latest activity date (most recent first)
+    return Object.values(map).sort((a, b) => {
+      const dateA = a.activities[0]?.activity_date || ''
+      const dateB = b.activities[0]?.activity_date || ''
+      return dateB.localeCompare(dateA)
+    })
+  }, [activities])
+
+  const toggle = (code) => setExpanded((prev) => ({ ...prev, [code]: !prev[code] }))
+
+  // Auto-expand all groups on first render
+  useMemo(() => {
+    const init = {}
+    grouped.forEach((g) => { init[g.task_code] = true })
+    setExpanded(init)
+  }, [grouped.length])
+
+  if (activities.length === 0) {
+    return (
+      <div className="card">
+        <div className="text-[15px] font-semibold mb-3.5">Recent Activity</div>
+        <p className="text-sm text-slate-400">No recent activity entries</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card">
+      <div className="text-[15px] font-semibold mb-3.5">Recent Activity</div>
+      <div className="flex flex-col gap-2">
+        {grouped.map((group) => (
+          <div key={group.task_code} className="border border-slate-200 rounded-lg overflow-hidden">
+            {/* Group Header — clickable */}
+            <button
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+              onClick={() => toggle(group.task_code)}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-slate-400">{expanded[group.task_code] ? '▼' : '▶'}</span>
+                <span className="font-mono text-sm font-semibold text-indigo-600">{group.task_code}</span>
+                <span className="text-sm text-slate-600 truncate max-w-[300px]">{group.task_description}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500">{group.activities.length} {group.activities.length === 1 ? 'entry' : 'entries'}</span>
+                <span className="font-mono text-sm font-semibold text-slate-700">{group.total_hours}h</span>
+              </div>
+            </button>
+            {/* Activity Rows */}
+            {expanded[group.task_code] && (
+              <div className="divide-y divide-slate-100">
+                {group.activities.map((a) => (
+                  <div key={a.id} className="flex items-center px-4 py-2 text-sm">
+                    <span className="w-24 text-xs text-slate-500 whitespace-nowrap">{formatDate(a.activity_date)}</span>
+                    <span className="flex-1 text-slate-700 truncate" title={a.description}>{a.description}</span>
+                    <span className="font-mono text-xs text-slate-600 ml-4">{a.hours_spent}h</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function PriorityBadge({ priority }) {
   const cls = PRIORITY_COLORS[priority] || 'bg-slate-100 text-slate-600'

@@ -65,13 +65,19 @@ def _to_detail(t: models.Task) -> dict:
 
 
 def _generate_task_code(db: Session, sprint: models.Sprint | None) -> str:
+    """Generate the next task code using MAX of the numeric suffix.
+    Uses raw SQL with SUBSTRING (MSSQL-compatible) instead of COUNT
+    to avoid duplicate codes when tasks are deleted."""
     prefix = f"T{sprint.start_date.strftime('%y%m')}" if sprint else "T00000"
-    existing = (
-        db.query(models.Task)
-        .filter(models.Task.task_code.like(f"{prefix}%"))
-        .count()
-    )
-    return f"{prefix}{existing + 1:03d}"
+    prefix_len = len(prefix)
+    from sqlalchemy import text
+    result = db.execute(text(
+        "SELECT MAX(CAST(SUBSTRING(task_code, :plen + 1, LEN(task_code) - :plen) AS INT)) "
+        "FROM PRM_tasks WHERE task_code LIKE :pattern"
+    ), {"plen": prefix_len, "pattern": f"{prefix}%"})
+    max_seq = result.scalar()
+    next_seq = (max_seq or 0) + 1
+    return f"{prefix}{next_seq:03d}"
 
 
 def _notify_teams_async(task_id: int, assigned_by_name: str):
@@ -312,6 +318,16 @@ def update_task(
 
     for key, value in update_data.items():
         setattr(task, key, value)
+
+    # Auto-regenerate task code when sprint changes
+    if "sprint_id" in update_data and update_data["sprint_id"] != old_values.get("sprint_id"):
+        new_sprint = db.get(models.Sprint, task.sprint_id) if task.sprint_id else None
+        old_code = task.task_code
+        new_code = _generate_task_code(db, new_sprint)
+        task.task_code = new_code
+        if old_code != new_code:
+            update_data["task_code"] = new_code  # include in audit
+
     db.commit()
     db.refresh(task)
 

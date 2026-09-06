@@ -95,6 +95,7 @@ def my_summary(db: Session = Depends(get_db), current_user: models.User = Depend
             "id": a.id,
             "task_id": a.task_id,
             "task_code": a.task.task_code if a.task else None,
+            "task_description": a.task.description if a.task else None,
             "description": a.description,
             "hours_spent": a.hours_spent,
             "activity_date": a.activity_date.isoformat() if a.activity_date else None,

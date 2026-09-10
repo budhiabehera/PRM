@@ -10,6 +10,7 @@ from ..deps import get_management_excluded_roles
 from ..deps import get_visible_developer_ids
 from ..utils.calculations import net_capacity, get_working_days_for_sprint
 from .sprints import _sprint_with_stats
+from ..services.hour_allocation import get_proportional_hours_for_sprint, get_holiday_set
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
@@ -221,14 +222,25 @@ def monthly_utilization(db: Session = Depends(get_db), developer_id: int | None 
         over = healthy = idle = 0
         total_allocated = 0
         total_capacity = 0
+        holidays = get_holiday_set(db, s.start_date, s.end_date)
         for d in devs:
             task_filter = [t for t in d.tasks if t.sprint_id == s.id]
+            # Also include cross-month tasks assigned to other sprints but overlapping this one
+            cross_month_other = [t for t in d.tasks if t.sprint_id != s.id and t.is_cross_month
+                                  and t.start_date and t.end_date
+                                  and t.start_date <= s.end_date and t.end_date >= s.start_date]
             # Apply project access filter
             if allowed is not None:
                 task_filter = [t for t in task_filter if t.project_id in allowed]
+                cross_month_other = [t for t in cross_month_other if t.project_id in allowed]
             if project_id:
                 task_filter = [t for t in task_filter if t.project_id == project_id]
-            assigned = sum(t.estimated_hours for t in task_filter)
+                cross_month_other = [t for t in cross_month_other if t.project_id == project_id]
+            assigned = 0.0
+            for t in task_filter:
+                assigned += get_proportional_hours_for_sprint(t, s, holidays)
+            for t in cross_month_other:
+                assigned += get_proportional_hours_for_sprint(t, s, holidays)
             total_allocated += assigned
             total_capacity += d.base_capacity
             pct = (assigned / d.base_capacity * 100) if d.base_capacity else 0
@@ -484,6 +496,47 @@ def dashboard_all(
         alloc_q = alloc_q.group_by(models.Task.sprint_id)
         alloc_by_sprint = dict(alloc_q.all())
 
+        # --- Proportional adjustment for cross-month tasks ---
+        # Fetch cross-month tasks that overlap any sprint period
+        cross_month_q = db.query(models.Task).filter(
+            models.Task.start_date.isnot(None),
+            models.Task.end_date.isnot(None),
+            func.lower(func.ltrim(func.rtrim(models.Task.status))).notin_(planning_statuses_list),
+        )
+        if allowed is not None:
+            cross_month_q = cross_month_q.filter(models.Task.project_id.in_(allowed))
+        if project_id:
+            cross_month_q = cross_month_q.filter(models.Task.project_id == project_id)
+        if developer_id:
+            cross_month_q = cross_month_q.filter(models.Task.developer_id == developer_id)
+        cross_month_tasks = [t for t in cross_month_q.all() if t.is_cross_month]
+
+        if cross_month_tasks:
+            # Fetch holidays for the full date range
+            all_task_start = min(t.start_date for t in cross_month_tasks)
+            all_task_end = max(t.end_date for t in cross_month_tasks)
+            cm_holidays = get_holiday_set(db, all_task_start, all_task_end)
+
+            for t in cross_month_tasks:
+                full_hours = t.estimated_hours or 0.0
+                assigned_sprint_id = t.sprint_id
+
+                for s in all_sprints:
+                    proportional = get_proportional_hours_for_sprint(t, s, cm_holidays)
+
+                    if s.id == assigned_sprint_id:
+                        # This sprint already counted full hours via SQL SUM;
+                        # adjust by replacing full hours with proportional
+                        diff = proportional - full_hours
+                        alloc_by_sprint[s.id] = alloc_by_sprint.get(s.id, 0) + diff
+                    elif proportional > 0:
+                        # Task wasn't counted in this sprint by SQL; add proportional
+                        alloc_by_sprint[s.id] = alloc_by_sprint.get(s.id, 0) + proportional
+
+        # Ensure no negative allocations from rounding
+        for sid in alloc_by_sprint:
+            alloc_by_sprint[sid] = max(float(alloc_by_sprint[sid]), 0)
+
         # Batch: developers (no task join needed)
         dev_q = db.query(models.Developer).filter(
             models.Developer.active == True,  # noqa: E712
@@ -543,6 +596,23 @@ def dashboard_all(
         per_dev_alloc = defaultdict(dict)
         for row in per_dev_alloc_q.all():
             per_dev_alloc[row.sprint_id][row.developer_id] = float(row.hrs)
+
+        # Adjust per_dev_alloc for cross-month tasks
+        if cross_month_tasks:
+            dev_id_set = set(dev_ids)
+            for t in cross_month_tasks:
+                if not t.developer_id or t.developer_id not in dev_id_set:
+                    continue
+                full_hours = t.estimated_hours or 0.0
+                for s in all_sprints:
+                    proportional = get_proportional_hours_for_sprint(t, s, cm_holidays)
+                    did = t.developer_id
+                    if s.id == t.sprint_id:
+                        diff = proportional - full_hours
+                        per_dev_alloc[s.id][did] = per_dev_alloc.get(s.id, {}).get(did, 0) + diff
+                    elif proportional > 0:
+                        per_dev_alloc[s.id][did] = per_dev_alloc.get(s.id, {}).get(did, 0) + proportional
+                    per_dev_alloc[s.id][did] = max(per_dev_alloc[s.id].get(did, 0), 0)
 
         # Build capacity map {dev_id: base_capacity}
         dev_capacity = {d.id: d.base_capacity for d in devs}

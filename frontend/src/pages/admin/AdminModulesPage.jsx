@@ -92,9 +92,25 @@ export default function AdminModulesPage() {
         <button className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>+ Add Module</button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3.5 mb-6">
+      <div className="grid grid-cols-2 gap-3.5 mb-4">
         <KPICard label="Main Modules" value={allModules.length} />
         <KPICard label="Sub Modules" value={totalSubs} />
+      </div>
+
+      {/* Per-project module/sub-module counts */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 mb-6">
+        {filteredProjectTree.filter(p => p.project_id).map((proj) => {
+          const projSubs = proj.modules.reduce((acc, m) => acc + (m.sub_modules?.length || 0), 0)
+          return (
+            <div key={proj.project_id} className="bg-white border border-slate-200 rounded-xl px-4 py-3">
+              <div className="text-sm font-semibold text-slate-800">{proj.project_name}</div>
+              <div className="flex gap-4 mt-1.5 text-xs text-slate-500">
+                <span><span className="font-semibold text-indigo-600">{proj.modules.length}</span> modules</span>
+                <span><span className="font-semibold text-violet-600">{projSubs}</span> sub-modules</span>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {showForm && (

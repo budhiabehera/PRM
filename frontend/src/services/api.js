@@ -320,6 +320,24 @@ export const pmSprintSummary = (sprintId) => api.get('/pm/sprint-summary', { par
 export const pmDailyBrief = () => api.get('/pm/daily-brief').then(r => r.data)
 export const pmTeamReport = (params) => api.get('/pm/team-report', { params }).then(r => r.data)
 
+// ---------- Bulk Task Import ----------
+export const bulkImportPreview = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return api.post('/bulk-import/tasks/preview', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data)
+}
+export const bulkImportExecute = (file, rowsToImport = '') => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('rows_to_import', rowsToImport)
+  return api.post('/bulk-import/tasks/execute', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then(r => r.data)
+}
+export const downloadImportTemplate = () => api.get('/bulk-import/tasks/template', { responseType: 'blob' }).then(r => r.data)
+
 export default api
 
 // Role Data Scope

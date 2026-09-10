@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session, joinedload
 from datetime import date, timedelta
 from .. import models, schemas
 from ..database import get_db
-from ..deps import get_current_user, require_roles, get_user_project_ids
-from ..deps import get_visible_developer_ids
+from ..deps import get_current_user, require_roles, get_user_project_ids, _has_admin_page_access
+from ..deps import get_visible_developer_ids, _get_role_data_scope
 
 router = APIRouter(prefix="/api/availability", tags=["Availability"])
 
@@ -82,7 +82,11 @@ def upsert_availability(
     current_user: models.User = Depends(get_current_user),
 ):
     # Developers can only set leave for themselves
-    is_admin_or_lead = current_user.role in ("Admin", "Manager", "Lead")
+    is_admin_or_lead = (
+        current_user.role in ("Admin", "Manager", "Lead")
+        or _has_admin_page_access(current_user.role)
+        or _get_role_data_scope(current_user, db) in ("full", "team", "team_reports")
+    )
     if not is_admin_or_lead:
         # Non-admin users can only set leave for themselves
         if not current_user.developer_id:
@@ -135,7 +139,11 @@ def delete_availability(availability_id: int, db: Session = Depends(get_db),
     if not record:
         raise HTTPException(404, "Leave record not found")
     # Developers can only delete their own leave records
-    is_admin_or_lead = current_user.role in ("Admin", "Manager", "Lead")
+    is_admin_or_lead = (
+        current_user.role in ("Admin", "Manager", "Lead")
+        or _has_admin_page_access(current_user.role)
+        or _get_role_data_scope(current_user, db) in ("full", "team", "team_reports")
+    )
     if not is_admin_or_lead:
         if not current_user.developer_id or record.developer_id != current_user.developer_id:
             raise HTTPException(403, "You can only remove your own leave records.")

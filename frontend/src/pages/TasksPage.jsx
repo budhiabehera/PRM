@@ -16,12 +16,13 @@ import ConfirmDialog from '../components/common/ConfirmDialog'
 import TaskForm from '../components/forms/TaskForm'
 import { formatShortDate } from '../utils/formatters'
 import { PRIORITY_OPTIONS } from '../utils/constants'
-import { ChevronDown, ChevronRight, Search, Filter, Calendar, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Search, Filter, Calendar, X, Upload } from 'lucide-react'
 import TaskActivityPanel from '../components/TaskActivityPanel'
 import TaskAttachmentsPanel from '../components/TaskAttachmentsPanel'
 import TaskEngineeringPanel from '../components/TaskEngineeringPanel'
 import PresetBar from '../components/common/PresetBar'
 import useFilterPresets from '../hooks/useFilterPresets'
+import BulkImportModal from '../components/BulkImportModal'
 
 const KANBAN_COLUMNS = ['Not Started', 'In Progress', 'On Hold', 'Completed']
 
@@ -60,6 +61,7 @@ export default function TasksPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [bulkImportOpen, setBulkImportOpen] = useState(false)
   const showToast = (type, text) => {
     setToast({ type, text })
     setTimeout(() => setToast(null), 4000)
@@ -67,6 +69,9 @@ export default function TasksPage() {
 
   // Reset page when filters or search changes
   useEffect(() => { setPage(1) }, [filters, taskSearch, dateFrom, dateTo])
+
+  // Scroll to top when page changes
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }, [page])
 
   const params = useMemo(() => {
     const p = {}
@@ -88,7 +93,13 @@ export default function TasksPage() {
     // Search filter
     if (taskSearch.trim()) {
       const q = taskSearch.trim().toLowerCase()
-      list = list.filter((t) => (t.task_code || '').toLowerCase().includes(q))
+      list = list.filter((t) =>
+        (t.task_code || '').toLowerCase().includes(q) ||
+        (t.subject || '').toLowerCase().includes(q) ||
+        (t.case_ref || '').toLowerCase().includes(q) ||
+        (t.property_client || '').toLowerCase().includes(q) ||
+        (t.description || '').toLowerCase().includes(q)
+      )
     }
     // Date range filter (uses created_at or start_date)
     if (dateFrom) {
@@ -275,6 +286,12 @@ export default function TasksPage() {
               + Add Task
             </button>
           )}
+          {isLeadOrAbove(user) && (
+            <button className="btn btn-secondary flex items-center gap-1.5" onClick={() => setBulkImportOpen(true)}>
+              <Upload size={14} />
+              Import Tasks
+            </button>
+          )}
           <div className="flex gap-1 bg-slate-200 rounded-lg p-1">
             <button onClick={() => setView('list')} className={`px-3 py-1 rounded-md text-xs font-medium ${view === 'list' ? 'bg-white shadow-sm' : ''}`}>List</button>
             <button onClick={() => setView('kanban')} className={`px-3 py-1 rounded-md text-xs font-medium ${view === 'kanban' ? 'bg-white shadow-sm' : ''}`}>Kanban</button>
@@ -290,11 +307,11 @@ export default function TasksPage() {
 
       {/* Search bar + Filter toggle */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="relative flex-shrink-0 w-56">
+        <div className="relative flex-shrink-0 w-96">
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search Task ID..."
+            placeholder="Search ID / Subject / Case# / Property..."
             value={taskSearch}
             onChange={(e) => setTaskSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:ring-2 focus:ring-blue-500"
@@ -452,7 +469,16 @@ export default function TasksPage() {
                             </div>
                             <div>
                               <span className="text-slate-400 font-medium">Est. Hours</span>
-                              <div className="text-slate-700 mt-0.5">{t.estimated_hours}</div>
+                              <div className="text-slate-700 mt-0.5">
+                                {t.estimated_hours}h
+                                {t.hour_split && t.hour_split.splits && (
+                                  <span className="text-xs text-indigo-500 ml-1" title="Proportional hour split across months">
+                                    ({t.hour_split.splits.map((s, i) => (
+                                      <span key={i}>{i > 0 ? ', ' : ''}{s.month_short}: {s.hours}h</span>
+                                    ))})
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <div>
                               <span className="text-slate-400 font-medium">Actual Hours</span>
@@ -468,7 +494,14 @@ export default function TasksPage() {
                             </div>
                             <div>
                               <span className="text-slate-400 font-medium">Cross-Month</span>
-                              <div className="text-slate-700 mt-0.5">{t.is_cross_month ? 'Yes' : 'No'}</div>
+                              <div className="text-slate-700 mt-0.5">
+                                {t.is_cross_month ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <span className="text-amber-600 font-medium">Yes</span>
+                                    <span className="text-[10px] text-slate-400">(hours split proportionally)</span>
+                                  </span>
+                                ) : 'No'}
+                              </div>
                             </div>
                             <div>
                               <span className="text-slate-400 font-medium">Customer Committed</span>
@@ -670,6 +703,13 @@ export default function TasksPage() {
         message={`Delete task "${toDelete?.task_code}"?`}
         onConfirm={handleDelete}
         onCancel={() => setToDelete(null)}
+      />
+
+      {/* Bulk Import Modal */}
+      <BulkImportModal
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onImportComplete={refreshAll}
       />
     </div>
   )

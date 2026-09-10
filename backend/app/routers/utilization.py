@@ -7,6 +7,7 @@ from ..deps import get_current_user, get_user_project_ids
 from ..deps import get_management_excluded_roles
 from ..deps import get_visible_developer_ids
 from ..utils.calculations import net_capacity, utilization_status, get_working_days_for_sprint
+from ..services.hour_allocation import get_proportional_hours_for_sprint, get_holiday_set
 
 router = APIRouter(prefix="/api/utilization", tags=["Utilization"])
 
@@ -56,16 +57,33 @@ def utilization_grid(db: Session = Depends(get_db), developer_id: int | None = N
     # Pre-calculate working days per sprint
     sprint_working_days = {s.id: get_working_days_for_sprint(s.start_date, s.end_date, db) for s in sprints}
 
+    # Pre-fetch holidays covering all sprint date ranges for proportional allocation
+    all_start = min((s.start_date for s in sprints), default=None)
+    all_end = max((s.end_date for s in sprints), default=None)
+    holidays = get_holiday_set(db, all_start, all_end) if all_start and all_end else set()
+
     rows = []
     for d in devs:
         cells = []
         for s in sprints:
             leave_days = all_avail.get((d.id, s.id), 0)
             cap = net_capacity(d.base_capacity, leave_days, sprint_working_days[s.id])
-            sprint_tasks = [t for t in d.tasks if t.sprint_id == s.id]
+            # Collect tasks that either belong to this sprint OR overlap its date range (cross-month)
+            sprint_tasks = [t for t in d.tasks if t.sprint_id == s.id]  # direct assignment
+            # Also include cross-month tasks assigned to OTHER sprints but overlapping this one
+            cross_month_from_other = [t for t in d.tasks if t.sprint_id != s.id and t.is_cross_month
+                                       and t.start_date and t.end_date
+                                       and t.start_date <= s.end_date and t.end_date >= s.start_date]
             if allowed is not None:
-                sprint_tasks = [t for t in sprint_tasks if t.project_id in allowed]
-            allocated = sum(t.estimated_hours for t in sprint_tasks)
+                sprint_tasks = [t for t in sprint_tasks if t.project_id in (allowed or [])]
+                cross_month_from_other = [t for t in cross_month_from_other if t.project_id in (allowed or [])]
+            # Proportional allocation: cross-month tasks split hours across sprints
+            allocated = 0.0
+            for t in sprint_tasks:
+                allocated += get_proportional_hours_for_sprint(t, s, holidays)
+            for t in cross_month_from_other:
+                allocated += get_proportional_hours_for_sprint(t, s, holidays)
+            allocated = round(allocated, 1)
             pct = round((allocated / cap) * 100) if cap else 0
             cells.append({
                 "sprint_id": s.id,

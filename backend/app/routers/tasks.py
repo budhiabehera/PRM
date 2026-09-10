@@ -9,6 +9,7 @@ from ..services.notification_service import create_notification
 from ..deps import get_current_user, can_edit_task, can_delete_task, restrict_fields_for_developer
 from ..deps import STATUS_COMPLETED
 from ..services.audit_service import log_audit
+from ..services.hour_allocation import compute_hour_split_display, get_holiday_set
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 
@@ -56,6 +57,7 @@ def _to_detail(t: models.Task) -> dict:
         "repository_slug": t.repository.repo_slug if t.repository else None,
         "percent_complete": t.percent_complete,
         "is_cross_month": t.is_cross_month,
+        "hour_split": compute_hour_split_display(t),
         "created_at": t.created_at,
         "salesforce_case_id": t.salesforce_case_id,
         "blocked_by": _get_blocked_by(t),

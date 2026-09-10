@@ -28,6 +28,7 @@ from .routers import kb_categories
 from .routers import engineering
 from .routers import user_settings
 from .routers import alerts
+from .routers import bulk_import
 from .routers import pm_chat
 from .routers import dropdowns
 from .deps import get_current_user
@@ -105,6 +106,7 @@ app.include_router(alerts.router, dependencies=[protected])
 app.include_router(pm_chat.router, dependencies=[protected])
 app.include_router(org_hierarchy.router, dependencies=[protected])
 app.include_router(dropdowns.router, dependencies=[protected])
+app.include_router(bulk_import.router, dependencies=[protected])
 
 
 @app.on_event("startup")

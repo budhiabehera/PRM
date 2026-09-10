@@ -5,6 +5,7 @@ from ..database import get_db
 from ..deps import PLANNING_STATUSES, require_roles, get_current_user, get_user_project_ids
 from ..deps import get_management_excluded_roles, get_visible_developer_ids
 from ..utils.calculations import net_capacity, get_working_days_for_sprint
+from ..services.hour_allocation import get_proportional_hours_for_sprint, get_holiday_set
 
 router = APIRouter(prefix="/api/sprints", tags=["Sprints"])
 
@@ -36,7 +37,23 @@ def _sprint_with_stats(sprint: models.Sprint, db: Session, current_user: models.
     if visible_ids is not None:
         tasks = [t for t in tasks if t.developer_id in dev_ids]
 
-    alloc_hrs = sum(t.estimated_hours for t in tasks)
+    # Proportional allocation for cross-month tasks
+    holidays = get_holiday_set(db, sprint.start_date, sprint.end_date)
+    alloc_hrs = 0.0
+    for t in tasks:
+        alloc_hrs += get_proportional_hours_for_sprint(t, sprint, holidays)
+    # Also include cross-month tasks from OTHER sprints that overlap this sprint's dates
+    all_tasks_q = db.query(models.Task).filter(
+        models.Task.sprint_id != sprint.id,
+        models.Task.start_date.isnot(None), models.Task.end_date.isnot(None),
+        models.Task.start_date <= sprint.end_date, models.Task.end_date >= sprint.start_date,
+    )
+    if visible_ids is not None:
+        all_tasks_q = all_tasks_q.filter(models.Task.developer_id.in_(dev_ids))
+    for t in all_tasks_q.all():
+        if t.is_cross_month:
+            alloc_hrs += get_proportional_hours_for_sprint(t, sprint, holidays)
+    alloc_hrs = round(alloc_hrs, 1)
 
     # Batch-fetch all availability for this sprint (avoid per-developer queries)
     avail_map = {}
@@ -111,7 +128,12 @@ def list_sprints(db: Session = Depends(get_db),
                               and (t.status or '').lower().strip() not in PLANNING_STATUSES
                               and (visible_ids is None or t.developer_id in (visible_ids or []))]
             stats["task_count"] = len(filtered_tasks)
-            stats["allocated_hours"] = sum(t.estimated_hours for t in filtered_tasks)
+            # Proportional allocation for cross-month tasks
+            holidays = get_holiday_set(db, s.start_date, s.end_date)
+            alloc = 0.0
+            for t in filtered_tasks:
+                alloc += get_proportional_hours_for_sprint(t, s, holidays)
+            stats["allocated_hours"] = round(alloc, 1)
             stats["utilization_pct"] = round((stats["allocated_hours"] / stats["net_capacity"]) * 100, 1) if stats["net_capacity"] else 0
             stats["tasks_by_project"] = _tasks_by_project(filtered_tasks)
         results.append(stats)

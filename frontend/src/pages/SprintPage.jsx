@@ -75,7 +75,10 @@ export default function SprintPage() {
             <h3 className="text-lg font-bold mb-1">Sprint: {activeSprint.name}</h3>
             <p className="text-xs opacity-85">
               {formatShortDate(activeSprint.start_date)} – {formatShortDate(activeSprint.end_date)} ·{' '}
-              <span title="Total tasks assigned to this sprint">{activeSprint.task_count} tasks</span> · <span title="Sum of estimated_hours for all tasks in this sprint">{formatNumber(activeSprint.allocated_hours)} hrs allocated</span>
+              <span title="Total tasks assigned to this sprint">{activeSprint.task_count} tasks</span> ·{' '}
+              <span title="Allocated hours (proportionally split for cross-month tasks)">
+                {formatNumber(activeSprint.allocated_hours)} hrs allocated
+              </span>
             </p>
           </div>
           <div className="text-right">
@@ -120,7 +123,14 @@ export default function SprintPage() {
                   <td>{t.work_type_name || '—'}</td>
                   <td><PriorityBadge priority={t.priority} /></td>
                   <td><StatusBadge status={t.status} /></td>
-                  <td>{t.estimated_hours}</td>
+                  <td>
+                    {t.estimated_hours}
+                    {t.is_cross_month && t.hour_split && (
+                      <span className="text-[10px] text-amber-500 ml-0.5" title={`Proportional split: ${t.hour_split.splits?.map(s => `${s.month_short}: ${s.hours}h`).join(', ')}`}>
+                        ⊘
+                      </span>
+                    )}
+                  </td>
                   <td>{t.actual_hours}</td>
                   <td>{t.percent_complete}%</td>
                 </tr>

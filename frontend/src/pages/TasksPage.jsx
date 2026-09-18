@@ -4,7 +4,7 @@ import useDropdowns from '../hooks/useDropdowns'
 import useProjectDefault from '../hooks/useProjectDefault'
 import useAppStore from '../store/useAppStore'
 import useAuthStore, { isSelfOnly, canEditTask, canDeleteTask, canCreateTask, isLeadOrAbove } from '../store/useAuthStore'
-import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests, createBranchForTask, getLinkedRepositories } from '../services/api'
+import { getTasks, createTask, updateTask, deleteTask, notifyTeamsForTask, getTaskDependencies, addTaskDependency, removeTaskDependency, getCommits, getPullRequests, createBranchForTask, getLinkedRepositories, getRepoBranches } from '../services/api'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -53,6 +53,12 @@ export default function TasksPage() {
   const [expandedRow, setExpandedRow] = useState(null)
   const [dragOverCol, setDragOverCol] = useState(null)
   const [expandedDeps, setExpandedDeps] = useState({}) // { taskId: [dep objects] }
+
+  // Branch creation modal state
+  const [branchTask, setBranchTask] = useState(null)
+  const [branchForm, setBranchForm] = useState({ repo_id: '', source_branch: '', prefix: 'feature' })
+  const [branchBranches, setBranchBranches] = useState([])
+  const [branchLoading, setBranchLoading] = useState(false)
 
   // Pagination & search
   const [page, setPage] = useState(1)
@@ -178,12 +184,48 @@ export default function TasksPage() {
     }
   }
 
-  const handleCreateBranch = async (task) => {
+  const handleCreateBranch = (task) => {
+    // Filter repos linked to this task's project
+    const projectRepos = (linkedRepos || []).filter(r => r.project_id === task.project_id)
+    if (projectRepos.length === 0) {
+      showToast('error', 'No linked repository found for this task\'s project. Link a repo first.')
+      return
+    }
+    setBranchTask(task)
+    setBranchForm({ repo_id: projectRepos.length === 1 ? projectRepos[0].id : '', source_branch: '', prefix: 'feature' })
+    setBranchBranches([])
+    // If only one repo, auto-load its branches
+    if (projectRepos.length === 1) {
+      getRepoBranches(projectRepos[0].id).then(res => setBranchBranches(res.branches || [])).catch(() => {})
+    }
+  }
+
+  const handleBranchRepoChange = async (repoId) => {
+    setBranchForm(f => ({ ...f, repo_id: repoId, source_branch: '' }))
+    setBranchBranches([])
+    if (repoId) {
+      try {
+        const res = await getRepoBranches(Number(repoId))
+        setBranchBranches(res.branches || [])
+      } catch { /* ignore */ }
+    }
+  }
+
+  const handleConfirmCreateBranch = async () => {
+    if (!branchTask || !branchForm.repo_id) return
+    setBranchLoading(true)
     try {
-      const res = await createBranchForTask(task.id)
+      const res = await createBranchForTask(branchTask.id, {
+        repo_id: Number(branchForm.repo_id),
+        source_branch: branchForm.source_branch || undefined,
+        prefix: branchForm.prefix || 'feature',
+      })
       showToast('success', `Branch created: ${res.branch_name} in ${res.repo_slug}`)
+      setBranchTask(null)
     } catch (err) {
       showToast('error', err.response?.data?.detail || 'Could not create branch.')
+    } finally {
+      setBranchLoading(false)
     }
   }
 
@@ -717,6 +759,77 @@ export default function TasksPage() {
         onClose={() => setBulkImportOpen(false)}
         onImportComplete={refreshAll}
       />
+
+      {/* Create Branch Modal */}
+      <Modal open={!!branchTask} title={`Create Branch — ${branchTask?.task_code || ''}`} onClose={() => setBranchTask(null)}>
+        {branchTask && (() => {
+          const projectRepos = (linkedRepos || []).filter(r => r.project_id === branchTask.project_id)
+          return (
+            <div className="space-y-4">
+              {/* Repository Selector */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Repository <span className="text-red-500">*</span></label>
+                {projectRepos.length === 1 ? (
+                  <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-800">
+                    {projectRepos[0].repo_name || projectRepos[0].repo_slug}
+                  </div>
+                ) : (
+                  <select
+                    className="input w-full"
+                    value={branchForm.repo_id}
+                    onChange={e => handleBranchRepoChange(e.target.value)}
+                  >
+                    <option value="">— Select repository —</option>
+                    {projectRepos.map(r => (
+                      <option key={r.id} value={r.id}>{r.repo_name || r.repo_slug}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Source Branch */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Source Branch</label>
+                <select
+                  className="input w-full"
+                  value={branchForm.source_branch}
+                  onChange={e => setBranchForm(f => ({ ...f, source_branch: e.target.value }))}
+                  disabled={!branchForm.repo_id}
+                >
+                  <option value="">Default ({branchBranches.length ? 'select one' : 'repo default'})</option>
+                  {branchBranches.map(b => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Branch Prefix */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Branch Prefix</label>
+                <select
+                  className="input w-full"
+                  value={branchForm.prefix}
+                  onChange={e => setBranchForm(f => ({ ...f, prefix: e.target.value }))}
+                >
+                  <option value="feature">feature</option>
+                  <option value="bugfix">bugfix</option>
+                  <option value="hotfix">hotfix</option>
+                  <option value="release">release</option>
+                </select>
+              </div>
+
+              <div className="text-xs text-slate-500">
+                Branch name: <strong>{branchForm.prefix}/{branchTask.task_code}-...</strong>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button className="btn btn-secondary" onClick={() => setBranchTask(null)}>Cancel</button>
+                <button className="btn btn-primary" disabled={!branchForm.repo_id || branchLoading} onClick={handleConfirmCreateBranch}>{branchLoading ? 'Creating...' : 'Create Branch'}</button>
+              </div>
+            </div>
+          )
+        })()}
+      </Modal>
     </div>
   )
 }

@@ -68,6 +68,9 @@ class IntegrationSettings(Base):
     hours_check_time = Column(String(10), default="22:00")
     management_excluded_roles = Column(Text, default="SVP-Product,AVP-Product,Product Manager")
 
+    # Deduplication: prevents the daily hours check from running multiple times for the same date
+    last_hours_check_date = Column(Date, nullable=True)
+
 class User(Base):
     """Login account. Roles: Admin, Manager, Lead, Developer.
     Optionally linked to a Developer record (so a Lead/Developer's task

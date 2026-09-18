@@ -128,6 +128,7 @@ _NEW_COLUMNS += [
     ("PRM_integration_settings", "daily_hours_threshold", "FLOAT DEFAULT 8.0"),
     ("PRM_integration_settings", "hours_check_time", "VARCHAR(10) DEFAULT '22:00'"),
     ("PRM_integration_settings", "management_excluded_roles", "VARCHAR(500) DEFAULT 'SVP-Product,AVP-Product,Product Manager'"),
+    ("PRM_integration_settings", "last_hours_check_date", "DATE NULL"),
 ]
 
 

@@ -68,7 +68,8 @@ export default function TasksPage() {
   }
 
   // Reset page when filters or search changes
-  useEffect(() => { setPage(1) }, [filters, taskSearch, dateFrom, dateTo])
+  const filtersKey = JSON.stringify(filters)
+  useEffect(() => { setPage(1) }, [filtersKey, taskSearch, dateFrom, dateTo])
 
   // Scroll to top when page changes
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }, [page])
@@ -375,7 +376,12 @@ export default function TasksPage() {
             }
           />
         )}
-        <FilterSelect label="Status" value={filters.status} onChange={setFilter('status')} options={(taskStatuses || []).map((s) => s.name)} />
+        <FilterSelect label="Status" value={filters.status} onChange={setFilter('status')}
+          options={[...new Set([
+            ...(taskStatuses || []).map((s) => s.name),
+            ...(tasks || []).map((t) => t.status).filter(Boolean),
+          ])].sort()}
+        />
         <FilterSelect label="Priority" value={filters.priority} onChange={setFilter('priority')} options={PRIORITY_OPTIONS} />
         <FilterSelect label="Work Type" value={filters.work_type_id} onChange={setFilter('work_type_id')}
           options={workTypes.map((w) => ({ value: w.id, label: w.name }))} />

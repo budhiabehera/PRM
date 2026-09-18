@@ -223,6 +223,7 @@ export const getTimeVarianceReport = (params) => api.get('/reports/time-variance
 
 // ---------- Time Logs ----------
 export const getTimeLogs = (params) => api.get('/time-logs', { params }).then(r => r.data)
+export const getMyTasksWithHistory = (params) => api.get('/time-logs/my-tasks-with-history', { params }).then(r => r.data)
 export const createTimeLog = (data) => api.post('/time-logs', data).then(r => r.data)
 export const updateTimeLog = (id, data) => api.put(`/time-logs/${id}`, data).then(r => r.data)
 export const deleteTimeLog = (id) => api.delete(`/time-logs/${id}`)

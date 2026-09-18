@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { getTimeLogs, createTimeLog, updateTimeLog, deleteTimeLog, getTasks, getDailySummary, triggerHoursCheck } from '../services/api'
+import { getTimeLogs, createTimeLog, updateTimeLog, deleteTimeLog, getTasks, getMyTasksWithHistory, getDailySummary, triggerHoursCheck } from '../services/api'
 import { ChevronLeft, ChevronRight, Save, MessageSquare, X, Clock, Users, Send } from 'lucide-react'
 import useAuthStore, { isManagerOrAbove, isSelfOnly } from '../store/useAuthStore'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -50,6 +50,7 @@ export default function TimeLogPage() {
   const [weekStart, setWeekStart] = useState(() => getSunday(new Date()))
   const [timeLogs, setTimeLogs] = useState([])
   const [tasks, setTasks] = useState([])
+  const [reassignedTaskIds, setReassignedTaskIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
@@ -77,12 +78,31 @@ export default function TimeLogPage() {
   // Load tasks assigned to the current user
   const loadTasks = useCallback(async () => {
     try {
-      const data = await getTasks({ developer_id: user?.developer_id })
-      setTasks(data)
+      // Fetch tasks with history — includes reassigned tasks that have activity hours
+      const data = await getMyTasksWithHistory({ date_from: dateFrom, date_to: dateTo })
+      const reassignedIds = new Set()
+      const taskList = data.map(item => {
+        const t = item.task
+        if (item.is_reassigned) {
+          reassignedIds.add(t.id)
+          // Attach current assignee info for tooltip
+          t._currentAssignee = item.current_assignee || 'Unassigned'
+        }
+        return t
+      })
+      // Sort: assigned tasks first, then reassigned tasks
+      taskList.sort((a, b) => {
+        const aReassigned = reassignedIds.has(a.id) ? 1 : 0
+        const bReassigned = reassignedIds.has(b.id) ? 1 : 0
+        return aReassigned - bReassigned
+      })
+      setTasks(taskList)
+      setReassignedTaskIds(reassignedIds)
     } catch {
       setTasks([])
+      setReassignedTaskIds(new Set())
     }
-  }, [user?.developer_id])
+  }, [user?.developer_id, dateFrom, dateTo])
 
   // Load time logs for current week
   const loadTimeLogs = useCallback(async () => {
@@ -416,11 +436,21 @@ export default function TimeLogPage() {
               </tr>
             </thead>
             <tbody>
-              {tasks.map((task) => (
-                <tr key={task.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+              {tasks.map((task) => {
+                const isReassigned = reassignedTaskIds.has(task.id)
+                return (
+                <tr key={task.id} className={`border-b border-slate-100 ${isReassigned ? 'bg-orange-50/60 hover:bg-orange-100/60' : 'hover:bg-slate-50/50'}`}>
                   <td className="px-4 py-2">
-                    <div className="font-medium text-slate-700 text-xs">{task.task_code}</div>
-                    <div className="text-[11px] text-slate-500 truncate max-w-[220px]" title={task.description}>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`font-medium text-xs ${isReassigned ? 'text-orange-700' : 'text-slate-700'}`}>{task.task_code}</span>
+                      {isReassigned && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-orange-200 text-orange-800"
+                              title={`Reassigned to ${task._currentAssignee || 'another user'}`}>
+                          ↗ {task._currentAssignee || 'Reassigned'}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-[11px] truncate max-w-[220px] ${isReassigned ? 'text-orange-600/70' : 'text-slate-500'}`} title={task.description}>
                       {task.description}
                     </div>
                   </td>
@@ -432,7 +462,7 @@ export default function TimeLogPage() {
                       <td key={dayIndex} className="px-1 py-2 text-center">
                         <div className="w-16 text-center text-xs py-1.5 px-1">
                           <span className={`font-mono ${
-                            (cellData?.hours || 0) > 0 ? 'text-slate-800 font-semibold' : 'text-slate-300'
+                            (cellData?.hours || 0) > 0 ? (isReassigned ? 'text-orange-700 font-semibold' : 'text-slate-800 font-semibold') : 'text-slate-300'
                           }`}>
                             {cellData?.hours || 0}
                           </span>
@@ -449,7 +479,8 @@ export default function TimeLogPage() {
                     </span>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
             <tfoot>
               <tr className="bg-indigo-50/40 border-t border-slate-200">

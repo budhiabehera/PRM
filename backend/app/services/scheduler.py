@@ -23,8 +23,8 @@ import tempfile
 from datetime import datetime, timezone, timedelta
 
 IST = timezone(timedelta(hours=5, minutes=30))
-TARGET_HOUR = 22   # 10 PM IST
-TARGET_MINUTE = 0
+DEFAULT_TARGET_HOUR = 22   # 10 PM IST (fallback if DB not configured)
+DEFAULT_TARGET_MINUTE = 0
 
 # File-based lock to prevent multiple workers from running the scheduler
 LOCK_FILE = os.path.join(tempfile.gettempdir(), "prm_hours_check_scheduler.lock")
@@ -58,17 +58,39 @@ def _acquire_scheduler_lock():
                 return False
 
 
+def _get_scheduled_time():
+    """Read hours_check_time from IntegrationSettings (e.g. '22:00').
+    Returns (hour, minute). Falls back to DEFAULT_TARGET_HOUR/MINUTE."""
+    try:
+        from ..database import SessionLocal
+        db = SessionLocal()
+        try:
+            from .. import models
+            settings = db.query(models.IntegrationSettings).filter(
+                models.IntegrationSettings.id == 1
+            ).first()
+            if settings and getattr(settings, "hours_check_time", None):
+                parts = settings.hours_check_time.strip().split(":")
+                return int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[HOURS CHECK SCHEDULER] Could not read hours_check_time from DB: {e}")
+    return DEFAULT_TARGET_HOUR, DEFAULT_TARGET_MINUTE
+
+
 def _daily_hours_check_loop():
     """Background thread that sleeps until 10 PM IST, runs the check, then repeats."""
     while True:
         try:
+            target_hour, target_minute = _get_scheduled_time()
             now = datetime.now(IST)
-            # Calculate next 10 PM IST
-            target = now.replace(hour=TARGET_HOUR, minute=TARGET_MINUTE, second=0, microsecond=0)
+            # Calculate next scheduled time in IST
+            target = now.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)
             if now >= target:
                 target += timedelta(days=1)
             sleep_seconds = (target - now).total_seconds()
-            print(f"[HOURS CHECK SCHEDULER] Next run at {target.strftime('%Y-%m-%d %H:%M IST')} "
+            print(f"[HOURS CHECK SCHEDULER] Next run at {target.strftime('%Y-%m-%d %H:%M IST')} (configured: {target_hour:02d}:{target_minute:02d}) "
                   f"(sleeping {sleep_seconds:.0f}s / {sleep_seconds/3600:.1f}h)")
             time.sleep(sleep_seconds)
 
@@ -115,5 +137,6 @@ def start_hours_check_scheduler():
 
     thread = threading.Thread(target=_daily_hours_check_loop, daemon=True, name="daily-hours-check")
     thread.start()
+    target_h, target_m = _get_scheduled_time()
     print(f"[HOURS CHECK SCHEDULER] Background thread started (PID {os.getpid()}). "
-          f"Will check hours at {TARGET_HOUR}:{TARGET_MINUTE:02d} IST daily.")
+          f"Will check hours at {target_h:02d}:{target_m:02d} IST daily (reads from DB settings).")

@@ -197,7 +197,7 @@ def _get_smtp_settings(db: Session) -> Optional[dict]:
     }
 
 
-def run_daily_hours_check(db: Session, check_date: date = None) -> dict:
+def run_daily_hours_check(db: Session, check_date: date = None, force: bool = False) -> dict:
     """
     Main function: check all active developers' hours for the day.
     Sends email reminders to developers who logged < 8 hours.
@@ -225,6 +225,24 @@ def run_daily_hours_check(db: Session, check_date: date = None) -> dict:
         "holiday_name": None,
         "details": [],
     }
+
+    # --- Deduplication: skip if already ran for this date ---
+    settings = db.query(models.IntegrationSettings).filter(
+        models.IntegrationSettings.id == 1
+    ).first()
+    if not force and settings:
+        last_check = getattr(settings, "last_hours_check_date", None)
+        if last_check and last_check == check_date:
+            result["skipped"] = "already_run"
+            print(f"[HOURS CHECK] Skipping — already ran for {check_date}")
+            return result
+
+    # Mark this date as checked (do it early to prevent race conditions)
+    if settings:
+        settings.last_hours_check_date = check_date
+        db.commit()
+    else:
+        print("[HOURS CHECK] Warning: IntegrationSettings row not found, skipping dedup stamp")
 
     # --- Check if today is a holiday ---
     holiday_flag, holiday_name = is_holiday(db, check_date)

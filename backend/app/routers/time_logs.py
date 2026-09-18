@@ -114,6 +114,85 @@ def list_time_logs(
     return result
 
 
+@router.get("/my-tasks-with-history")
+def my_tasks_with_history(
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return tasks currently assigned to the user PLUS tasks they have
+    activity hours for in the given date range (even if reassigned to
+    someone else). Each task includes an `is_reassigned` flag."""
+    if not current_user.developer_id:
+        return []
+
+    dev_id = current_user.developer_id
+
+    # 1) Tasks currently assigned to this developer
+    assigned_tasks = (
+        db.query(models.Task)
+        .options(
+            joinedload(models.Task.project),
+            joinedload(models.Task.developer),
+        )
+        .filter(models.Task.developer_id == dev_id)
+        .all()
+    )
+    assigned_ids = {t.id for t in assigned_tasks}
+
+    # 2) Task IDs where this developer has activity in the date range
+    act_q = (
+        db.query(models.TaskActivity.task_id)
+        .filter(models.TaskActivity.developer_id == dev_id)
+    )
+    if date_from:
+        act_q = act_q.filter(models.TaskActivity.activity_date >= date_from)
+    if date_to:
+        act_q = act_q.filter(models.TaskActivity.activity_date <= date_to)
+    activity_task_ids = {r[0] for r in act_q.distinct().all()}
+
+    # 3) Fetch any tasks with activity that are NOT currently assigned
+    extra_ids = activity_task_ids - assigned_ids
+    extra_tasks = []
+    if extra_ids:
+        extra_tasks = (
+            db.query(models.Task)
+            .options(
+                joinedload(models.Task.project),
+                joinedload(models.Task.developer),
+            )
+            .filter(models.Task.id.in_(extra_ids))
+            .all()
+        )
+
+    result = []
+    for t in assigned_tasks:
+        result.append({"task": _task_to_dict(t), "is_reassigned": False})
+    for t in extra_tasks:
+        current_dev = t.developer
+        result.append({
+            "task": _task_to_dict(t),
+            "is_reassigned": True,
+            "current_assignee": current_dev.name if current_dev else "Unassigned",
+        })
+
+    return result
+
+
+def _task_to_dict(t):
+    """Minimal task serialization for time-log grid."""
+    return {
+        "id": t.id,
+        "task_code": t.task_code,
+        "description": t.description,
+        "status": t.status,
+        "developer_id": t.developer_id,
+        "developer_name": t.developer.name if t.developer else None,
+        "project_name": t.project.name if t.project else None,
+    }
+
+
 @router.post("", status_code=201)
 def create_time_log(
     payload: schemas.TimeLogCreate,
@@ -222,12 +301,14 @@ def daily_summary(
 @router.post("/check-hours")
 def check_hours(
     date: Optional[str] = Query(None, description="Date in YYYY-MM-DD format. Defaults to today (IST)."),
+    force: bool = Query(False, description="If true, bypass deduplication and re-run even if already sent today."),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_roles("Admin", "Manager")),
 ):
     """
     Manually trigger the daily hours check and send reminder emails.
     Admin/Manager only. Checks all active developers and emails those under 8 hours.
+    Pass force=true to send emails even if they were already sent for this date.
     """
     from ..services.daily_hours_check import get_today_ist
 
@@ -241,7 +322,7 @@ def check_hours(
     else:
         check_date = get_today_ist()
 
-    return run_daily_hours_check(db, check_date)
+    return run_daily_hours_check(db, check_date, force=force)
 
 
 @router.post("/schedule-check")
